@@ -1,0 +1,242 @@
+.sidebar {
+  width: 260px;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 70px); /* 70px is navbar height */
+  position: sticky;
+  top: 70px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
+  flex-shrink: 0;
+}
+
+.collapsed {
+  width: 80px;
+}
+
+.collapsed .text,
+.collapsed .chevron,
+.collapsed .subMenu,
+.collapsed .footer span {
+  display: none;
+}
+
+.collapsed .menuItem {
+  justify-content: center;
+  padding: 0.875rem 0;
+}
+
+.collapsed .icon {
+  margin: 0;
+}
+
+.nav {
+  flex: 1;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.nav::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.menuList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius);
+  color: var(--sidebar-color);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.menuItem:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--sidebar-color-active);
+}
+
+.menuItem.active {
+  background-color: var(--primary);
+  color: white;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer {
+  padding: 1.5rem 1rem;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem;
+  background: transparent;
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-color);
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logoutBtn:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
+[data-theme='dark'] .logoutBtn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* HR dropdown button */
+.menuItemBtn {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.chevron {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  color: var(--sidebar-color);
+  transition: transform 0.25s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Sub-menu container with smooth slide-down */
+.subMenu {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.35s ease;
+}
+
+.subMenuOpen {
+  max-height: 1200px;
+}
+
+.subMenuList {
+  list-style: none;
+  padding: 0.25rem 0 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-left: 2px solid var(--sidebar-border);
+  margin: 0.25rem 0 0.25rem 1.5rem;
+}
+
+.subMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius);
+  color: var(--sidebar-color);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.subMenuItem:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--sidebar-color-active);
+}
+
+.subMenuItemActive {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.subIcon {
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+}
+
+.groupContainer {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.groupHeader {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #9ca3af;
+  padding: 0.5rem 1rem 0.25rem;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--sidebar-border);
+  margin-bottom: 0.25rem;
+}
+
+.groupList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    width: 260px !important;
+    height: calc(100vh - 70px);
+    z-index: 999;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+  }
+
+  .collapsed {
+    transform: translateX(-100%);
+  }
+
+  /* Force elements to show when sidebar drawer is open */
+  .sidebar:not(.collapsed) .text,
+  .sidebar:not(.collapsed) .chevron,
+  .sidebar:not(.collapsed) .subMenu,
+  .sidebar:not(.collapsed) .footer span {
+    display: inline-block !important;
+  }
+
+  .sidebar:not(.collapsed) .menuItem {
+    justify-content: flex-start !important;
+    padding: 0.875rem 1rem !important;
+  }
+
+  .sidebar:not(.collapsed) .icon {
+    margin-right: 0 !important;
+  }
+}

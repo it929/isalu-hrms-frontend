@@ -1,0 +1,321 @@
+/* Loan Types Setup Styling */
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-family: inherit;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Two-column layout */
+.mainGrid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card design */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.cardHeader {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cardTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.cardBody {
+  padding: 1.5rem;
+}
+
+/* Form Styles */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  border: none;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btnSecondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.btnSecondary:hover {
+  background: var(--background);
+}
+
+.btnPrimary {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+}
+
+.btnPrimary:hover {
+  background: var(--primary-dark, #2563eb);
+}
+
+.btnPrimary:disabled,
+.btnSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Table styles */
+.tableContainer {
+  width: 100%;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.table th {
+  background: var(--background);
+  padding: 0.875rem 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.table tr:hover {
+  background-color: var(--background);
+}
+
+.typeName {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.rowActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionBtnEdit:hover {
+  color: var(--primary, #3b82f6);
+  border-color: var(--primary, #3b82f6);
+  background: var(--primary-light, #eff6ff);
+}
+
+.actionBtnDelete:hover {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background: #fee2e2;
+}
+
+.emptyState {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.emptyIcon {
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Toast styling */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: 10px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  color: #fff;
+  z-index: 9999;
+}
+
+.toastSuccess {
+  background: #10b981;
+}
+
+.toastError {
+  background: #ef4444;
+}
+
+/* Custom Confirm Modal Styling */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.modalCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  padding: 1.5rem;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.modalIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.modalTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modalBody {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  padding-left: 0.25rem;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btnDanger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btnDanger:hover {
+  background: #dc2626;
+}

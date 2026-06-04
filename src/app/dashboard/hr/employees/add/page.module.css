@@ -1,0 +1,445 @@
+/* ── Page Shell ── */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.75rem;
+}
+
+.pageTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.pageSubtitle {
+  color: var(--secondary);
+  font-size: 0.9rem;
+}
+
+/* ── Form Card ── */
+.formCard {
+  margin-bottom: 2rem;
+}
+
+.formCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--primary);
+}
+
+.formCardHeader h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--secondary);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.closeBtn:hover {
+  background: var(--surface-hover);
+  color: #ef4444;
+}
+
+/* ── Fieldset Sections ── */
+.section {
+  border: none;
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+}
+
+.legend {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary);
+  padding: 0 0.25rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+/* ── Grid Layout ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem 1.5rem;
+}
+
+/* ── Fields ── */
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--secondary, #64748b);
+}
+
+.input {
+  padding: 0.95rem 1rem;
+  border-radius: 0.75rem;
+  border: 2px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  outline: none;
+  width: 100%;
+  min-height: 54px;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--primary);
+  background: var(--background);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.inputError {
+  border-color: #ef4444 !important;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 54px;
+  padding: 0.95rem 1rem;
+}
+
+.errorMsg {
+  color: #ef4444;
+  font-size: 0.75rem;
+}
+
+/* ── Select wrapper ── */
+.selectWrap {
+  position: relative;
+}
+
+.selectWrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2rem;
+}
+
+.selectIcon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--secondary);
+}
+
+/* ── Form Footer ── */
+.formFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.btnSecondary {
+  padding: 0.6rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btnSecondary:hover {
+  background: var(--surface-hover);
+}
+
+.btnPrimary {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.95rem;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--radius);
+  color: white;
+  font-weight: 600;
+  z-index: 1000;
+  box-shadow: var(--shadow);
+  animation: slideIn 0.3s ease;
+}
+
+.toastSuccess { background: #10b981; }
+.toastError   { background: #ef4444; }
+
+@keyframes slideIn {
+  from { transform: translateX(100px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+/* ── Table Card ── */
+.tableCard {
+  padding: 1.5rem;
+}
+
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tableHeader h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.searchWrap {
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--secondary);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding: 0.55rem 0.875rem 0.55rem 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  width: 280px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.searchInput:focus {
+  border-color: var(--primary);
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.table th {
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid var(--border);
+  color: var(--secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.table tr:hover td {
+  background: var(--surface-hover);
+}
+
+.nameCell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.emptyRow {
+  text-align: center;
+  color: var(--secondary);
+  padding: 2.5rem 1rem !important;
+}
+
+/* ─── Tabs Navigation ─── */
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tabBtn:hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.activeTabBtn {
+  color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 12%, transparent) !important;
+}
+
+/* ─── Drag and Drop Upload Zone ─── */
+.uploadZone {
+  border: 2px dashed var(--border);
+  border-radius: 16px;
+  padding: 3.5rem 2rem;
+  text-align: center;
+  background: color-mix(in srgb, var(--background) 40%, transparent);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.uploadZoneActive {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.uploadZone svg {
+  color: var(--secondary);
+  opacity: 0.7;
+}
+
+.uploadZoneTitle {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.uploadZoneDesc {
+  font-size: 0.825rem;
+  color: var(--secondary);
+  margin: 0;
+}
+
+.fileInput {
+  display: none;
+}
+
+.btnDownloadTemplate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  text-decoration: underline;
+  padding: 0;
+  margin-top: 0.25rem;
+}
+
+.btnDownloadTemplate:hover {
+  opacity: 0.8;
+}
+
+/* Warnings and Logs */
+.warningCard {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #78350f;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.825rem;
+}
+
+.dark .warningCard {
+  background: #1e1b10;
+  border-color: #453008;
+  color: #fef3c7;
+}
+
+.warningCard h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.warningList {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.warningList li {
+  margin-bottom: 0.25rem;
+}
+
+.spinner {
+  animation: spin 0.9s linear infinite;
+  color: var(--primary);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

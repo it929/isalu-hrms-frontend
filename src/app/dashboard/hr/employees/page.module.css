@@ -1,0 +1,566 @@
+/* ── Header ── */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pageTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.pageSubtitle {
+  color: var(--secondary);
+  font-size: 0.9rem;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--primary);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.addBtn:hover {
+  background: var(--primary-hover);
+}
+
+.addBtn:active {
+  transform: scale(0.98);
+}
+
+/* ── Stats Row ── */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.statIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.statValue {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  color: var(--secondary);
+}
+
+/* ── Table Card ── */
+.tableCard {
+  padding: 1.5rem;
+}
+
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tableHeader h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.searchWrap {
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--secondary);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding: 0.55rem 0.875rem 0.55rem 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  width: 280px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.searchInput:focus {
+  border-color: var(--primary);
+}
+
+/* ── Table ── */
+.tableScroll {
+  overflow-x: auto;
+  width: 100%;
+  border-radius: var(--radius);
+  /* Custom Scrollbar for better look */
+}
+
+.tableScroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: var(--surface-hover);
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+.tableScroll::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}
+
+.table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.table th {
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid var(--border);
+  color: var(--secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.tableRow:hover td {
+  background: var(--surface-hover);
+}
+
+.nameCell {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.genderTag {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.male {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.female {
+  background: rgba(236, 72, 153, 0.1);
+  color: #ec4899;
+}
+
+.viewBtn {
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--secondary);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.viewBtn:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.actionGroup {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.docBtn {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.docBtn:hover {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.emptyRow {
+  text-align: center;
+  color: var(--secondary);
+  padding: 3rem 1rem !important;
+}
+
+.statusBadge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.completed {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.countNote {
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--secondary);
+  text-align: right;
+}
+
+/* ── Modal Overlay ── */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+}
+
+/* ── Modal Content ── */
+.modalContent {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1000px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Modal Header ── */
+.modalHeader {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalHeader h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.closeBtn:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+/* ── Modal Body ── */
+.modalBody {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .modalBody {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Sidebar/Navigation Tabs ── */
+.modalSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-right: 1px solid var(--border);
+  padding-right: 1rem;
+}
+
+@media (max-width: 768px) {
+  .modalSidebar {
+    border-right: none;
+    padding-right: 0;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.tabLink {
+  background: none;
+  border: none;
+  color: var(--secondary);
+  padding: 0.6rem 0.875rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tabLink:hover {
+  background: var(--surface-hover);
+  color: var(--foreground);
+}
+
+.tabLinkActive {
+  background: var(--primary);
+  color: white !important;
+}
+
+/* ── Tab Content Area ── */
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Profile Image Area ── */
+.profilePicSection {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+  background: var(--surface-hover);
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+}
+
+.profileAvatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+}
+
+.profileMeta h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem 0;
+}
+
+.profileMeta p {
+  font-size: 0.85rem;
+  color: var(--secondary);
+  margin: 0;
+}
+
+/* ── Grid/Detail Lists ── */
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.detailItem {
+  background: var(--surface-hover);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.detailLabel {
+  font-size: 0.75rem;
+  color: var(--secondary);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  letter-spacing: 0.05em;
+}
+
+.detailVal {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* ── Table Layouts inside Modal ── */
+.subTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.subTable th {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--secondary);
+  font-weight: 600;
+  text-align: left;
+}
+
+.subTable td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Loading Overlay inside Modal ── */
+.modalLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  gap: 1rem;
+  color: var(--secondary);
+  font-size: 0.9rem;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.sectionHeader {
+  font-size: 1rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.8rem;
+  color: var(--primary);
+}
+
+.editSectionBtn {
+  background: none;
+  border: none;
+  color: var(--secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.editSectionBtn:hover {
+  background: var(--surface-hover);
+  color: var(--primary);
+  transform: scale(1.1);
+}

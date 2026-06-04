@@ -1,0 +1,87 @@
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from '../contexts/SessionContext';
+import axios from 'axios';
+import styles from './page.module.css';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
+
+export default function Login() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { login } = useSession();
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await axios.post(`${API_BASE}/login`, {
+        username,
+        password
+      });
+
+      if (response.data.status === 'success') {
+        const { user, role } = response.data;
+        login(user, role);
+        router.push('/dashboard');
+      } else {
+        setError(response.data.message || 'Login failed');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Connection error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.loginBox}>
+        <div className={styles.header}>
+          <h1>Isalu HRMS</h1>
+          <p>Sign in to your account</p>
+        </div>
+
+        <form onSubmit={handleLogin} className={styles.form}>
+          {error && <div style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.875rem', border: '1px solid #fca5a5' }}>{error}</div>}
+          <div className={styles.inputGroup}>
+            <label htmlFor="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              className={styles.input}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
+              required
+            />
+          </div>
+
+          <div className={styles.inputGroup}>
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              className={styles.input}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <button type="submit" className="premium-btn" style={{ width: '100%', padding: '0.75rem', marginTop: '1rem' }} disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
