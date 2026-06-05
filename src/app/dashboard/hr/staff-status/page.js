@@ -133,6 +133,9 @@ export default function StaffStatusPage() {
       const res = await axios.post(`${API_BASE}/hr/staff-status/update`, payload, { headers: buildHeaders() });
       
       if (res.data.status === 'success') {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('hrms_employee_records_cache');
+        }
         showToast(res.data.message, 'success');
         setSelectedStaffId('');
         setStaffDetails(null);

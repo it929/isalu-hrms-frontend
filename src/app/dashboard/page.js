@@ -6,6 +6,7 @@ import axios from 'axios';
 import { useSession } from '../../contexts/SessionContext';
 import { Users, Briefcase, FileText, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -129,7 +130,7 @@ export default function DashboardHome() {
           <div className="premium-card">
             <h3 style={{ marginBottom: '1.5rem', fontWeight: '700' }}>Quick Actions</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <button className="premium-btn" style={{ justifyContent: 'center' }}>Add New Staff</button>
+              <Link href="/dashboard/hr/employees" className="premium-btn" style={{ justifyContent: 'center', textDecoration: 'none' }}>Add New Staff</Link>
               <button className="premium-btn" style={{ background: 'var(--surface-hover)', color: 'var(--foreground)', justifyContent: 'center' }}>Generate Report</button>
               <button className="premium-btn" style={{ background: 'var(--surface-hover)', color: 'var(--foreground)', justifyContent: 'center' }}>View Variations</button>
             </div>

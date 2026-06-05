@@ -32,7 +32,7 @@ export default function Navbar() {
             <span className={styles.name}>
               {user?.user_type?.toLowerCase() === 'technical' ? 'Super Admin' : (user?.name || 'Guest')}
             </span>
-            <span className={styles.role}>{activeRole?.name || 'No Role'}</span>
+            {/* <span className={styles.role}>{activeRole?.name || 'No Role'}</span> */}
           </div>
         </div>
       </div>

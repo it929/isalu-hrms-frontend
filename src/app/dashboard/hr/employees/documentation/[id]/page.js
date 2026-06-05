@@ -170,6 +170,9 @@ export default function StaffDocumentation() {
         case 12: endpoint = 'others'; payload = data.others; break;
         case 13:
           await axios.post(`${API_BASE}/hr/documentation/${id}/submit`);
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('hrms_employee_records_cache');
+          }
           showToast("Staff documentation completed successfully!");
           setTimeout(() => {
             router.push('/dashboard/hr/employees');
@@ -188,6 +191,9 @@ export default function StaffDocumentation() {
       }
 
       showToast(`Step ${currentStep} saved!`);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('hrms_employee_records_cache');
+      }
       handleNext();
       // quietly refresh the full data to catch updated database links/URLs
       fetchData();

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import Link from 'next/link';
-import { UserPlus, Search, Eye, Users, FileText, X, Edit } from 'lucide-react';
+import { UserPlus, Search, Eye, Users, FileText, X, Edit, RefreshCw } from 'lucide-react';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -16,16 +16,9 @@ export default function EmployeeRecords() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
+  const fetchStaff = useCallback(() => {
+    setLoading(true);
     const cacheKey = 'hrms_employee_records_cache';
-    if (typeof window !== 'undefined') {
-      const cached = sessionStorage.getItem(cacheKey);
-      if (cached) {
-        setStaffList(JSON.parse(cached));
-        setLoading(false);
-        return;
-      }
-    }
 
     axios.get(`${API_BASE}/hr/add-staff/list`)
       .then(res => {
@@ -42,6 +35,10 @@ export default function EmployeeRecords() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchStaff();
+  }, [fetchStaff]);
 
   const [activeStaffProfile, setActiveStaffProfile] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,13 +68,14 @@ export default function EmployeeRecords() {
 
   const filtered = staffList.filter(s => {
     const q = search.toLowerCase();
+    if (!q) return true;
     return (
-      s.surname?.toLowerCase().includes(q) ||
-      s.first_name?.toLowerCase().includes(q) ||
-      s.email?.toLowerCase().includes(q) ||
-      s.pf_num?.toLowerCase().includes(q) ||
-      s.designation?.toLowerCase().includes(q) ||
-      s.department?.toLowerCase().includes(q)
+      s.surname?.toLowerCase()?.includes(q) ||
+      s.first_name?.toLowerCase()?.includes(q) ||
+      s.email?.toLowerCase()?.includes(q) ||
+      s.pf_num?.toLowerCase()?.includes(q) ||
+      s.designation?.toLowerCase()?.includes(q) ||
+      s.department?.toLowerCase()?.includes(q)
     );
   });
 
@@ -130,15 +128,35 @@ export default function EmployeeRecords() {
       <div className={`premium-card ${styles.tableCard}`}>
         <div className={styles.tableHeader}>
           <h2>Staff List</h2>
-          <div className={styles.searchWrap}>
-            <Search size={16} className={styles.searchIcon} />
-            <input
-              type="text"
-              placeholder="Search by name, PF No., dept…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className={styles.searchInput}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              onClick={() => fetchStaff()}
+              title="Refresh Records"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border, #e2e8f0)',
+                borderRadius: '0.5rem',
+                padding: '0.6rem',
+                color: 'var(--text-main, #334155)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+              }}
+            >
+              <RefreshCw size={16} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+            <div className={styles.searchWrap}>
+              <Search size={16} className={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="Search by name, PF No., dept…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className={styles.searchInput}
+              />
+            </div>
           </div>
         </div>
 

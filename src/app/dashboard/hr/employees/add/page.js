@@ -120,6 +120,9 @@ export default function AddNewStaff() {
     setErrors({});
     try {
       await axios.post(`${API_BASE}/hr/add-staff`, form);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('hrms_employee_records_cache');
+      }
       showToast('Staff record added successfully!');
       setForm(initialForm);
       setDesignations([]);
@@ -184,6 +187,9 @@ export default function AddNewStaff() {
       });
 
       if (res.data.status === 'success') {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('hrms_employee_records_cache');
+        }
         showToast(res.data.message || 'Staff spreadsheet imported successfully.');
         if (res.data.warnings && res.data.warnings.length > 0) {
           setWarnings(res.data.warnings);
