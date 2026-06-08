@@ -132,15 +132,16 @@ export default function LoanDeductionSetupPage() {
     const cacheKeySetups = 'hrms_loan_deductions_cache';
     let hasCache = false;
 
-    if (!silent) {
-      if (typeof window !== 'undefined') {
-        const cachedSetups = sessionStorage.getItem(cacheKeySetups);
-        if (cachedSetups) {
-          setSetups(JSON.parse(cachedSetups));
-          hasCache = true;
-        }
+    if (typeof window !== 'undefined') {
+      const cachedSetups = sessionStorage.getItem(cacheKeySetups);
+      if (cachedSetups) {
+        setSetups(JSON.parse(cachedSetups));
+        hasCache = true;
       }
-      if (!hasCache) setLoading(true);
+    }
+
+    if (!silent && !hasCache) {
+      setLoading(true);
     }
 
     const headers = buildHeaders();
@@ -161,7 +162,7 @@ export default function LoanDeductionSetupPage() {
     } catch (err) {
       showToast('Failed to retrieve loan deduction setups.', 'error');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [showToast]);
 
@@ -172,9 +173,7 @@ export default function LoanDeductionSetupPage() {
     }
     const timer = setTimeout(() => {
       fetchStaffData();
-      if (!hasCache) {
-        fetchSetups();
-      }
+      fetchSetups(hasCache);
       setMounted(true);
     }, 50);
     return () => clearTimeout(timer);

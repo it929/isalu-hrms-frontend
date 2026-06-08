@@ -140,15 +140,16 @@ export default function ApplyCoopLoanPage() {
     const cacheKeyLoans = 'hrms_apply_coop_loans_cache';
     let hasCache = false;
 
-    if (!silent) {
-      if (typeof window !== 'undefined') {
-        const cachedLoans = sessionStorage.getItem(cacheKeyLoans);
-        if (cachedLoans) {
-          setLoans(JSON.parse(cachedLoans));
-          hasCache = true;
-        }
+    if (typeof window !== 'undefined') {
+      const cachedLoans = sessionStorage.getItem(cacheKeyLoans);
+      if (cachedLoans) {
+        setLoans(JSON.parse(cachedLoans));
+        hasCache = true;
       }
-      if (!hasCache) setLoading(true);
+    }
+
+    if (!silent && !hasCache) {
+      setLoading(true);
     }
 
     const headers = buildHeaders();
@@ -169,7 +170,7 @@ export default function ApplyCoopLoanPage() {
     } catch (err) {
       showToast('Failed to retrieve loan records.', 'error');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [showToast]);
 
@@ -180,9 +181,7 @@ export default function ApplyCoopLoanPage() {
     }
     const timer = setTimeout(() => {
       fetchStaffData();
-      if (!hasCache) {
-        fetchLoans();
-      }
+      fetchLoans(hasCache);
       setMounted(true);
     }, 50);
     return () => clearTimeout(timer);

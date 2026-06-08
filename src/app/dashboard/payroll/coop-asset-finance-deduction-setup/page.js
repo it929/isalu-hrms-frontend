@@ -111,15 +111,16 @@ export default function CoopAssetFinanceDeductionSetupPage() {
     const cacheKeySetups = 'hrms_coop_asset_finance_deduction_setups_cache';
     let hasCache = false;
 
-    if (!silent) {
-      if (typeof window !== 'undefined') {
-        const cachedSetups = sessionStorage.getItem(cacheKeySetups);
-        if (cachedSetups) {
-          setSetups(JSON.parse(cachedSetups));
-          hasCache = true;
-        }
+    if (typeof window !== 'undefined') {
+      const cachedSetups = sessionStorage.getItem(cacheKeySetups);
+      if (cachedSetups) {
+        setSetups(JSON.parse(cachedSetups));
+        hasCache = true;
       }
-      if (!hasCache) setLoading(true);
+    }
+
+    if (!silent && !hasCache) {
+      setLoading(true);
     }
     try {
       const res = await axios.get(`${API_BASE}/payroll/coop-asset-finance-deduction-setups`, { headers: buildHeaders() });
@@ -140,7 +141,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
     } catch {
       showToast('Failed to retrieve setups.', 'error');
     } finally {
-      if (!silent) setLoading(false);
+      if (!silent && !hasCache) setLoading(false);
     }
   }, [showToast]);
 
@@ -151,9 +152,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
     }
     const timer = setTimeout(() => {
       fetchStaffData();
-      if (!hasCache) {
-        fetchSetups();
-      }
+      fetchSetups(hasCache);
       setMounted(true);
     }, 50);
     return () => clearTimeout(timer);

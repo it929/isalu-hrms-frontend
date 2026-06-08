@@ -74,6 +74,26 @@ export default function SalaryStructurePage() {
   const [mealAllowance, setMealAllowance] = useState('');
   const [pensionRate, setPensionRate] = useState('');
   const [taxRate, setTaxRate] = useState('');
+  const [structureType, setStructureType] = useState('current'); // 'first' | 'current'
+
+  // Effect to autofill form when selected staff changes or structureType switches to 'current'
+  useEffect(() => {
+    if (structureType === 'current' && selectedStaff) {
+      const existing = structures.find(s => s.staffId === selectedStaff.id);
+      if (existing) {
+        setBasicSalary(existing.basic_salary);
+        setDeclareSalary(existing.declare_salary);
+        setHousingAllowance(existing.housing_allowance);
+        setTransportAllowance(existing.transport_allowance);
+        setMedicalAllowance(existing.medical_allowance);
+        setUtilityAllowance(existing.utility_allowance);
+        setMealAllowance(existing.meal_allowance);
+        setPensionRate(existing.pension_rate);
+        setTaxRate(existing.tax_rate);
+      }
+    }
+  }, [structureType, selectedStaff, structures]);
+
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -238,7 +258,9 @@ export default function SalaryStructurePage() {
         meal_allowance: mealAllowance || 0,
         pension_rate: pensionRate || 0,
         tax_rate: taxRate || 0,
+        structure_type: structureType,
       };
+
 
       const res = await axios.post(`${API_BASE}/payroll/salary-structures`, payload, {
         headers: buildHeaders()
@@ -489,7 +511,35 @@ export default function SalaryStructurePage() {
             <h2 className={styles.cardTitle}>Manual Salary Assignment</h2>
             <form onSubmit={handleSubmitManual}>
               <div className={styles.formGrid}>
+                {/* Structure Type Select Toggles */}
+                <div className={styles.formGroup} style={{ gridColumn: 'span 2' }}>
+                  <label className={styles.formLabel}>Structure Assignment Type</label>
+                  <div style={{ display: 'flex', gap: '2rem', marginTop: '0.5rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      <input
+                        type="radio"
+                        name="structureType"
+                        value="current"
+                        checked={structureType === 'current'}
+                        onChange={() => setStructureType('current')}
+                      />
+                      Current Salary Structure (For Adjustments)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      <input
+                        type="radio"
+                        name="structureType"
+                        value="first"
+                        checked={structureType === 'first'}
+                        onChange={() => setStructureType('first')}
+                      />
+                      First Salary Structure
+                    </label>
+                  </div>
+                </div>
+
                 {/* Searchable Staff autocomplete select */}
+
                 <div className={styles.formGroup} ref={dropdownRef}>
                   <label className={styles.formLabel} htmlFor="staff-select">Select Staff Member *</label>
                   <div className={styles.dropdownContainer}>
