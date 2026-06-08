@@ -10,7 +10,7 @@ import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
-const TITLES = ['Mr', 'Mrs', 'Miss', 'Dr', 'Prof', 'Alhaji', 'Alhaja', 'Chief', 'Engr', 'Barr'];
+const TITLES = ['Mr', 'Mrs', 'Miss'];
 const GENDERS = ['Male', 'Female'];
 const MARITAL = ['Single', 'Married', 'Divorced', 'Widowed'];
 
@@ -58,16 +58,16 @@ const Select = ({ label, name, options, placeholder = 'Select…', value, onChan
 export default function AddNewStaff() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('single'); // 'single' | 'bulk'
-  const [form, setForm]               = useState(initialForm);
+  const [form, setForm] = useState(initialForm);
   const [departments, setDepartments] = useState([]);
-  const [units, setUnits]             = useState([]);
+  const [units, setUnits] = useState([]);
   const [designations, setDesignations] = useState([]);
-  const [submitting, setSubmitting]   = useState(false);
-  const [uploading, setUploading]     = useState(false);
-  const [dragActive, setDragActive]   = useState(false);
-  const [warnings, setWarnings]       = useState([]);
-  const [toast, setToast]             = useState(null);
-  const [errors, setErrors]           = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [warnings, setWarnings] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [errors, setErrors] = useState({});
 
   // ── Load form data on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -206,23 +206,23 @@ export default function AddNewStaff() {
 
   const handleDownloadTemplate = () => {
     const headers = [
-      'title', 'surname', 'firstname', 'othernames', 'sex', 'maritalStatus',
+      'staffID', 'title', 'surname', 'firstname', 'othernames', 'sex', 'maritalStatus',
       'date_of_birth', 'phoneNo', 'email', 'address', 'department', 'unit',
       'designation', 'date_of_joining', 'iou'
     ];
     const sampleRow = [
-      'Mr', 'IBRAHIM', 'AMINU', 'SULEIMAN', 'Male', 'Single',
+      '101', 'Mr', 'IBRAHIM', 'AMINU', 'SULEIMAN', 'Male', 'Single',
       '1990-01-01', '08012345678', 'aminu@isalu.gov.ng', '123 Main Street, Abuja', 'Admin', 'Billing',
       'Accountant', '2026-05-26', '500000'
     ];
-    
+
     // Safely wrap each value in double quotes and escape any embedded quotes to prevent column shifting
-    const csvContent = "data:text/csv;charset=utf-8," 
+    const csvContent = "data:text/csv;charset=utf-8,"
       + [
-          headers.join(','), 
-          sampleRow.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')
-        ].join('\n');
-    
+        headers.join(','),
+        sampleRow.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')
+      ].join('\n');
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -285,9 +285,9 @@ export default function AddNewStaff() {
                 <UserPlus size={22} />
                 <h2>Staff Registration Form</h2>
               </div>
-              <button 
+              <button
                 type="button"
-                onClick={() => router.push('/dashboard/hr/employees')} 
+                onClick={() => router.push('/dashboard/hr/employees')}
                 className={styles.closeBtn}
                 title="Close Form"
               >
@@ -306,7 +306,7 @@ export default function AddNewStaff() {
                 <Select label="Marital Status *" name="maritalStatus" options={MARITAL.map(m => ({ id: m, name: m }))} value={form.maritalStatus} onChange={handleChange} error={errors.maritalStatus} />
                 <Field label="Date of Birth *" name="date_of_birth" type="date" value={form.date_of_birth} onChange={handleChange} error={errors.date_of_birth} />
                 <Field label="Phone Number" name="phoneNo" placeholder="e.g. 08012345678" value={form.phoneNo} onChange={handleChange} error={errors.phoneNo} />
-                <Field label="Email Address" name="email" type="email" placeholder="e.g. staff@isalu.gov.ng" value={form.email} onChange={handleChange} error={errors.email} />
+                <Field label="Email Address" name="email" type="email" placeholder="e.g. staff@gmail.com" value={form.email} onChange={handleChange} error={errors.email} />
 
                 {/* ─ Address ─ */}
                 <div className={styles.fieldGroup}>
@@ -346,7 +346,7 @@ export default function AddNewStaff() {
                   value={form.designation_id} onChange={handleChange} error={errors.designation_id}
                 />
                 <Field label="Date of Joining *" name="date_of_joining" type="date" value={form.date_of_joining} onChange={handleChange} error={errors.date_of_joining} />
-                <Field label="IOU Cap" name="iou" type="number" placeholder="e.g. 500000" value={form.iou} onChange={handleChange} error={errors.iou} />
+                <Field label="IOU Cap" name="iou" type="number" placeholder="e.g. 50" value={form.iou} onChange={handleChange} error={errors.iou} />
               </div>
 
               {/* ─ Submit ─ */}
@@ -388,9 +388,9 @@ export default function AddNewStaff() {
                 <UploadCloud size={22} />
                 <h2>Spreadsheet Staff Import</h2>
               </div>
-              <button 
+              <button
                 type="button"
-                onClick={() => router.push('/dashboard/hr/employees')} 
+                onClick={() => router.push('/dashboard/hr/employees')}
                 className={styles.closeBtn}
                 title="Close Form"
               >

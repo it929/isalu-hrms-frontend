@@ -151,19 +151,20 @@ export default function ApplyIouPage() {
     const cacheKeyCtx = 'hrms_apply_iou_user_ctx_cache';
     let hasCache = false;
 
-    if (!silent) {
-      if (typeof window !== 'undefined') {
-        const cachedRecords = sessionStorage.getItem(cacheKeyRecords);
-        const cachedCtx = sessionStorage.getItem(cacheKeyCtx);
-        if (cachedRecords && cachedCtx) {
-          setRecords(JSON.parse(cachedRecords));
-          setUserCtx(JSON.parse(cachedCtx));
-          hasCache = true;
-        } else if (cachedRecords) {
-          setRecords(JSON.parse(cachedRecords));
-        }
+    if (typeof window !== 'undefined') {
+      const cachedRecords = sessionStorage.getItem(cacheKeyRecords);
+      const cachedCtx = sessionStorage.getItem(cacheKeyCtx);
+      if (cachedRecords && cachedCtx) {
+        setRecords(JSON.parse(cachedRecords));
+        setUserCtx(JSON.parse(cachedCtx));
+        hasCache = true;
+      } else if (cachedRecords) {
+        setRecords(JSON.parse(cachedRecords));
       }
-      if (!hasCache) setLoading(true);
+    }
+
+    if (!silent && !hasCache) {
+      setLoading(true);
     }
 
     const headers = buildHeaders();
@@ -189,7 +190,7 @@ export default function ApplyIouPage() {
     } catch (err) {
       showToast('Failed to retrieve IOU records.', 'error');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [showToast]);
 
@@ -200,9 +201,7 @@ export default function ApplyIouPage() {
     }
     const timer = setTimeout(() => {
       fetchStaffData();
-      if (!hasCache) {
-        fetchRecords();
-      }
+      fetchRecords(hasCache);
       setMounted(true);
     }, 50);
     return () => clearTimeout(timer);

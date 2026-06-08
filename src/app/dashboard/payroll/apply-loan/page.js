@@ -157,15 +157,16 @@ export default function ApplyLoanPage() {
     const cacheKeyLoans = 'hrms_apply_loan_loans_cache';
     let hasCache = false;
 
-    if (!silent) {
-      if (typeof window !== 'undefined') {
-        const cachedLoans = sessionStorage.getItem(cacheKeyLoans);
-        if (cachedLoans) {
-          setLoans(JSON.parse(cachedLoans));
-          hasCache = true;
-        }
+    if (typeof window !== 'undefined') {
+      const cachedLoans = sessionStorage.getItem(cacheKeyLoans);
+      if (cachedLoans) {
+        setLoans(JSON.parse(cachedLoans));
+        hasCache = true;
       }
-      if (!hasCache) setLoading(true);
+    }
+
+    if (!silent && !hasCache) {
+      setLoading(true);
     }
 
     const headers = buildHeaders();
@@ -186,7 +187,7 @@ export default function ApplyLoanPage() {
     } catch (err) {
       showToast('Failed to retrieve loan records.', 'error');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [showToast]);
 
@@ -196,9 +197,7 @@ export default function ApplyLoanPage() {
       hasCache = !!(sessionStorage.getItem('hrms_apply_loan_loans_cache') && sessionStorage.getItem('hrms_apply_loan_staff_cache') && sessionStorage.getItem('hrms_apply_loan_types_cache'));
     }
     fetchStaticData();
-    if (!hasCache) {
-      fetchLoans();
-    }
+    fetchLoans(hasCache);
   }, [fetchStaticData, fetchLoans]);
 
   // Click outside listener for staff dropdown autocomplete and custom select

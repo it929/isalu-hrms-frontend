@@ -211,8 +211,30 @@ export default function RetentionActivationPage() {
 
   // Download template helper
   const handleDownloadTemplate = () => {
-    const headers = ['staffId'];
-    const sampleRow = ['1'];
+    const headers = [
+      'staffId',
+      'basic_salary',
+      'declare_salary',
+      'housing_allowance',
+      'transport_allowance',
+      'medical_allowance',
+      'utility_allowance',
+      'meal_allowance',
+      'num_reten_months',
+      'reten_act'
+    ];
+    const sampleRow = [
+      '1',
+      '100000.00',
+      '100000.00',
+      '20000.00',
+      '10000.00',
+      '10000.00',
+      '10000.00',
+      '10000.00',
+      '0',
+      '1'
+    ];
     const csvContent = "data:text/csv;charset=utf-8," 
       + [headers.join(','), sampleRow.join(',')].join('\n');
     
@@ -225,6 +247,7 @@ export default function RetentionActivationPage() {
     document.body.removeChild(link);
     showToast('Downloaded Excel template CSV!');
   };
+
 
   // Filtered staff list
   const filteredRecords = staffRecords.filter(r =>
@@ -509,7 +532,7 @@ export default function RetentionActivationPage() {
                 Download CSV Column Template
               </button>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Required column: <strong>staffId</strong>
+                Required columns: <strong>staffId, basic_salary, declare_salary, housing_allowance, transport_allowance, medical_allowance, utility_allowance, meal_allowance, num_reten_months, reten_act</strong>
               </span>
             </div>
 

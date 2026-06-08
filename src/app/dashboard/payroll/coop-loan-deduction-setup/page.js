@@ -126,15 +126,16 @@ export default function CoopLoanDeductionSetupPage() {
     const cacheKeySetups = 'hrms_coop_loan_deductions_cache';
     let hasCache = false;
 
-    if (!silent) {
-      if (typeof window !== 'undefined') {
-        const cachedSetups = sessionStorage.getItem(cacheKeySetups);
-        if (cachedSetups) {
-          setSetups(JSON.parse(cachedSetups));
-          hasCache = true;
-        }
+    if (typeof window !== 'undefined') {
+      const cachedSetups = sessionStorage.getItem(cacheKeySetups);
+      if (cachedSetups) {
+        setSetups(JSON.parse(cachedSetups));
+        hasCache = true;
       }
-      if (!hasCache) setLoading(true);
+    }
+
+    if (!silent && !hasCache) {
+      setLoading(true);
     }
 
     const headers = buildHeaders();
@@ -155,7 +156,7 @@ export default function CoopLoanDeductionSetupPage() {
     } catch (err) {
       showToast('Failed to retrieve cooperative loan deduction setups.', 'error');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [showToast]);
 
@@ -166,9 +167,7 @@ export default function CoopLoanDeductionSetupPage() {
     }
     const timer = setTimeout(() => {
       fetchStaffData();
-      if (!hasCache) {
-        fetchSetups();
-      }
+      fetchSetups(hasCache);
       setMounted(true);
     }, 50);
     return () => clearTimeout(timer);

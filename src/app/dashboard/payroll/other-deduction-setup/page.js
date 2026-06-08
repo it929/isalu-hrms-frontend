@@ -129,15 +129,16 @@ export default function OtherDeductionSetupPage() {
     const cacheKeySetups = 'hrms_other_deduction_setups_cache';
     let hasCache = false;
 
-    if (!silent) {
-      if (typeof window !== 'undefined') {
-        const cachedSetups = sessionStorage.getItem(cacheKeySetups);
-        if (cachedSetups) {
-          setSetups(JSON.parse(cachedSetups));
-          hasCache = true;
-        }
+    if (typeof window !== 'undefined') {
+      const cachedSetups = sessionStorage.getItem(cacheKeySetups);
+      if (cachedSetups) {
+        setSetups(JSON.parse(cachedSetups));
+        hasCache = true;
       }
-      if (!hasCache) setLoading(true);
+    }
+
+    if (!silent && !hasCache) {
+      setLoading(true);
     }
 
     const headers = buildHeaders();
@@ -158,7 +159,7 @@ export default function OtherDeductionSetupPage() {
     } catch (err) {
       showToast('Failed to retrieve other setups.', 'error');
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [showToast]);
 
@@ -169,9 +170,7 @@ export default function OtherDeductionSetupPage() {
     }
     const timer = setTimeout(() => {
       fetchStaffData();
-      if (!hasCache) {
-        fetchSetups();
-      }
+      fetchSetups(hasCache);
       setMounted(true);
     }, 50);
     return () => clearTimeout(timer);
