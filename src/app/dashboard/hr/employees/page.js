@@ -16,8 +16,8 @@ export default function EmployeeRecords() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const fetchStaff = useCallback(() => {
-    setLoading(true);
+  const fetchStaff = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     const cacheKey = 'hrms_employee_records_cache';
 
     axios.get(`${API_BASE}/hr/add-staff/list`)
@@ -37,7 +37,24 @@ export default function EmployeeRecords() {
   }, []);
 
   useEffect(() => {
-    fetchStaff();
+    const cacheKey = 'hrms_employee_records_cache';
+    let hasCache = false;
+    if (typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.length > 0) {
+            setStaffList(parsed);
+            setLoading(false);
+            hasCache = true;
+          }
+        } catch (e) {
+          console.error('Failed to parse cached staff list', e);
+        }
+      }
+    }
+    fetchStaff(hasCache);
   }, [fetchStaff]);
 
   const [activeStaffProfile, setActiveStaffProfile] = useState(null);
