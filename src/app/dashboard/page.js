@@ -44,6 +44,47 @@ export default function DashboardHome() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
+        {user?.must_change_password && (
+          <div style={{
+            backgroundColor: '#fee2e2',
+            border: '1px solid #fca5a5',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            boxShadow: 'var(--shadow)'
+          }}>
+            <div>
+              <h4 style={{ color: '#991b1b', margin: 0, fontWeight: '700', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                ⚠️ Security Action Required
+              </h4>
+              <p style={{ color: '#7f1d1d', marginTop: '0.5rem', marginBottom: 0, fontSize: '0.95rem', fontWeight: '500' }}>
+                You are currently logged in with a default password. For security reasons, please change your password immediately.
+              </p>
+            </div>
+            <div>
+              <Link 
+                href="/dashboard/settings/edit-account" 
+                style={{
+                  display: 'inline-block',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  padding: '0.6rem 1.25rem',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                Change Password Now
+              </Link>
+            </div>
+          </div>
+        )}
+
         <div className="hide-scrollbar" style={{ width: '100%', marginBottom: '2.5rem' }}>
           <div style={{ 
             display: 'grid', 

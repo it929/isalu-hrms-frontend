@@ -1258,6 +1258,9 @@ function StepMedia({ data, onChange }) {
 
   const startWebcam = async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Webcam access requires a secure connection (HTTPS). Please ensure the site is loaded over HTTPS.");
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { width: 640, height: 480 } 
       });
@@ -2024,4 +2027,3 @@ function StepPreview({ data, designations = [], lgas = [], onEditStep }) {
       )}
     </div>
   );
-}
