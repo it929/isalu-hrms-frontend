@@ -1744,7 +1744,7 @@ function StepPreview({ data, designations = [], lgas = [], onEditStep }) {
         <div style={cardBodyStyle}>
           <table style={tblStyle}>
             <tbody>
-              <tr><td style={tdLabelStyle}><b>FILE NO.:</b></td><td style={tdValStyle}>{basic.fileNo || '—'}</td></tr>
+              
               <tr><td style={tdLabelStyle}><b>Name:</b></td><td style={tdValStyle}>{basic.surname} {basic.first_name} {basic.othernames}</td></tr>
               <tr><td style={tdLabelStyle}><b>Gender:</b></td><td style={tdValStyle}>{basic.gender || ''}</td></tr>
               <tr><td style={tdLabelStyle}><b>Date of Birth:</b></td><td style={tdValStyle}>{formatDate(basic.dob)}</td></tr>
