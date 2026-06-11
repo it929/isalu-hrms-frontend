@@ -350,6 +350,7 @@ export default function EmployeeRecords() {
                               .join(' ')}
                           </h3>
                           <p>Staff ID: {staffId ? String(staffId).padStart(4, '0') : '—'}</p>
+                          <p>File No: {activeStaffProfile.staffFullDetails?.fileNo || '—'}</p>
                         </div>
                       </div>
 
