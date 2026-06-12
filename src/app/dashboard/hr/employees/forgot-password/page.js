@@ -24,14 +24,22 @@ export default function ForgotPassword() {
         },
         body: JSON.stringify({ staffId }),
       });
-      const data = await res.json();
+      
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        setError(`Server error (${res.status}). Please contact administrator.`);
+        return;
+      }
+
       if (res.ok) {
         setMessage(data.success || "Password reset email sent.");
       } else {
-        setError(data.error || "An error occurred.");
+        setError(data.error || data.message || "An error occurred.");
       }
     } catch (err) {
-      setError("Network error.");
+      setError("Network error. Please check your internet connection.");
     } finally {
       setLoading(false);
     }
