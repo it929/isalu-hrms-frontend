@@ -2026,9 +2026,6 @@ function StepPreview({ data, designations = [], lgas = [], onEditStep }) {
         </div>
       )}
     </div>
-<<<<<<< HEAD
   );}
-=======
   );
 }
->>>>>>> 2df0f235eb5c3231d0605ada382dc0d56ddc9a8c
