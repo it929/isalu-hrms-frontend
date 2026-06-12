@@ -7,6 +7,31 @@ import { useSession } from '../../contexts/SessionContext';
 import { Users, Briefcase, FileText, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
+
+const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.12)',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid var(--border)',
+        borderRadius: '8px',
+        padding: '0.75rem 1rem',
+        boxShadow: 'var(--shadow)',
+        color: '#f0f0f0'
+      }}>
+        <p style={{ margin: 0, fontWeight: '700', fontSize: '0.9rem' }}>{label}</p>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: '#6366f1', fontWeight: '800', marginTop: '0.25rem' }}>
+          Staff Count: {payload[0].value}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -20,7 +45,9 @@ const iconMap = {
 export default function DashboardHome() {
   const { user } = useSession();
   const cachedStats = getCache('dashboard_stats');
+  const cachedDepts = getCache('dashboard_departments');
   const [stats, setStats] = useState(cachedStats || []);
+  const [deptStats, setDeptStats] = useState(cachedDepts || []);
   const [loading, setLoading] = useState(!cachedStats);
 
   useEffect(() => {
@@ -28,8 +55,11 @@ export default function DashboardHome() {
     axios.get(`${API_BASE}/dashboard-stats`)
       .then(res => {
         const data = res.data.stats || [];
+        const depts = res.data.departments || [];
         setStats(data);
+        setDeptStats(depts);
         setCache('dashboard_stats', data);
+        setCache('dashboard_departments', depts);
       })
       .catch(err => console.error('Failed to fetch stats:', err))
       .finally(() => {
@@ -140,41 +170,54 @@ export default function DashboardHome() {
             )}
           </div>
         </div>
-        {/* ── Recent Activity & Quick Links ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-          <div className="premium-card">
-            <h3 style={{ marginBottom: '1.5rem', fontWeight: '700' }}>Recent Activity</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {[
-                { text: 'New staff documentation completed for John Doe', time: '2 hours ago', type: 'success' },
-                { text: 'Leave request submitted by Jane Smith', time: '4 hours ago', type: 'warning' },
-                { text: 'Monthly payroll variation report generated', time: '1 day ago', type: 'info' },
-                { text: 'Promotion brief updated for HR department', time: '2 days ago', type: 'info' },
-              ].map((activity, i) => (
-                <div key={i} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ 
-                    width: '8px', 
-                    height: '8px', 
-                    borderRadius: '50%', 
-                    background: activity.type === 'success' ? '#10b981' : activity.type === 'warning' ? '#f59e0b' : 'var(--primary)',
-                    marginTop: '0.5rem'
-                  }} />
-                  <div>
-                    <p style={{ margin: 0, fontWeight: '500', fontSize: '0.95rem' }}>{activity.text}</p>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--secondary)' }}>{activity.time}</p>
-                  </div>
-                </div>
-              ))}
+        {/* ── Department Staff Distribution Bar Chart ── */}
+        <div className="premium-card" style={{ width: '100%', padding: '2rem', border: '1px solid var(--border)', marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'var(--foreground)' }}>Staff Distribution by Department</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>Overview of current employee strengths across all departments</p>
             </div>
           </div>
 
-          <div className="premium-card">
-            <h3 style={{ marginBottom: '1.5rem', fontWeight: '700' }}>Quick Actions</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <Link href="/dashboard/hr/employees" className="premium-btn" style={{ justifyContent: 'center', textDecoration: 'none' }}>Add New Staff</Link>
-              <button className="premium-btn" style={{ background: 'var(--surface-hover)', color: 'var(--foreground)', justifyContent: 'center' }}>Generate Report</button>
-              <button className="premium-btn" style={{ background: 'var(--surface-hover)', color: 'var(--foreground)', justifyContent: 'center' }}>View Variations</button>
-            </div>
+          <div style={{ height: '320px', width: '100%' }}>
+            {deptStats.length === 0 ? (
+              <div style={{ color: 'var(--secondary)', fontSize: '0.95rem', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                No department statistics available.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={deptStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.3} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="var(--secondary)" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    stroke="var(--secondary)" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} />
+                  <Bar 
+                    dataKey="value" 
+                    radius={[6, 6, 0, 0]} 
+                    animationDuration={1000}
+                    animationMatchBy="stretch"
+                    barSize={40}
+                  >
+                    {deptStats.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </motion.div>

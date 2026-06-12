@@ -1,0 +1,106 @@
+/* Password Reset page styling */
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, hsl(210, 50%, 20%), hsl(210, 30%, 40%));
+  font-family: 'Inter', sans-serif;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  color: #f0f0f0;
+}
+
+.title {
+  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.label {
+  text-align: left;
+  font-size: 0.95rem;
+  color: #e0e0e0;
+}
+
+.input {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transition: background 0.3s ease;
+}
+
+.input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.button {
+  padding: 0.75rem 1rem;
+  background: hsl(210, 70%, 55%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button:hover:not(:disabled) {
+  background: hsl(210, 70%, 65%);
+  transform: translateY(-2px);
+}
+
+.alert {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.success {
+  background: rgba(0, 128, 0, 0.2);
+  color: #b6ffb6;
+}
+
+.error {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ffb6b6;
+}
+
+.link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: hsl(210, 70%, 65%);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.link:hover {
+  color: hsl(210, 70%, 75%);
+  text-decoration: underline;
+}
