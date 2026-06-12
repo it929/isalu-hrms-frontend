@@ -3,6 +3,8 @@
 import { useState } from "react";
 import styles from "./page.module.css";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
+
 export default function ForgotPassword() {
   const [staffId, setStaffId] = useState("");
   const [message, setMessage] = useState(null);
@@ -15,7 +17,7 @@ export default function ForgotPassword() {
     setMessage(null);
     setError(null);
     try {
-      const res = await fetch("/api/forgot-password", {
+      const res = await fetch(`${API_BASE}/forgot-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
