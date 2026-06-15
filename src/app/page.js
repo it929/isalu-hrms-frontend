@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '../contexts/SessionContext';
 import axios from 'axios';
+import { Eye, EyeOff } from 'lucide-react';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -11,6 +12,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/n
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -64,17 +66,39 @@ export default function Login() {
             />
           </div>
 
-          <div className={styles.inputGroup}>
+          <div className={styles.inputGroup} style={{ position: 'relative' }}>
             <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              className={styles.input}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                className={styles.input}
+                style={{ paddingRight: '2.5rem', width: '100%' }}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--secondary, #64748b)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="premium-btn" style={{ width: '100%', padding: '0.75rem', marginTop: '1rem' }} disabled={loading}>
