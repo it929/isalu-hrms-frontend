@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import Link from 'next/link';
-import { UserPlus, Search, Eye, Users, FileText, X, Edit, RefreshCw } from 'lucide-react';
+import { UserPlus, Search, Eye, Users, FileText, X, Edit, RefreshCw, Printer } from 'lucide-react';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -79,6 +79,500 @@ export default function EmployeeRecords() {
     } finally {
       setFetchingProfile(false);
     }
+  };
+
+  const handlePrint = (sectionsToPrint = 'all') => {
+    if (!activeStaffProfile) return;
+
+    const printWindow = window.open('', '_blank', 'width=850,height=900');
+    if (!printWindow) {
+      alert('Please allow popups to print the profile.');
+      return;
+    }
+
+    const { staffFullDetails, wifeDetails, nextOfKin, children, education, previousService, detailsService, tourLeaveRecord, censure, attachments } = activeStaffProfile;
+    const staffIdVal = staffFullDetails?.staffID || staffFullDetails?.ID;
+    const formattedId = staffIdVal ? String(staffIdVal).padStart(4, '0') : '—';
+    const fullName = [staffFullDetails?.title, staffFullDetails?.surname, staffFullDetails?.first_name, staffFullDetails?.othernames].filter(Boolean).join(' ');
+
+    const isAll = sectionsToPrint === 'all';
+    const shouldPrint = (sectionName) => isAll || sectionsToPrint === sectionName;
+
+    let html = `
+      <html>
+        <head>
+          <title>Staff Profile - ${fullName}</title>
+          <style>
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+            body {
+              font-family: 'Inter', system-ui, -apple-system, sans-serif;
+              color: #1e293b;
+              padding: 30px;
+              line-height: 1.5;
+              background: #fff;
+            }
+            .header-container {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 3px solid #0f172a;
+              padding-bottom: 15px;
+              margin-bottom: 25px;
+            }
+            .header-info h1 {
+              font-size: 24px;
+              font-weight: 800;
+              margin: 0 0 5px 0;
+              color: #0f172a;
+              text-transform: uppercase;
+            }
+            .header-info p {
+              font-size: 14px;
+              color: #64748b;
+              margin: 0;
+            }
+            .avatar-img {
+              width: 90px;
+              height: 90px;
+              border-radius: 50%;
+              object-fit: cover;
+              border: 3px solid #0f172a;
+            }
+            .section-box {
+              margin-bottom: 30px;
+              page-break-inside: avoid;
+            }
+            .section-title {
+              font-size: 16px;
+              font-weight: 700;
+              border-bottom: 2px solid #cbd5e1;
+              padding-bottom: 6px;
+              margin-bottom: 12px;
+              color: #0f172a;
+              text-transform: uppercase;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 12px;
+            }
+            .info-item {
+              background: #f8fafc;
+              padding: 8px 12px;
+              border-radius: 6px;
+              border: 1px solid #e2e8f0;
+            }
+            .info-label {
+              font-size: 10px;
+              font-weight: 700;
+              color: #64748b;
+              text-transform: uppercase;
+              margin-bottom: 2px;
+            }
+            .info-value {
+              font-size: 13px;
+              font-weight: 600;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+            }
+            th {
+              background: #f1f5f9;
+              color: #475569;
+              font-size: 11px;
+              font-weight: 700;
+              text-transform: uppercase;
+              padding: 8px 10px;
+              border-bottom: 2px solid #cbd5e1;
+              text-align: left;
+            }
+            td {
+              padding: 8px 10px;
+              border-bottom: 1px solid #e2e8f0;
+              font-size: 12px;
+            }
+            .no-records {
+              font-size: 13px;
+              color: #64748b;
+              font-style: italic;
+            }
+            .footer-note {
+              margin-top: 50px;
+              border-top: 1px dashed #cbd5e1;
+              padding-top: 10px;
+              font-size: 11px;
+              color: #94a3b8;
+              text-align: center;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-container">
+            <div class="header-info">
+              <h1>${fullName}</h1>
+              <p>Staff File ID: ${formattedId} | Generated on: ${new Date().toLocaleDateString()}</p>
+            </div>
+            <img
+              src="${
+                staffFullDetails?.passport_url ||
+                (activeStaffProfile.fileNoImage !== 'default.png'
+                  ? `${API_BASE.replace('/api/nextjs', '')}/passport/${activeStaffProfile.fileNoImage}`
+                  : '/default-avatar.png')
+              }"
+              alt="Passport"
+              class="avatar-img"
+              onerror="this.src='/default-avatar.png'"
+            />
+          </div>
+    `;
+
+    // 1. Bio-Data
+    if (shouldPrint('biodata')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Bio-Data</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">Title</div><div class="info-value">${staffFullDetails?.title || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Surname</div><div class="info-value">${staffFullDetails?.surname || '—'}</div></div>
+            <div class="info-item"><div class="info-label">First Name</div><div class="info-value">${staffFullDetails?.first_name || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Other Names</div><div class="info-value">${staffFullDetails?.othernames || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Gender</div><div class="info-value">${staffFullDetails?.gender || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Date of Birth</div><div class="info-value">${staffFullDetails?.dob || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Place of Birth</div><div class="info-value">${staffFullDetails?.place_of_birth_name || staffFullDetails?.placeofbirth || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Phone Number</div><div class="info-value">${staffFullDetails?.phone || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Email Address</div><div class="info-value">${staffFullDetails?.email || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Marital Status</div><div class="info-value">${staffFullDetails?.maritalstatus || '—'}</div></div>
+            <div class="info-item"><div class="info-label">State of Origin</div><div class="info-value">${staffFullDetails?.State || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Nationality</div><div class="info-value">${staffFullDetails?.nationality || '—'}</div></div>
+            <div class="info-item" style="grid-column: span 2;"><div class="info-label">Home Address</div><div class="info-value">${staffFullDetails?.home_address || '—'}</div></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. Spouse
+    if (shouldPrint('spouse')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Particulars of Spouse</div>
+          ${wifeDetails && wifeDetails.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Spouse Name</th>
+                  <th>Date of Birth</th>
+                  <th>Date of Marriage</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${wifeDetails.map(w => `
+                  <tr>
+                    <td>${w.wifename || '—'}</td>
+                    <td>${w.wifedateofbirth || '—'}</td>
+                    <td>${w.dateofmarriage || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No spouse records found.</p>'}
+        </div>
+      `;
+    }
+
+    // 3. Next of Kin
+    if (shouldPrint('nextOfKin')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Next of Kin</div>
+          ${nextOfKin && nextOfKin.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Address</th>
+                  <th>Relationship</th>
+                  <th>Phone Number</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${nextOfKin.map(n => `
+                  <tr>
+                    <td>${n.fullname || '—'}</td>
+                    <td>${n.address || '—'}</td>
+                    <td>${n.relationship || '—'}</td>
+                    <td>${n.phoneno || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No next of kin records found.</p>'}
+        </div>
+      `;
+    }
+
+    // 4. Children
+    if (shouldPrint('children')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Particulars of Children</div>
+          ${children && children.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Gender</th>
+                  <th>Date of Birth</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${children.map(c => `
+                  <tr>
+                    <td>${c.fullname || '—'}</td>
+                    <td>${c.gender_name || c.gender || '—'}</td>
+                    <td>${c.dateofbirth || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No children records found.</p>'}
+        </div>
+      `;
+    }
+
+    // 5. Employment Info
+    if (shouldPrint('employment')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Employment Information</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">Department</div><div class="info-value">${staffFullDetails?.department || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Designation</div><div class="info-value">${staffFullDetails?.designation || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Date of Appointment</div><div class="info-value">${staffFullDetails?.doj || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Incremental Date</div><div class="info-value">${staffFullDetails?.incremental_date || '—'}</div></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 6. Salary & Bank Info
+    if (shouldPrint('salary')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Salary & Bank Details</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">Bank Name</div><div class="info-value">${staffFullDetails?.bank || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Account Number</div><div class="info-value">${staffFullDetails?.AccNo || '—'}</div></div>
+            <div class="info-item"><div class="info-label">Bank Branch</div><div class="info-value">${staffFullDetails?.bank_branch || '—'}</div></div>
+            <div class="info-item"><div class="info-label">NHF Number</div><div class="info-value">${staffFullDetails?.nhfNo || '—'}</div></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 7. Education
+    if (shouldPrint('education')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Education History</div>
+          ${education && education.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Degree / Qualification</th>
+                  <th>School Attended</th>
+                  <th>From Date</th>
+                  <th>To Date</th>
+                  <th>Certificate Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${education.map(e => `
+                  <tr>
+                    <td>${e.degreequalification || '—'}</td>
+                    <td>${e.schoolattended || '—'}</td>
+                    <td>${e.schoolfrom || '—'}</td>
+                    <td>${e.schoolto || '—'}</td>
+                    <td>${e.certificateheld || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No education history records found.</p>'}
+        </div>
+      `;
+    }
+
+    // 8. Previous Service
+    if (shouldPrint('previousService')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Previous Service Records</div>
+          ${previousService && previousService.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Employer</th>
+                  <th>From Date</th>
+                  <th>To Date</th>
+                  <th>Previous Pay</th>
+                  <th>File Ref. Page</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${previousService.map(p => `
+                  <tr>
+                    <td>${p.previousSchudule || '—'}</td>
+                    <td>${p.fromDate || '—'}</td>
+                    <td>${p.toDate || '—'}</td>
+                    <td>₦${Number(p.totalPreviousPay || 0).toLocaleString()}</td>
+                    <td>${p.filePageRef || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No previous service records found.</p>'}
+        </div>
+      `;
+    }
+
+    // 9. Forces Service
+    if (shouldPrint('forcesService')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Service in the Forces</div>
+          ${detailsService && detailsService.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Arm of Service</th>
+                  <th>Service Number</th>
+                  <th>Last Unit</th>
+                  <th>Reason for Leaving</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${detailsService.map(d => `
+                  <tr>
+                    <td>${d.armOfservice || '—'}</td>
+                    <td>${d.serviceNumber || '—'}</td>
+                    <td>${d.lastUnit || '—'}</td>
+                    <td>${d.reasonForLeaving || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No forces service records found.</p>'}
+        </div>
+      `;
+    }
+
+    // 10. Leave Records
+    if (shouldPrint('leave')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Leave Records</div>
+          ${tourLeaveRecord && tourLeaveRecord.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Leave Type</th>
+                  <th>From Date</th>
+                  <th>To Date</th>
+                  <th>Number of Days</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tourLeaveRecord.map(l => `
+                  <tr>
+                    <td>${l.typeleave || '—'}</td>
+                    <td>${l.leavefrom || '—'}</td>
+                    <td>${l.leaveto || '—'}</td>
+                    <td>${l.numberday || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No leave records found.</p>'}
+        </div>
+      `;
+    }
+
+    // 11. Censures
+    if (shouldPrint('censures')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Censures & Recommendations</div>
+          ${censure && censure.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Authority</th>
+                  <th>Nature of Censure/Recommendation</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${censure.map(c => `
+                  <tr>
+                    <td>${c.authority || '—'}</td>
+                    <td>${c.nature || '—'}</td>
+                    <td>${c.censureDate || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No censures or recommendations found.</p>'}
+        </div>
+      `;
+    }
+
+    // 12. Attachments
+    if (shouldPrint('attachments')) {
+      html += `
+        <div class="section-box">
+          <div class="section-title">Attachments & Uploaded Documents</div>
+          ${attachments && attachments.length > 0 ? `
+            <table>
+              <thead>
+                <tr>
+                  <th>Document Description</th>
+                  <th>File Link</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${attachments.map(a => `
+                  <tr>
+                    <td>${a.filedesc || '—'}</td>
+                    <td>${a.filepath || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="no-records">No uploaded attachments found.</p>'}
+        </div>
+      `;
+    }
+
+    html += `
+          <div class="footer-note">
+            This document is generated automatically from Isalu HRMS.
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   const staffId = activeStaffProfile?.staffFullDetails?.staffID || activeStaffProfile?.staffFullDetails?.ID;
@@ -263,9 +757,15 @@ export default function EmployeeRecords() {
           <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2>Staff Profile Record</h2>
-              <button className={styles.closeBtn} onClick={() => setIsModalOpen(false)}>
-                <X size={20} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button className={styles.printFullBtn} onClick={() => handlePrint('all')} title="Print Full Profile">
+                  <Printer size={16} />
+                  <span>Print Full Profile</span>
+                </button>
+                <button className={styles.closeBtn} onClick={() => setIsModalOpen(false)}>
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             {fetchingProfile ? (
@@ -355,9 +855,14 @@ export default function EmployeeRecords() {
 
                       <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Bio-Data</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=1`} target="_blank" className={styles.editSectionBtn} title="Edit Bio-Data">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('biodata')} className={styles.printSectionBtn} title="Print Bio-Data">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=1`} target="_blank" className={styles.editSectionBtn} title="Edit Bio-Data">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       <div className={styles.detailGrid}>
                         <div className={styles.detailItem}>
@@ -405,9 +910,14 @@ export default function EmployeeRecords() {
                       {/* Spouse details */}
                       <div className={styles.sectionHeader} style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Particulars of Spouse</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=5`} target="_blank" className={styles.editSectionBtn} title="Edit Spouse Details">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('spouse')} className={styles.printSectionBtn} title="Print Spouse Details">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=5`} target="_blank" className={styles.editSectionBtn} title="Edit Spouse Details">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       {activeStaffProfile.wifeDetails && activeStaffProfile.wifeDetails.length > 0 ? (
                         <table className={styles.subTable}>
@@ -435,9 +945,14 @@ export default function EmployeeRecords() {
                       {/* Next of Kin */}
                       <div className={styles.sectionHeader} style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Next of Kin</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=6`} target="_blank" className={styles.editSectionBtn} title="Edit Next of Kin">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('nextOfKin')} className={styles.printSectionBtn} title="Print Next of Kin">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=6`} target="_blank" className={styles.editSectionBtn} title="Edit Next of Kin">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       {activeStaffProfile.nextOfKin && activeStaffProfile.nextOfKin.length > 0 ? (
                         <table className={styles.subTable}>
@@ -467,9 +982,14 @@ export default function EmployeeRecords() {
                       {/* Children details */}
                       <div className={styles.sectionHeader} style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Particulars of Children</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=7`} target="_blank" className={styles.editSectionBtn} title="Edit Children Particulars">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('children')} className={styles.printSectionBtn} title="Print Children Particulars">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=7`} target="_blank" className={styles.editSectionBtn} title="Edit Children Particulars">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       {activeStaffProfile.children && activeStaffProfile.children.length > 0 ? (
                         <table className={styles.subTable}>
@@ -500,9 +1020,14 @@ export default function EmployeeRecords() {
                     <>
                       <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Employment Information</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=1`} target="_blank" className={styles.editSectionBtn} title="Edit Employment Info">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('employment')} className={styles.printSectionBtn} title="Print Employment Info">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=1`} target="_blank" className={styles.editSectionBtn} title="Edit Employment Info">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       <div className={styles.detailGrid}>
                         <div className={styles.detailItem}>
@@ -525,9 +1050,14 @@ export default function EmployeeRecords() {
 
                       <div className={styles.sectionHeader} style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Salary & Bank Details</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=10`} target="_blank" className={styles.editSectionBtn} title="Edit Salary & Bank Details">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('salary')} className={styles.printSectionBtn} title="Print Salary & Bank Details">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=10`} target="_blank" className={styles.editSectionBtn} title="Edit Salary & Bank Details">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       <div className={styles.detailGrid}>
                         <div className={styles.detailItem}>
@@ -554,9 +1084,14 @@ export default function EmployeeRecords() {
                     <>
                       <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Education History</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=4`} target="_blank" className={styles.editSectionBtn} title="Edit Education History">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('education')} className={styles.printSectionBtn} title="Print Education History">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=4`} target="_blank" className={styles.editSectionBtn} title="Edit Education History">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       {activeStaffProfile.education && activeStaffProfile.education.length > 0 ? (
                         <table className={styles.subTable}>
@@ -610,9 +1145,14 @@ export default function EmployeeRecords() {
                     <>
                       <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Previous Service Records</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=8`} target="_blank" className={styles.editSectionBtn} title="Edit Previous Service Records">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('previousService')} className={styles.printSectionBtn} title="Print Previous Service Records">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=8`} target="_blank" className={styles.editSectionBtn} title="Edit Previous Service Records">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       {activeStaffProfile.previousService && activeStaffProfile.previousService.length > 0 ? (
                         <table className={styles.subTable}>
@@ -643,9 +1183,14 @@ export default function EmployeeRecords() {
 
                       <div className={styles.sectionHeader} style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Service in the Forces</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=12`} target="_blank" className={styles.editSectionBtn} title="Edit Service in the Forces">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('forcesService')} className={styles.printSectionBtn} title="Print Service in the Forces">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=12`} target="_blank" className={styles.editSectionBtn} title="Edit Service in the Forces">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       {activeStaffProfile.detailsService && activeStaffProfile.detailsService.length > 0 ? (
                         <table className={styles.subTable}>
@@ -676,7 +1221,12 @@ export default function EmployeeRecords() {
 
                   {modalTab === 'censures' && (
                     <>
-                      <div className={styles.sectionHeader}>Leave Records</div>
+                      <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Leave Records</span>
+                        <button onClick={() => handlePrint('leave')} className={styles.printSectionBtn} title="Print Leave Records">
+                          <Printer size={16} />
+                        </button>
+                      </div>
                       {activeStaffProfile.tourLeaveRecord && activeStaffProfile.tourLeaveRecord.length > 0 ? (
                         <table className={styles.subTable}>
                           <thead>
@@ -702,7 +1252,12 @@ export default function EmployeeRecords() {
                         <p style={{ fontSize: '0.85rem', color: 'var(--secondary)' }}>No leave records found.</p>
                       )}
 
-                      <div className={styles.sectionHeader} style={{ marginTop: '1.5rem' }}>Censures & Recommendations</div>
+                      <div className={styles.sectionHeader} style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Censures & Recommendations</span>
+                        <button onClick={() => handlePrint('censures')} className={styles.printSectionBtn} title="Print Censures & Recommendations">
+                          <Printer size={16} />
+                        </button>
+                      </div>
                       {activeStaffProfile.censure && activeStaffProfile.censure.length > 0 ? (
                         <table className={styles.subTable}>
                           <thead>
@@ -732,9 +1287,14 @@ export default function EmployeeRecords() {
                     <>
                       <div className={styles.sectionHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>Staff Attachments & Uploaded Documents</span>
-                        <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=9`} target="_blank" className={styles.editSectionBtn} title="Edit Attachments">
-                          <Edit size={16} />
-                        </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button onClick={() => handlePrint('attachments')} className={styles.printSectionBtn} title="Print Attachments">
+                            <Printer size={16} />
+                          </button>
+                          <Link href={`/dashboard/hr/employees/documentation/${staffId}?step=9`} target="_blank" className={styles.editSectionBtn} title="Edit Attachments">
+                            <Edit size={16} />
+                          </Link>
+                        </div>
                       </div>
                       {activeStaffProfile.attachments && activeStaffProfile.attachments.length > 0 ? (
                         <table className={styles.subTable}>
