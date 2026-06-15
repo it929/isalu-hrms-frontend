@@ -39,6 +39,7 @@ export default function StaffDocumentation() {
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState(null);
   const [toast, setToast] = useState(null);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -131,6 +132,7 @@ export default function StaffDocumentation() {
 
   const handleStepSave = async () => {
     setSaving(true);
+    setErrors({});
     try {
       let endpoint = '';
       let payload = {};
@@ -198,8 +200,12 @@ export default function StaffDocumentation() {
       // quietly refresh the full data to catch updated database links/URLs
       fetchData();
     } catch (err) {
-      const errMsg = err.response?.data?.message || 'Error saving progress';
-      showToast(errMsg, 'error');
+      if (err.response?.status === 422) {
+        setErrors(err.response.data.errors || {});
+      } else {
+        const errMsg = err.response?.data?.message || 'Error saving progress';
+        showToast(errMsg, 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -247,7 +253,7 @@ export default function StaffDocumentation() {
             exit={{ opacity: 0, x: -20 }}
             className={styles.stepContent}
           >
-            {renderStep(currentStep, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep)}
+            {renderStep(currentStep, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep, errors)}
           </motion.div>
         </AnimatePresence>
 
@@ -273,10 +279,10 @@ export default function StaffDocumentation() {
   );
 }
 
-function renderStep(step, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep) {
+function renderStep(step, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep, errors) {
   switch(step) {
     case 1: return <StepBasic data={data.basic} lookups={data.lookups} designations={designations} onChange={(e) => handleChange('basic', e)} />;
-    case 2: return <StepContact data={data.basic} onChange={(e) => handleChange('basic', e)} />;
+    case 2: return <StepContact data={data.basic} onChange={(e) => handleChange('basic', e)} errors={errors} />;
     case 3: return <StepOrigin data={data.basic} lookups={data.lookups} lgas={lgas} onChange={(e) => handleChange('basic', e)} />;
     case 4: return <StepEducation staffId={id} data={data.education} lookups={data.lookups} onUpdate={(val) => setData({...data, education: val})} onRefetch={fetchData} />;
     case 5: return <StepMarital data={data.marital} lookups={data.lookups} onChange={(e) => handleChange('marital', e)} />;
@@ -399,7 +405,7 @@ function StepBasic({ data, lookups = {}, designations = [], onChange }) {
   );
 }
 
-function StepContact({ data, onChange }) {
+function StepContact({ data, onChange, errors = {} }) {
   return (
     <div className={styles.formGrid}>
       <div className={styles.field}>
@@ -410,8 +416,10 @@ function StepContact({ data, onChange }) {
           value={data.email || ''} 
           onChange={onChange} 
           placeholder="e.g. staff@isalu.gov.ng"
+          className={errors.email ? styles.inputError : ''}
           required 
         />
+        {errors.email && <span className={styles.errorMsg}>{errors.email[0]}</span>}
       </div>
       <div className={styles.field}>
         <label>Alternate Email Address</label>
