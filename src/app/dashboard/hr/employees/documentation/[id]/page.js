@@ -198,7 +198,8 @@ export default function StaffDocumentation() {
       // quietly refresh the full data to catch updated database links/URLs
       fetchData();
     } catch (err) {
-      showToast('Error saving progress', 'error');
+      const errMsg = err.response?.data?.message || 'Error saving progress';
+      showToast(errMsg, 'error');
     } finally {
       setSaving(false);
     }
