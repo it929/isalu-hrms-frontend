@@ -142,18 +142,7 @@ export default function SalaryStructurePage() {
   }, [showToast]);
 
   useEffect(() => {
-    let hasCache = false;
-    if (typeof window !== 'undefined') {
-      hasCache = !!(sessionStorage.getItem('hrms_salary_struct_staff_cache') && sessionStorage.getItem('hrms_salary_struct_structures_cache'));
-    }
-    if (!hasCache) {
-      fetchData();
-    } else {
-      const cachedStaff = sessionStorage.getItem('hrms_salary_struct_staff_cache');
-      const cachedStruct = sessionStorage.getItem('hrms_salary_struct_structures_cache');
-      if (cachedStaff) setStaffList(JSON.parse(cachedStaff));
-      if (cachedStruct) setStructures(JSON.parse(cachedStruct));
-    }
+    fetchData();
   }, [fetchData]);
 
   // Click outside listener for staff dropdown autocomplete
@@ -846,7 +835,6 @@ export default function SalaryStructurePage() {
               <thead>
                 <tr>
                   <th>Staff ID</th>
-                  <th>File No</th>
                   <th>Staff Name</th>
                   <th>Basic (₦)</th>
                   <th>Declared (₦)</th>
@@ -864,7 +852,6 @@ export default function SalaryStructurePage() {
                 {filteredStructures.map((row) => (
                   <tr key={row.id}>
                     <td className={styles.tdPrimary}>{row.staffId}</td>
-                    <td>{row.fileNo || '—'}</td>
                     <td>{row.name}</td>
                     <td className={styles.tdNum}>{fmt(row.basic_salary)}</td>
                     <td className={styles.tdNum}>{fmt(row.declare_salary)}</td>
