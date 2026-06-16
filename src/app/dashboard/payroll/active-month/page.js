@@ -43,7 +43,8 @@ export default function SetActiveMonthPage() {
       ? cachedData.courtInfo.courtid
       : ''
   );
-  const [selectedYear, setSelectedYear] = useState('');
+  const currentYearStr = String(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(currentYearStr);
   const [selectedMonth, setSelectedMonth] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -217,8 +218,8 @@ export default function SetActiveMonthPage() {
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
                   required
+                  disabled
                 >
-                  <option value="">Select Year</option>
                   {years.map((y) => (
                     <option key={y} value={y}>
                       {y}
