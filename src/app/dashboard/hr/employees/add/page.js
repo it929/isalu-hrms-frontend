@@ -19,7 +19,7 @@ const initialForm = {
   sex: '', maritalStatus: '', email: '', phoneNo: '',
   date_of_birth: '', date_of_joining: '',
   department_id: '', unit_id: '', designation_id: '',
-  iou: '', address: '',
+  address: '',
 };
 
 // ── Helper: field row ────────────────────────────────────────────────────
@@ -208,12 +208,12 @@ export default function AddNewStaff() {
     const headers = [
       'staffID', 'title', 'surname', 'firstname', 'othernames', 'sex', 'maritalStatus',
       'date_of_birth', 'phoneNo', 'email', 'address', 'department', 'unit',
-      'designation', 'date_of_joining', 'iou'
+      'designation', 'date_of_joining'
     ];
     const sampleRow = [
       '101', 'Mr', 'IBRAHIM', 'AMINU', 'SULEIMAN', 'Male', 'Single',
       '1990-01-01', '08012345678', 'aminu@isalu.gov.ng', '123 Main Street, Abuja', 'Admin', 'Billing',
-      'Accountant', '2026-05-26', '500000'
+      'Accountant', '2026-05-26'
     ];
 
     // Safely wrap each value in double quotes and escape any embedded quotes to prevent column shifting
@@ -346,7 +346,6 @@ export default function AddNewStaff() {
                   value={form.designation_id} onChange={handleChange} error={errors.designation_id}
                 />
                 <Field label="Date of Joining *" name="date_of_joining" type="date" value={form.date_of_joining} onChange={handleChange} error={errors.date_of_joining} />
-                <Field label="IOU Cap" name="iou" type="number" placeholder="e.g. 50" value={form.iou} onChange={handleChange} error={errors.iou} />
               </div>
 
               {/* ─ Submit ─ */}
