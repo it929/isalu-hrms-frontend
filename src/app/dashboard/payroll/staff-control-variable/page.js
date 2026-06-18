@@ -3,26 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import {
-  DollarSign,
-  Users,
-  TrendingDown,
-  TrendingUp,
-  Search,
-  Loader2,
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  Edit2,
-  Trash2,
-  Plus,
-  ChevronDown,
-  X,
-  XCircle,
-  Upload,
-  AlertTriangle,
-  Download,
-} from 'lucide-react';
+import { Users, TrendingDown, TrendingUp, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, ChevronDown, X, XCircle, Upload, AlertTriangle, Download } from 'lucide-react';
+import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -747,7 +729,7 @@ export default function StaffControlVariablePage() {
               <div className={styles.formGroup}>
                 <label className={styles.label}>Amount (₦ Monthly) *</label>
                 <div className={styles.inputGroup}>
-                  <DollarSign className={styles.inputIcon} size={16} />
+                  <NairaSign className={styles.inputIcon} size={16} />
                   <input
                     type="number"
                     step="0.01"
@@ -800,7 +782,7 @@ export default function StaffControlVariablePage() {
               <div className={styles.formGroup}>
                 <label className={styles.label}>Target Amount Limit</label>
                 <div className={styles.inputGroup}>
-                  <DollarSign className={styles.inputIcon} size={16} />
+                  <NairaSign className={styles.inputIcon} size={16} />
                   <input
                     type="number"
                     step="0.01"

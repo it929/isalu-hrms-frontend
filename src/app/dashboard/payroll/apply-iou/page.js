@@ -3,25 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import {
-  DollarSign,
-  Users,
-  Search,
-  Loader2,
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  Edit2,
-  Trash2,
-  Plus,
-  ChevronDown,
-  X,
-  Calendar,
-  Info,
-  Check,
-  Building2,
-  Percent,
-} from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, ChevronDown, X, Calendar, Info, Check, Building2, Percent } from 'lucide-react';
+import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -787,7 +770,7 @@ export default function ApplyIouPage() {
               <div className={styles.formGroup}>
                 <label className={styles.label}>Requested IOU Amount (₦) *</label>
                 <div className={styles.inputGroup}>
-                  <DollarSign className={styles.inputIcon} size={16} />
+                  <NairaSign className={styles.inputIcon} size={16} />
                   <input
                     type="number"
                     step="0.01"

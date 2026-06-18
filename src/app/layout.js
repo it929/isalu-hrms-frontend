@@ -5,6 +5,9 @@ import { SessionProvider } from "../contexts/SessionContext";
 export const metadata = {
   title: "Isalu HRMS",
   description: "Advanced Human Resource Management System",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }) {
