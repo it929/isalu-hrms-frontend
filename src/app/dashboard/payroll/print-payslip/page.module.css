@@ -287,13 +287,35 @@
   padding-top: 0.75rem !important;
 }
 
-/* ─── Summary / Net Pay ─── */
-.summarySection {
-  display: flex;
-  justify-content: flex-end;
+/* ─── Bottom Section (Balances & Net Salary Side-by-Side) ─── */
+.bottomSection {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 2rem;
+  margin-top: 1.5rem;
   border-top: 2px dashed var(--border);
   padding-top: 1.5rem;
-  margin-top: 1.5rem;
+  align-items: end;
+}
+
+.balancesContainer {
+  width: 100%;
+}
+
+.balancesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1.5rem;
+  background: color-mix(in srgb, var(--text-secondary) 4%, transparent);
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+}
+
+.netPayContainer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .netPayCard {
@@ -357,6 +379,11 @@
 
 /* ─── Print Styles ─── */
 @media print {
+  @page {
+    size: A5 landscape;
+    margin: 4mm;
+  }
+
   /* Hide navbar, sidebar, controls card and action buttons */
   :global(header), :global(aside), .controlsCard, .actions, :global(.navbar), :global(.sidebar) {
     display: none !important;
@@ -387,7 +414,7 @@
   .payslipWrapper {
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important;
+    padding: 0.25rem !important;
     background: #fff !important;
     color: #000 !important;
     page-break-inside: avoid !important;
@@ -396,41 +423,88 @@
   .payslipWrapper::before {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    background-size: 110px !important;
+    opacity: 0.03 !important;
+  }
+
+  .payslipHeader {
+    padding-bottom: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+    border-bottom: 1.5px dashed #ccc !important;
+  }
+
+  .companyInfo h2 {
+    font-size: 1.15rem !important;
+  }
+
+  .companyInfo p {
+    font-size: 0.65rem !important;
+  }
+
+  .payslipTitle h3 {
+    font-size: 1rem !important;
+  }
+
+  .payslipTitle p {
+    font-size: 0.75rem !important;
   }
 
   .metaGrid {
     background: #f3f4f6 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    margin-bottom: 0.75rem !important;
-    padding: 0.75rem !important;
-    gap: 0.4rem 1.5rem !important;
+    margin-bottom: 0.5rem !important;
+    padding: 0.5rem !important;
+    gap: 0.25rem 1rem !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .metaItem {
+    font-size: 0.725rem !important;
+    padding-bottom: 0.2rem !important;
   }
 
   .breakdownGrid {
-    gap: 1rem !important;
-    margin-bottom: 0.75rem !important;
+    gap: 1.25rem !important;
+    margin-bottom: 0.5rem !important;
   }
 
   .table tr td {
-    padding: 0.4rem 0 !important;
-    font-size: 0.8rem !important;
+    padding: 0.2rem 0 !important;
+    font-size: 0.725rem !important;
   }
 
   .sectionTitle {
-    border-bottom: 2px solid #000000 !important;
-    margin-bottom: 0.5rem !important;
-    padding-bottom: 0.25rem !important;
+    border-bottom: 1.5px solid #000000 !important;
+    margin-bottom: 0.35rem !important;
+    padding-bottom: 0.2rem !important;
+    font-size: 0.75rem !important;
   }
 
-  .summarySection {
-    margin-top: 0.75rem !important;
-    padding-top: 0.75rem !important;
+  .bottomSection {
+    grid-template-columns: 1.3fr 0.7fr !important;
+    gap: 1rem !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.5rem !important;
+    border-top: 1px dashed #ccc !important;
+  }
+
+  .balancesGrid {
+    background: transparent !important;
+    padding: 0.25rem 0.5rem !important;
+    gap: 0.2rem 0.75rem !important;
+    border-radius: 6px !important;
+  }
+
+  .balancesGrid .metaItem {
+    padding-bottom: 0.15rem !important;
+    font-size: 0.7rem !important;
   }
 
   .footerNote {
-    margin-top: 1.5rem !important;
-    padding-top: 0.5rem !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.25rem !important;
+    font-size: 0.65rem !important;
   }
 
   .netPayCard {
@@ -438,7 +512,9 @@
     color: #ffffff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    padding: 0.75rem 1.5rem !important;
+    padding: 0.5rem 1.25rem !important;
+    min-width: 180px !important;
+    border-radius: 8px !important;
   }
 }
 
@@ -450,11 +526,12 @@
   }
   
   .breakdownGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
   }
   
-  .metaGrid {
+  .bottomSection {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 }

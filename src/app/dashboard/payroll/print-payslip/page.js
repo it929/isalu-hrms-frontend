@@ -482,39 +482,38 @@ export default function PrintPayslip() {
               </div>
             </div>
 
-            {/* Balances & Information Section */}
-            <div style={{ marginTop: '2rem' }}>
-              <h4 className={styles.sectionTitle}>Balances & Outstanding Information</h4>
-              <div className={styles.metaGrid} style={{ background: 'transparent', border: '1px dashed var(--border)', padding: '1.25rem' }}>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Cop. Contr.:</span>
-                  <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_savings_balance)}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Cop. Lone Bal:</span>
-                  <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_loan_balance)}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Cop. Asset Fin:</span>
-                  <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_asset_finance_balance)}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Med. Debt:</span>
-                  <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.medical_loan_balance)}</span>
+            {/* Balances & Net Salary Row (Side-by-Side) */}
+            <div className={styles.bottomSection}>
+              {/* Balances & Information Section */}
+              <div className={styles.balancesContainer}>
+                <h4 className={styles.sectionTitle}>Balances & Outstanding Information</h4>
+                <div className={styles.balancesGrid}>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Cop. Contr.:</span>
+                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_savings_balance)}</span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Cop. Lone Bal:</span>
+                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_loan_balance)}</span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Cop. Asset Fin:</span>
+                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_asset_finance_balance)}</span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Med. Debt:</span>
+                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.medical_loan_balance)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Net Salary Row */}
-            <div className={styles.summarySection}>
-              <div className={styles.netPayCard}>
-                <span className={styles.netPayLabel}>Net Salary Paid</span>
-                <div className={styles.netPayVal}>{formatCurrency(payslipData.payslip.net_pay)}</div>
+              {/* Net Salary Paid Section */}
+              <div className={styles.netPayContainer}>
+                <div className={styles.netPayCard}>
+                  <span className={styles.netPayLabel}>Net Salary Paid</span>
+                  <div className={styles.netPayVal}>{formatCurrency(payslipData.payslip.net_pay)}</div>
+                </div>
               </div>
-            </div>
-
-            <div className={styles.footerNote}>
-              <p>This is a computer generated document. No signature is required.</p>
             </div>
           </div>
         </motion.div>
