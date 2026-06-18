@@ -10,6 +10,7 @@ import {
   CreditCard, FileText, Camera, CheckCircle, ChevronRight, ChevronLeft, Save, Plus, Trash2
 } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
+import CustomCombobox from '@/components/ui/CustomCombobox';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -633,10 +634,13 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch }
             <label>Qualification Description</label>
             <input type="text" value={form.certificateheld} onChange={e => setForm({...form, certificateheld: e.target.value})} />
           </div>
-          <div className={styles.field}>
-            <label>Class of Qualification (eg. BSc)</label>
-            <input type="text" value={form.degreequalification} onChange={e => setForm({...form, degreequalification: e.target.value})} />
-          </div>
+          <CustomCombobox
+            label="Class of Qualification (eg. BSc)"
+            name="degreequalification"
+            value={form.degreequalification}
+            options={['ND', 'HND', 'NCE', 'BSc', 'BA', 'BEng', 'BTech', 'LLB', 'MBBS', 'B.Pharm', 'PGD', 'MSc', 'MA', 'MBA', 'MPhil', 'PhD']}
+            onChange={e => setForm({...form, degreequalification: e.target.value})}
+          />
           <div className={styles.field}>
             <label>Attach Certificate</label>
             <input type="file" ref={fileInputRef} onChange={e => setForm({...form, document: e.target.files[0]})} />

@@ -1,0 +1,460 @@
+/* ─── Print Payslip Page Module CSS ─── */
+
+.container {
+  padding: 2rem;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  --card-bg: var(--surface);
+  --bg: var(--background);
+}
+
+/* ─── Control Section (Hidden on Print) ─── */
+.controlsCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.controlsTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1.25rem;
+  align-items: flex-end;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.select, .input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.select:focus, .input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.select:disabled {
+  opacity: 0.75;
+  background: color-mix(in srgb, var(--text-secondary) 8%, transparent);
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: var(--bg);
+  transform: translateY(-1px);
+}
+
+/* ─── Printable Payslip Card ─── */
+.payslipWrapper {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  font-family: 'Inter', sans-serif;
+  color: #1f2937; /* Consistent dark text for printing */
+  position: relative;
+  overflow: hidden;
+}
+
+.payslipWrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/isalu_logo.png');
+  background-repeat: repeat;
+  background-size: 160px;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.payslipHeader, .metaGrid, .breakdownGrid, .summarySection, .footerNote {
+  position: relative;
+  z-index: 1;
+}
+
+/* Light/Dark mode adaptations for interactive view, but on print we want standard high contrast */
+:global(html[data-theme='dark']) .payslipWrapper {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.payslipHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px dashed var(--border);
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.companyInfo h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+.companyInfo p {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 0 0;
+}
+
+.payslipTitle {
+  text-align: right;
+}
+
+.payslipTitle h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.payslipTitle p {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 0 0;
+}
+
+/* ─── Metadata Grid ─── */
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem 2rem;
+  margin-bottom: 2rem;
+  background: color-mix(in srgb, var(--text-secondary) 4%, transparent);
+  padding: 1.25rem;
+  border-radius: 12px;
+}
+
+.metaItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  padding-bottom: 0.4rem;
+}
+
+.metaLabel {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.metaVal {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ─── Table Breakdown ─── */
+.breakdownGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  letter-spacing: 0.05em;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table tr td {
+  padding: 0.65rem 0;
+  font-size: 0.875rem;
+}
+
+.table tr td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.table tr {
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.table tr:last-child {
+  border-bottom: none;
+}
+
+.subTotalRow {
+  font-weight: 700 !important;
+  color: var(--text-primary);
+  border-top: 1.5px solid var(--border);
+  padding-top: 0.75rem !important;
+}
+
+/* ─── Summary / Net Pay ─── */
+.summarySection {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 2px dashed var(--border);
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.netPayCard {
+  background: var(--primary);
+  color: #fff !important;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  text-align: right;
+  min-width: 250px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* Keep high contrast net pay on print */
+:global(html[data-theme='dark']) .netPayCard {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.netPayLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.9;
+}
+
+.netPayVal {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-top: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.footerNote {
+  margin-top: 3rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+/* ─── Spinner & Loading ─── */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem;
+  gap: 1rem;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Print Styles ─── */
+@media print {
+  /* Hide navbar, sidebar, controls card and action buttons */
+  :global(header), :global(aside), .controlsCard, .actions, :global(.navbar), :global(.sidebar) {
+    display: none !important;
+  }
+  
+  /* Reset all potential ancestor scroll/flex boundaries to normal block layout */
+  :global(html), :global(body), :global(#__next), :global([class*="layout"]), :global([class*="mainContainer"]), :global(main), :global([class*="pageWrapper"]) {
+    display: block !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    width: 100% !important;
+  }
+
+  /* Reset container properties for clean printable layout */
+  .container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background: transparent !important;
+  }
+
+  .payslipWrapper {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .payslipWrapper::before {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .metaGrid {
+    background: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin-bottom: 0.75rem !important;
+    padding: 0.75rem !important;
+    gap: 0.4rem 1.5rem !important;
+  }
+
+  .breakdownGrid {
+    gap: 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .table tr td {
+    padding: 0.4rem 0 !important;
+    font-size: 0.8rem !important;
+  }
+
+  .sectionTitle {
+    border-bottom: 2px solid #000000 !important;
+    margin-bottom: 0.5rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  .summarySection {
+    margin-top: 0.75rem !important;
+    padding-top: 0.75rem !important;
+  }
+
+  .footerNote {
+    margin-top: 1.5rem !important;
+    padding-top: 0.5rem !important;
+  }
+
+  .netPayCard {
+    background: #1f2937 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 0.75rem 1.5rem !important;
+  }
+}
+
+/* ─── Responsive Adjustments ─── */
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .breakdownGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .metaGrid {
+    grid-template-columns: 1fr;
+  }
+}

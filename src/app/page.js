@@ -54,14 +54,14 @@ export default function Login() {
         <form onSubmit={handleLogin} className={styles.form}>
           {error && <div style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.875rem', border: '1px solid #fca5a5' }}>{error}</div>}
           <div className={styles.inputGroup}>
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">Staff ID</label>
             <input
               type="text"
               id="username"
               className={styles.input}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
+              placeholder="Enter your Staff ID"
               required
             />
           </div>
