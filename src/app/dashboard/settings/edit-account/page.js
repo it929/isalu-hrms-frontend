@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '../../../../contexts/SessionContext';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { KeyRound, User, UserCheck, ShieldAlert } from 'lucide-react';
+import { KeyRound, User, UserCheck, ShieldAlert, Eye, EyeOff } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -16,6 +16,8 @@ export default function EditAccount() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -182,51 +184,95 @@ export default function EditAccount() {
           {/* New Password */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <label htmlFor="password" style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--foreground)' }}>New Password *</label>
-            <input 
-              id="password"
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-              placeholder="Min. 5 characters"
-              style={{
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '0.75rem 1rem',
-                fontSize: '0.95rem',
-                color: 'var(--foreground)',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input 
+                id="password"
+                type={showPassword ? "text" : "password"} 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                required 
+                placeholder="Min. 5 characters"
+                style={{
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '0.75rem 2.5rem 0.75rem 1rem',
+                  fontSize: '0.95rem',
+                  color: 'var(--foreground)',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  width: '100%'
+                }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--secondary, #64748b)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* Confirm Password */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <label htmlFor="confirmPassword" style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--foreground)' }}>Confirm Password *</label>
-            <input 
-              id="confirmPassword"
-              type="password" 
-              value={confirmPassword} 
-              onChange={e => setConfirmPassword(e.target.value)} 
-              required 
-              placeholder="Re-type new password"
-              style={{
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '0.75rem 1rem',
-                fontSize: '0.95rem',
-                color: 'var(--foreground)',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input 
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"} 
+                value={confirmPassword} 
+                onChange={e => setConfirmPassword(e.target.value)} 
+                required 
+                placeholder="Re-type new password"
+                style={{
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '0.75rem 2.5rem 0.75rem 1rem',
+                  fontSize: '0.95rem',
+                  color: 'var(--foreground)',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  width: '100%'
+                }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--secondary, #64748b)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                title={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
         </div>
 

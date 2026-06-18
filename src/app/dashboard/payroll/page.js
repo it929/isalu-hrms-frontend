@@ -3,22 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import {
-  DollarSign,
-  Users,
-  TrendingDown,
-  TrendingUp,
-  Download,
-  Search,
-  Loader2,
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-  Landmark,
-} from 'lucide-react';
+import { Users, TrendingDown, TrendingUp, Download, Search, Loader2, FileText, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Building2, Landmark } from 'lucide-react';
+import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -357,7 +343,7 @@ export default function PayrollPage() {
         {
           label : 'Net Pay',
           value : '₦' + fmt(summary.totalNetPay),
-          icon  : <DollarSign size={22} color="#fff" />,
+          icon  : <NairaSign size={22} color="#fff" />,
           bg    : 'linear-gradient(135deg,#3b82f6,#2563eb)',
         },
       ]

@@ -2,19 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import {
-  Building2,
-  DollarSign,
-  Search,
-  Loader2,
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  Edit2,
-  Trash2,
-  Plus,
-  Upload,
-} from 'lucide-react';
+import { Building2, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Upload } from 'lucide-react';
+import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -446,7 +435,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Total Amount (₦) *</label>
                       <div className={styles.inputGroup}>
-                        <DollarSign size={16} className={styles.inputIcon} />
+                        <NairaSign size={16} className={styles.inputIcon} />
                         <input
                           id="cafd-total-amount"
                           type="number"
@@ -482,7 +471,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Monthly Deduction (₦)</label>
                       <div className={styles.inputGroup}>
-                        <DollarSign size={16} className={styles.inputIcon} />
+                        <NairaSign size={16} className={styles.inputIcon} />
                         <input
                           id="cafd-monthly"
                           type="text"
@@ -499,7 +488,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Balance Remaining (₦)</label>
                       <div className={styles.inputGroup}>
-                        <DollarSign size={16} className={styles.inputIcon} />
+                        <NairaSign size={16} className={styles.inputIcon} />
                         <input
                           id="cafd-balance"
                           type="number"

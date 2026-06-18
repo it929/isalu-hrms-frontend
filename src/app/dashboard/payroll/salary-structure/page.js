@@ -3,22 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import {
-  DollarSign,
-  Users,
-  TrendingUp,
-  TrendingDown,
-  Search,
-  Loader2,
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  Edit2,
-  UploadCloud,
-  Download,
-  AlertTriangle,
-  Plus,
-} from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, UploadCloud, Download, AlertTriangle, Plus } from 'lucide-react';
+import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -457,7 +443,7 @@ export default function SalaryStructurePage() {
 
         <div className={styles.statCard}>
           <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
-            <DollarSign size={22} color="#fff" />
+            <NairaSign size={22} color="#fff" />
           </div>
           <div className={styles.statInfo}>
             <div className={styles.statLabel}>Total Configured Basic</div>

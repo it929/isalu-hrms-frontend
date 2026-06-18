@@ -3,22 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import {
-  DollarSign,
-  Users,
-  Search,
-  Loader2,
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  Edit2,
-  Trash2,
-  Plus,
-  Settings,
-  Calendar,
-  Power,
-  Upload,
-} from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload } from 'lucide-react';
+import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -490,7 +476,7 @@ export default function CoopSavingsSetupPage() {
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Monthly Saving Amount (₦) *</label>
                       <div className={styles.inputGroup}>
-                        <DollarSign size={16} className={styles.inputIcon} />
+                        <NairaSign size={16} className={styles.inputIcon} />
                         <input
                           type="number"
                           step="0.01"
@@ -508,7 +494,7 @@ export default function CoopSavingsSetupPage() {
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Total Saving Balance (₦)</label>
                       <div className={styles.inputGroup}>
-                        <DollarSign size={16} className={styles.inputIcon} />
+                        <NairaSign size={16} className={styles.inputIcon} />
                         <input
                           type="number"
                           step="0.01"
