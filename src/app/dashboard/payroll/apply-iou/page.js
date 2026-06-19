@@ -298,8 +298,8 @@ export default function ApplyIouPage() {
     : staffList.filter(s => {
         const q = dropdownSearch.toLowerCase();
         const nameMatch = s.name ? String(s.name).toLowerCase().includes(q) : false;
-        const fileMatch = s.fileNo ? String(s.fileNo).toLowerCase().includes(q) : false;
-        return nameMatch || fileMatch;
+        const idMatch = s.id ? String(s.id).toLowerCase().includes(q) : false;
+        return nameMatch || idMatch;
       });
 
   const handleSelectStaff = (staff) => {
@@ -350,8 +350,14 @@ export default function ApplyIouPage() {
     }
 
     // Limit Validation check (cumulative monthly validation)
+    const canTake = limitDetails.can_take_iou !== undefined ? limitDetails.can_take_iou : (selectedStaff?.can_take_iou ?? 1);
+    if (canTake === 0) {
+      showToast('This employee is not eligible to take IOU.', 'error');
+      return;
+    }
+
     const requestedAmt = parseFloat(amount);
-    const maxAllowed = limitDetails.max_limit || selectedStaff.max_iou || 0;
+    const maxAllowed = limitDetails.max_limit || selectedStaff?.max_iou || 0;
     const alreadyUsed = limitDetails.used_amount || 0;
     const remainingLimit = limitDetails.remaining_limit !== undefined ? limitDetails.remaining_limit : maxAllowed;
 
@@ -359,7 +365,7 @@ export default function ApplyIouPage() {
       if (alreadyUsed > 0) {
         showToast(`Requested amount (₦${fmt(requestedAmt)}) exceeds the remaining monthly limit of ₦${fmt(remainingLimit)} (₦${fmt(alreadyUsed)} already applied in ${limitDetails.month_name}).`, 'error');
       } else {
-        showToast(`Requested amount (₦${fmt(requestedAmt)}) exceeds the 50% limit of ₦${fmt(maxAllowed)}.`, 'error');
+        showToast(`Requested amount (₦${fmt(requestedAmt)}) exceeds the maximum allowed limit of ₦${fmt(maxAllowed)}.`, 'error');
       }
       return;
     }
@@ -558,6 +564,7 @@ export default function ApplyIouPage() {
   const totalPlannedAmount = alreadyUsedAmount + currentRequestAmount;
   const percentUsed = grossSalary > 0 ? (totalPlannedAmount / grossSalary) * 100 : 0;
   const remainingLimit = limitDetails.remaining_limit !== undefined ? limitDetails.remaining_limit : maxIouLimit;
+  const canTake = limitDetails.can_take_iou !== undefined ? limitDetails.can_take_iou : (selectedStaff?.can_take_iou ?? 1);
 
   // Determine progress color
   let progressClass = styles.progressBarGreen;
@@ -577,7 +584,7 @@ export default function ApplyIouPage() {
     }
     return (
       r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.fileNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.staff_id && r.staff_id.toString().includes(searchQuery)) ||
       r.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (r.department && r.department.toLowerCase().includes(searchQuery.toLowerCase()))
     );
@@ -659,7 +666,7 @@ export default function ApplyIouPage() {
       {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>Apply for IOU</h1>
-        <p className={styles.subtitle}>Submit salary IOUs. Requests are limited to a maximum of 50% of the {"employee's"} gross monthly salary.</p>
+        <p className={styles.subtitle}>Submit salary IOUs. Requests are limited to a maximum of 50% of the employee's gross monthly salary or custom configurations.</p>
       </div>
 
       {/* Form Card */}
@@ -683,7 +690,7 @@ export default function ApplyIouPage() {
                     <input
                       type="text"
                       className={`${styles.input} ${styles.inputWithIcon} ${!canSelectStaff ? styles.readonly : ''}`}
-                      placeholder={!canSelectStaff ? "Readonly employee context" : "Search staff by name or file number..."}
+                      placeholder={!canSelectStaff ? "Readonly employee context" : "Search staff by name or staff ID..."}
                       value={dropdownSearch}
                       onChange={(e) => {
                         setDropdownSearch(e.target.value);
@@ -709,7 +716,7 @@ export default function ApplyIouPage() {
                           onClick={() => handleSelectStaff(staff)}
                         >
                           <span className={styles.staffName}>{staff.name}</span>
-                          <span className={styles.dropdownItemSub}>File No: {staff.fileNo}</span>
+                          <span className={styles.dropdownItemSub}>Staff ID: {staff.id}</span>
                         </li>
                       ))}
                     </ul>
@@ -725,39 +732,46 @@ export default function ApplyIouPage() {
 
               {/* Dynamic Limit Status display */}
               <div className={styles.formGroup}>
-                <label className={styles.label}>Salary Limit Status (50% Maximum)</label>
+                <label className={styles.label}>Salary Limit Status</label>
                 <div className={styles.salaryIndicatorCard}>
                   {selectedStaff ? (
-                    <>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Gross Salary: <strong>₦{fmt(grossSalary)}</strong></span>
-                          <span>Max IOU Limit: <strong>₦{fmt(maxIouLimit)}</strong></span>
-                        </div>
-                        {limitDetails.month_name && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85, fontSize: '0.78rem', borderTop: '1px dashed rgba(0,0,0,0.1)', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
-                            <span>Already Applied ({limitDetails.month_name}): <strong>₦{fmt(alreadyUsedAmount)}</strong></span>
-                            <span>Remaining Limit: <strong style={{ color: remainingLimit > 0 ? 'var(--primary)' : 'var(--danger)' }}>₦{fmt(remainingLimit)}</strong></span>
+                    canTake === 0 ? (
+                      <div style={{ color: '#991b1b', background: '#fee2e2', padding: '0.75rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>
+                        <AlertCircle size={18} />
+                        <span>This staff member is blocked / not eligible to take IOU.</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Gross Salary: <strong>₦{fmt(grossSalary)}</strong></span>
+                            <span>Max IOU Limit: <strong>₦{fmt(maxIouLimit)}</strong></span>
                           </div>
-                        )}
-                      </div>
-                      <div className={styles.progressBarContainer}>
-                        <div
-                          className={`${styles.progressBarFill} ${progressClass}`}
-                          style={{ width: `${Math.min(100, percentUsed * 2)}%` }}
-                        />
-                      </div>
-                      <div className={`${styles.limitText} ${textClass}`}>
-                        {alreadyUsedAmount > 0 ? (
-                          <span>Total request ({percentUsed.toFixed(1)}% of salary) = ₦{fmt(alreadyUsedAmount)} (applied) + ₦{fmt(currentRequestAmount)} (current)</span>
-                        ) : (
-                          <span>Requested amount is {percentUsed.toFixed(1)}% of gross monthly salary</span>
-                        )}
-                        {totalPlannedAmount > maxIouLimit && (
-                          <span style={{ fontWeight: 700 }}>EXCEEDS 50% LIMIT</span>
-                        )}
-                      </div>
-                    </>
+                          {limitDetails.month_name && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85, fontSize: '0.78rem', borderTop: '1px dashed rgba(0,0,0,0.1)', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
+                              <span>Already Applied ({limitDetails.month_name}): <strong>₦{fmt(alreadyUsedAmount)}</strong></span>
+                              <span>Remaining Limit: <strong style={{ color: remainingLimit > 0 ? 'var(--primary)' : 'var(--danger)' }}>₦{fmt(remainingLimit)}</strong></span>
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.progressBarContainer}>
+                          <div
+                            className={`${styles.progressBarFill} ${progressClass}`}
+                            style={{ width: `${Math.min(100, (maxIouLimit > 0 ? (totalPlannedAmount / maxIouLimit) * 100 : 0))}%` }}
+                          />
+                        </div>
+                        <div className={`${styles.limitText} ${textClass}`}>
+                          {alreadyUsedAmount > 0 ? (
+                            <span>Total request ({((totalPlannedAmount / (maxIouLimit || 1)) * 100).toFixed(1)}% of limit) = ₦{fmt(alreadyUsedAmount)} (applied) + ₦{fmt(currentRequestAmount)} (current)</span>
+                          ) : (
+                            <span>Requested amount is {((currentRequestAmount / (maxIouLimit || 1)) * 100).toFixed(1)}% of maximum allowed limit</span>
+                          )}
+                          {totalPlannedAmount > maxIouLimit && (
+                            <span style={{ fontWeight: 700 }}>EXCEEDS ALLOWED LIMIT</span>
+                          )}
+                        </div>
+                      </>
+                    )
                   ) : (
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       Please select a staff member to compute limits.
@@ -910,7 +924,7 @@ export default function ApplyIouPage() {
                         <td>
                           <div className={styles.staffCell}>
                             <span className={styles.staffName}>{row.name}</span>
-                            <span className={styles.staffFile}>{row.fileNo}</span>
+                            <span className={styles.staffFile}>Staff ID: {row.staff_id}</span>
                           </div>
                         </td>
                         <td>{row.department || '—'}</td>
@@ -1095,8 +1109,8 @@ export default function ApplyIouPage() {
                     <span className={styles.detailValue}>{detailRecord.name}</span>
                   </div>
                   <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>File Number</span>
-                    <span className={styles.detailValue}>{detailRecord.fileNo}</span>
+                    <span className={styles.detailLabel}>Staff ID</span>
+                    <span className={styles.detailValue}>{detailRecord.staff_id}</span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Department</span>

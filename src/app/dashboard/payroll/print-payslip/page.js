@@ -40,6 +40,7 @@ export default function PrintPayslip() {
   const [showStaffDropdown, setShowStaffDropdown] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
+  const [printSize, setPrintSize] = useState('A5');
 
   // Payslip rendering states
   const [payslipData, setPayslipData] = useState(null);
@@ -337,15 +338,38 @@ export default function PrintPayslip() {
           transition={{ duration: 0.35 }}
         >
           {/* Action header */}
-          <div className={styles.actions} style={{ justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button onClick={handlePrint} className={styles.btnPrimary}>
+          <div className={styles.actions} style={{ justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <label htmlFor="print-size-select" style={{ fontSize: '0.85rem', fontWeight: '600', marginRight: '0.5rem', color: 'var(--text-secondary)' }}>Print Size:</label>
+              <select
+                id="print-size-select"
+                value={printSize}
+                onChange={(e) => setPrintSize(e.target.value)}
+                className={styles.select}
+                style={{ width: 'auto', padding: '0.5rem 2rem 0.5rem 1rem', height: '40px', borderRadius: '8px' }}
+              >
+                <option value="A5">A5 (Landscape)</option>
+                <option value="A4">A4 (Portrait)</option>
+              </select>
+            </div>
+            <button onClick={handlePrint} className={styles.btnPrimary} style={{ height: '40px' }}>
               <Printer size={16} />
               Print Payslip
             </button>
           </div>
 
+          {/* Dynamic page print size overrides */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page {
+                size: ${printSize === 'A4' ? 'A4 portrait' : 'A5 landscape'};
+                margin: ${printSize === 'A4' ? '12mm' : '4mm'};
+              }
+            }
+          `}} />
+
           {/* Payslip Document */}
-          <div className={styles.payslipWrapper}>
+          <div className={styles.payslipWrapper} data-print-size={printSize}>
             <div className={styles.payslipHeader}>
               <div className={styles.companyInfo}>
                 <h2>Isalu Hospitals Limited</h2>

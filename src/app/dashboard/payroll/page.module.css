@@ -521,3 +521,59 @@
   .filterActions { flex-direction: column; }
   .btnSearch, .btnExport { width: 100%; justify-content: center; }
 }
+
+/* ─── Premium Tooltip Styles ─── */
+.tooltip {
+  position: relative;
+  cursor: default;
+}
+
+.tooltip::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%) scale(0.95);
+  background-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  color: #2d6eef;
+  padding: 0.75rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.725rem;
+  font-weight: 500;
+  line-height: 1.45;
+  width: 130px;
+  white-space: normal;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 1010;
+  box-shadow: var(--shadow);
+  text-decoration: none !important;
+}
+
+.tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.12) transparent transparent transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 1010;
+}
+
+.tooltip:hover::before {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.tooltip:hover::after {
+  opacity: 1;
+}

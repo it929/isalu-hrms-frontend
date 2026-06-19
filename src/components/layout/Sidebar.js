@@ -61,8 +61,9 @@ function getModuleIcon(name) {
 
 function getSubModuleIcon(name) {
   const lower = name.toLowerCase();
+  if (lower.includes('resignation')) return <LogOut size={16} />;
   if (lower.includes('pension') || lower.includes('retention') || lower.includes('tax')) return <Landmark size={16} />;
-  if (lower.includes('loan') || lower.includes('iou') || lower.includes('salary') || lower.includes('deduct')) return <NairaSign size={16} />;
+  if (lower.includes('loan') || lower.includes('iou') || lower.includes('salary') || lower.includes('deduct') || lower.includes('refund')) return <NairaSign size={16} />;
   if (lower.includes('active') || lower.includes('date') || lower.includes('leave') || lower.includes('loa') || lower.includes('calendar')) return <CalendarDays size={16} />;
   if (lower.includes('setup') || lower.includes('control') || lower.includes('variable') || lower.includes('configure') || lower.includes('settings')) return <Settings size={16} />;
   if (lower.includes('record') || lower.includes('employee') || lower.includes('user') || lower.includes('profile')) return <UserCircle size={16} />;
