@@ -60,12 +60,12 @@ const TABLE_COLUMNS = [
   { key: 'TOTAL INCOME',     label: 'Total Income',     cls: styles.tdNum },
   { key: 'DECLARED INCOME',  label: 'Declared Inc.',    cls: styles.tdNum },
   { key: 'PAID DAYS',        label: 'Paid Days',        cls: styles.tdNum },
-  { key: 'P.TAX',            label: 'P. Tax',           cls: styles.tdTax },
+  { key: 'P.TAX',            label: 'P. Tax',           cls: styles.tdTax, tooltip: 'P. Tax = declare_salary * (tax_rate / 100)' },
   { key: 'IOU',              label: 'IOU',              cls: styles.tdDeduction },
   { key: 'RETENTION',        label: 'Retention',        cls: styles.tdNum },
   { key: 'LOAN',             label: 'Loan',             cls: styles.tdDeduction },
   { key: 'SURGHARGES',       label: 'Surcharges',       cls: styles.tdNum },
-  { key: 'PENSION',          label: 'Pension',          cls: styles.tdDeduction },
+  { key: 'PENSION',          label: 'Pension',          cls: styles.tdDeduction, tooltip: 'Pension = (gross_pay * 0.5) * (pension_rate / 100)' },
   { key: 'MEDICAL LOAN',     label: 'Med. Loan',        cls: styles.tdNum },
   { key: 'COOP. SAVING',     label: 'Coop. Saving',     cls: styles.tdDeduction },
   { key: 'COOP. LOAN RPYT',  label: 'Coop. Loan Rpyt',  cls: styles.tdDeduction },
@@ -558,7 +558,13 @@ export default function PayrollPage() {
                 <thead>
                   <tr>
                     {TABLE_COLUMNS.map(col => (
-                      <th key={col.key}>{col.label}</th>
+                      <th 
+                        key={col.key}
+                        className={col.tooltip ? styles.tooltip : ''}
+                        data-tooltip={col.tooltip}
+                      >
+                        {col.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -575,7 +581,11 @@ export default function PayrollPage() {
                           );
                         }
                         return (
-                          <td key={col.key} className={col.cls}>
+                          <td 
+                            key={col.key} 
+                            className={`${col.cls} ${col.tooltip ? styles.tooltip : ''}`}
+                            data-tooltip={col.tooltip}
+                          >
                             {val !== undefined && val !== null && val !== '' ? val : '—'}
                           </td>
                         );
