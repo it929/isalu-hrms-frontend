@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, TrendingUp, TrendingDown, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, UploadCloud, Download, AlertTriangle, Plus } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, UploadCloud, Download, AlertTriangle, Plus, Landmark } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
@@ -29,7 +29,7 @@ function fmt(n) {
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function SalaryStructurePage() {
+export default function DeclareSalaryPage() {
   // Navigation & UI States
   const [activeTab, setActiveTab] = useState('manual'); // 'manual' | 'bulk'
   const [loading, setLoading] = useState(false);
@@ -41,7 +41,7 @@ export default function SalaryStructurePage() {
 
   // Data States
   const [staffList, setStaffList] = useState([]);
-  const [structures, setStructures] = useState([]);
+  const [records, setRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Dropdown Autocomplete Staff State
@@ -51,25 +51,7 @@ export default function SalaryStructurePage() {
   const dropdownRef = useRef(null);
 
   // Form Fields
-  const [grossSalary, setGrossSalary] = useState('');
-  const [structureType, setStructureType] = useState('current'); // 'first' | 'current'
-
-  // Effect to autofill form when selected staff changes or structureType switches to 'current'
-  useEffect(() => {
-    if (structureType === 'current' && selectedStaff) {
-      const existing = structures.find(s => s.staffId === selectedStaff.id);
-      if (existing) {
-        const sumGross = parseFloat(existing.basic_salary || 0) +
-          parseFloat(existing.housing_allowance || 0) +
-          parseFloat(existing.transport_allowance || 0) +
-          parseFloat(existing.medical_allowance || 0) +
-          parseFloat(existing.utility_allowance || 0) +
-          parseFloat(existing.meal_allowance || 0);
-        setGrossSalary(sumGross.toString());
-      }
-    }
-  }, [structureType, selectedStaff, structures]);
-
+  const [declaredSalary, setDeclaredSalary] = useState('');
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -78,37 +60,19 @@ export default function SalaryStructurePage() {
 
   // Fetch initial data
   const fetchData = useCallback(async (silent = false) => {
-    const cacheKeyStaff = 'hrms_salary_struct_staff_cache';
-    const cacheKeyStructures = 'hrms_salary_struct_structures_cache';
-    let hasCache = false;
-
-    if (typeof window !== 'undefined') {
-      const cachedStaff = sessionStorage.getItem(cacheKeyStaff);
-      const cachedStruct = sessionStorage.getItem(cacheKeyStructures);
-      if (cachedStaff && cachedStruct) {
-        setStaffList(JSON.parse(cachedStaff));
-        setStructures(JSON.parse(cachedStruct));
-        hasCache = true;
-      }
-    }
-
-    if (!silent && !hasCache) setLoading(true);
+    if (!silent) setLoading(true);
     const headers = buildHeaders();
     try {
-      const [staffRes, structRes] = await Promise.all([
+      const [staffRes, declareRes] = await Promise.all([
         axios.get(`${API_BASE}/payroll/salary-structures/staff`, { headers }),
-        axios.get(`${API_BASE}/payroll/salary-structures`, { headers }),
+        axios.get(`${API_BASE}/payroll/declare-salary`, { headers }),
       ]);
 
       if (staffRes.data.status === 'success') {
-        const freshStaff = staffRes.data.data || [];
-        setStaffList(freshStaff);
-        if (typeof window !== 'undefined') sessionStorage.setItem(cacheKeyStaff, JSON.stringify(freshStaff));
+        setStaffList(staffRes.data.data || []);
       }
-      if (structRes.data.status === 'success') {
-        const freshStruct = structRes.data.data || [];
-        setStructures(freshStruct);
-        if (typeof window !== 'undefined') sessionStorage.setItem(cacheKeyStructures, JSON.stringify(freshStruct));
+      if (declareRes.data.status === 'success') {
+        setRecords(declareRes.data.data || []);
       }
     } catch (err) {
       showToast('Failed to retrieve setup information.', 'error');
@@ -142,22 +106,9 @@ export default function SalaryStructurePage() {
       );
 
   // Statistics
-  const totalConfigured = structures.length;
-  const totalGrossSalary = structures.reduce((sum, item) => {
-    return sum +
-      parseFloat(item.basic_salary || 0) +
-      parseFloat(item.housing_allowance || 0) +
-      parseFloat(item.transport_allowance || 0) +
-      parseFloat(item.medical_allowance || 0) +
-      parseFloat(item.utility_allowance || 0) +
-      parseFloat(item.meal_allowance || 0);
-  }, 0);
-  const avgTaxRate = totalConfigured > 0
-    ? structures.reduce((sum, item) => sum + parseFloat(item.tax_rate || 0), 0) / totalConfigured
-    : 0;
-  const avgPensionRate = totalConfigured > 0
-    ? structures.reduce((sum, item) => sum + parseFloat(item.pension_rate || 0), 0) / totalConfigured
-    : 0;
+  const totalConfigured = records.length;
+  const totalDeclaredSalary = records.reduce((sum, item) => sum + parseFloat(item.declare_salary || 0), 0);
+  const countWithDeclared = records.filter(item => item.declare_salary !== null && parseFloat(item.declare_salary) > 0).length;
 
   // Handle Select Staff from Autocomplete list
   const handleSelectStaff = (staff) => {
@@ -165,34 +116,25 @@ export default function SalaryStructurePage() {
     setDropdownSearch(staff.label);
     setShowDropdown(false);
 
-    // If there is an existing structure for this staff, populate form fields
-    const existing = structures.find(s => s.staffId === staff.id);
+    // If there is an existing record for this staff, populate form fields
+    const existing = records.find(s => s.staffId === staff.id);
     if (existing) {
-      const sumGross = parseFloat(existing.basic_salary || 0) +
-        parseFloat(existing.housing_allowance || 0) +
-        parseFloat(existing.transport_allowance || 0) +
-        parseFloat(existing.medical_allowance || 0) +
-        parseFloat(existing.utility_allowance || 0) +
-        parseFloat(existing.meal_allowance || 0);
-      setGrossSalary(sumGross.toString());
-      showToast(`Loaded existing structure for ${staff.name}. Saving will overwrite it.`);
+      setDeclaredSalary(existing.declare_salary || '');
+      if (existing.declare_salary) {
+        showToast(`Loaded existing declared salary for ${staff.name}.`);
+      }
     } else {
-      // Clear values if no existing
-      resetFormFieldsExceptStaff();
+      setDeclaredSalary('');
     }
-  };
-
-  const resetFormFieldsExceptStaff = () => {
-    setGrossSalary('');
   };
 
   const handleClearForm = () => {
     setSelectedStaff(null);
     setDropdownSearch('');
-    resetFormFieldsExceptStaff();
+    setDeclaredSalary('');
   };
 
-  // Submit manual salary structure
+  // Submit manual declared salary
   const handleSubmitManual = async (e) => {
     e.preventDefault();
     if (!selectedStaff) {
@@ -204,24 +146,22 @@ export default function SalaryStructurePage() {
     try {
       const payload = {
         staffId: selectedStaff.id,
-        gross_salary: grossSalary || 0,
-        structure_type: structureType,
+        declare_salary: declaredSalary || 0,
       };
 
-
-      const res = await axios.post(`${API_BASE}/payroll/salary-structures`, payload, {
+      const res = await axios.post(`${API_BASE}/payroll/declare-salary`, payload, {
         headers: buildHeaders()
       });
 
       if (res.data.status === 'success') {
-        showToast(res.data.message || 'Salary structure saved successfully.');
+        showToast(res.data.message || 'Declared salary updated successfully.');
         handleClearForm();
-        fetchData(true); // Silent refetch and update sessionStorage cache
+        fetchData(true); // Silent refetch
       } else {
-        showToast(res.data.message || 'Failed to save salary structure.', 'error');
+        showToast(res.data.message || 'Failed to update declared salary.', 'error');
       }
     } catch (err) {
-      showToast(err.response?.data?.message || 'Server error saving record.', 'error');
+      showToast(err.response?.data?.message || 'Server error updating record. Make sure the staff has a salary structure setup.', 'error');
     } finally {
       setSaving(false);
     }
@@ -275,7 +215,7 @@ export default function SalaryStructurePage() {
     formData.append('file', file);
 
     try {
-      const res = await axios.post(`${API_BASE}/payroll/salary-structures/upload`, formData, {
+      const res = await axios.post(`${API_BASE}/payroll/declare-salary/import`, formData, {
         headers: {
           ...buildHeaders(),
           'Content-Type': 'multipart/form-data',
@@ -288,11 +228,8 @@ export default function SalaryStructurePage() {
           setWarnings(res.data.warnings);
           setTimeout(() => setWarnings([]), 30000);
         }
-        // Refresh structures list
-        const structRes = await axios.get(`${API_BASE}/payroll/salary-structures`, { headers: buildHeaders() });
-        if (structRes.data.status === 'success') {
-          setStructures(structRes.data.data || []);
-        }
+        // Refresh records list
+        fetchData(true);
       } else {
         showToast(res.data.message || 'Import failed.', 'error');
       }
@@ -303,17 +240,10 @@ export default function SalaryStructurePage() {
     }
   };
 
-  // Export/Download Excel Template CSV
+  // Download template
   const handleDownloadTemplate = () => {
-    const headers = [
-      'staffId',
-      'gross_salary'
-    ];
-
-    const sampleRow = [
-      '1',
-      '250000.00'
-    ];
+    const headers = ['staffId', 'declare_salary'];
+    const sampleRow = ['1', '1800000.00'];
 
     const csvContent = "data:text/csv;charset=utf-8," 
       + [headers.join(','), sampleRow.join(',')].join('\n');
@@ -321,14 +251,14 @@ export default function SalaryStructurePage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "salary_structures_template.csv");
+    link.setAttribute("download", "declared_salaries_template.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     showToast('Downloaded template file!');
   };
 
-  // Trigger form population from existing structures list
+  // Edit from table list
   const handleEditFromList = (row) => {
     const staff = staffList.find(s => s.id === row.staffId) || {
       id: row.staffId,
@@ -339,21 +269,15 @@ export default function SalaryStructurePage() {
 
     setSelectedStaff(staff);
     setDropdownSearch(staff.label);
-    const sumGross = parseFloat(row.basic_salary || 0) +
-      parseFloat(row.housing_allowance || 0) +
-      parseFloat(row.transport_allowance || 0) +
-      parseFloat(row.medical_allowance || 0) +
-      parseFloat(row.utility_allowance || 0) +
-      parseFloat(row.meal_allowance || 0);
-    setGrossSalary(sumGross.toString());
+    setDeclaredSalary(row.declare_salary || '');
 
     setActiveTab('manual');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast(`Loaded ${row.name}'s structure for editing.`);
+    showToast(`Loaded ${row.name}'s record for editing.`);
   };
 
-  // Filtered structures list
-  const filteredStructures = structures.filter(s =>
+  // Filtered list
+  const filteredRecords = records.filter(s =>
     s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.fileNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(s.staffId).includes(searchQuery)
@@ -368,8 +292,8 @@ export default function SalaryStructurePage() {
     >
       {/* Page Header */}
       <div className={styles.header}>
-        <h1>Salary Structure Configuration</h1>
-        <p>Set up, modify, or upload monthly base salaries and standard allowances for personnel.</p>
+        <h1>Declared Salary Configuration</h1>
+        <p>Define or bulk import the annual declared salary for staff members with active salary structures.</p>
       </div>
 
       {/* Tabs */}
@@ -397,7 +321,7 @@ export default function SalaryStructurePage() {
             <Users size={22} color="#fff" />
           </div>
           <div className={styles.statInfo}>
-            <div className={styles.statLabel}>Configured Staff</div>
+            <div className={styles.statLabel}>Available Structures</div>
             <div className={styles.statValue}>{totalConfigured.toLocaleString()}</div>
           </div>
         </div>
@@ -407,20 +331,18 @@ export default function SalaryStructurePage() {
             <NairaSign size={22} color="#fff" />
           </div>
           <div className={styles.statInfo}>
-            <div className={styles.statLabel}>Total Configured Basic</div>
-            <div className={styles.statValue}>₦{fmt(totalGrossSalary)}</div>
+            <div className={styles.statLabel}>Declared Set Count</div>
+            <div className={styles.statValue}>{countWithDeclared} / {totalConfigured}</div>
           </div>
         </div>
 
-
-
         <div className={styles.statCard}>
           <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg,#3b82f6,#2563eb)' }}>
-            <TrendingUp size={22} color="#fff" />
+            <Landmark size={22} color="#fff" />
           </div>
           <div className={styles.statInfo}>
-            <div className={styles.statLabel}>Avg. Pension Rate</div>
-            <div className={styles.statValue}>{avgPensionRate.toFixed(2)}%</div>
+            <div className={styles.statLabel}>Total Declared Amount</div>
+            <div className={styles.statValue}>₦{fmt(totalDeclaredSalary)}</div>
           </div>
         </div>
       </div>
@@ -436,36 +358,9 @@ export default function SalaryStructurePage() {
             transition={{ duration: 0.2 }}
             className={styles.formCard}
           >
-            <h2 className={styles.cardTitle}>Manual Salary Assignment</h2>
+            <h2 className={styles.cardTitle}>Configure Declared Salary</h2>
             <form onSubmit={handleSubmitManual}>
               <div className={styles.formGrid}>
-                {/* Structure Type Select Toggles */}
-                <div className={styles.formGroup} style={{ gridColumn: 'span 2' }}>
-                  <label className={styles.formLabel}>Structure Assignment Type</label>
-                  <div style={{ display: 'flex', gap: '2rem', marginTop: '0.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                      <input
-                        type="radio"
-                        name="structureType"
-                        value="current"
-                        checked={structureType === 'current'}
-                        onChange={() => setStructureType('current')}
-                      />
-                      Current Salary Structure (For Adjustments)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                      <input
-                        type="radio"
-                        name="structureType"
-                        value="first"
-                        checked={structureType === 'first'}
-                        onChange={() => setStructureType('first')}
-                      />
-                      First Salary Structure
-                    </label>
-                  </div>
-                </div>
-
                 {/* Searchable Staff autocomplete select */}
                 <div className={styles.formGroup} ref={dropdownRef}>
                   <label className={styles.formLabel} htmlFor="staff-select">Select Staff Member *</label>
@@ -504,18 +399,18 @@ export default function SalaryStructurePage() {
                   </div>
                 </div>
 
-                {/* Gross Salary */}
+                {/* Declared Salary */}
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel} htmlFor="gross-salary">Gross Salary (₦) *</label>
+                  <label className={styles.formLabel} htmlFor="declare-salary">Declared Salary (₦) *</label>
                   <input
-                    id="gross-salary"
+                    id="declare-salary"
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="0.00"
                     className={styles.formInput}
-                    value={grossSalary}
-                    onChange={(e) => setGrossSalary(e.target.value)}
+                    value={declaredSalary}
+                    onChange={(e) => setDeclaredSalary(e.target.value)}
                     required
                   />
                 </div>
@@ -537,7 +432,7 @@ export default function SalaryStructurePage() {
                   disabled={saving}
                 >
                   {saving && <Loader2 size={16} className={styles.spinner} />}
-                  {saving ? 'Saving...' : 'Save Structure'}
+                  {saving ? 'Saving...' : 'Save Configuration'}
                 </button>
               </div>
             </form>
@@ -553,8 +448,8 @@ export default function SalaryStructurePage() {
           >
             <h2 className={styles.cardTitle}>Spreadsheet Bulk Import</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', marginTop: '-0.75rem' }}>
-              Upload an Excel file (.xlsx, .xls) or CSV template that contains multiple staff salary structures.
-              Staff records will be matched and saved directly to the database.
+              Upload an Excel file (.xlsx, .xls) or CSV template that contains multiple staff declared salaries.
+              Matching records will be updated directly in the database.
             </p>
 
             {/* Drag & Drop Area */}
@@ -599,7 +494,7 @@ export default function SalaryStructurePage() {
                 Download CSV Column Template
               </button>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Required column titles (or order): <strong>staffId, gross_salary</strong>
+                Required column titles (or order): <strong>staffId, declare_salary</strong>
               </span>
             </div>
 
@@ -621,12 +516,12 @@ export default function SalaryStructurePage() {
         )}
       </AnimatePresence>
 
-      {/* Searchable Structures List Table */}
+      {/* Searchable List Table */}
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <h2 className={styles.tableTitle}>
             <FileText size={18} />
-            Salary Assignment Schedule
+            Declared Salary Schedule
           </h2>
           <div className={styles.tableSearch}>
             <Search size={16} className={styles.tableSearchIcon} />
@@ -644,44 +539,32 @@ export default function SalaryStructurePage() {
           {loading ? (
             <div className={styles.loadingState}>
               <Loader2 size={40} className={styles.spinner} />
-              <span>Fetching salary structures...</span>
+              <span>Fetching declared salaries...</span>
             </div>
-          ) : filteredStructures.length > 0 ? (
+          ) : filteredRecords.length > 0 ? (
             <table className={styles.table}>
               <thead>
                 <tr>
                   <th>Staff ID</th>
                   <th>Staff Name</th>
-                  <th>Basic (₦)</th>
-                  <th>Declared (₦)</th>
-                  <th>Housing (₦)</th>
-                  <th>Transport (₦)</th>
-                  <th>Medical (₦)</th>
-                  <th>Utility (₦)</th>
-                  <th>Meal (₦)</th>
-                  <th>Pension (%)</th>
+                  <th>Basic Salary (₦)</th>
+                  <th>Declared Salary (₦)</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredStructures.map((row) => (
+                {filteredRecords.map((row) => (
                   <tr key={row.id}>
                     <td className={styles.tdPrimary}>{row.staffId}</td>
                     <td>{row.name}</td>
                     <td className={styles.tdNum}>{fmt(row.basic_salary)}</td>
-                    <td className={styles.tdNum}>{fmt(row.declare_salary)}</td>
-                    <td className={styles.tdNum}>{fmt(row.housing_allowance)}</td>
-                    <td className={styles.tdNum}>{fmt(row.transport_allowance)}</td>
-                    <td className={styles.tdNum}>{fmt(row.medical_allowance)}</td>
-                    <td className={styles.tdNum}>{fmt(row.utility_allowance)}</td>
-                    <td className={styles.tdNum}>{fmt(row.meal_allowance)}</td>
-                    <td className={styles.tdNum}>{parseFloat(row.pension_rate).toFixed(2)}%</td>
+                    <td className={styles.tdNum}>{row.declare_salary !== null ? fmt(row.declare_salary) : '—'}</td>
                     <td>
                       <button
                         type="button"
                         className={styles.btnEdit}
                         onClick={() => handleEditFromList(row)}
-                        title="Edit Salary Structure"
+                        title="Edit Declared Salary"
                       >
                         <Edit2 size={14} />
                       </button>
@@ -693,11 +576,11 @@ export default function SalaryStructurePage() {
           ) : (
             <div className={styles.emptyState}>
               <FileText size={48} />
-              <h3>No Configurations Found</h3>
+              <h3>No Structures Found</h3>
               <p>
                 {searchQuery
-                  ? "No salary structures matched your search filters."
-                  : "No salary structures have been set up yet. Choose manual configuration or spreadsheet upload above."}
+                  ? "No configurations matched your search filters."
+                  : "No staff members with salary structures found."}
               </p>
             </div>
           )}

@@ -531,10 +531,10 @@
 .tooltip::before {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: 130%;
+  top: 130%;
   left: 50%;
   transform: translateX(-50%) scale(0.95);
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   color: #2d6eef;
@@ -543,7 +543,7 @@
   font-size: 0.725rem;
   font-weight: 500;
   line-height: 1.45;
-  width: 130px;
+  width: 220px;
   white-space: normal;
   text-align: center;
   opacity: 0;
@@ -557,16 +557,20 @@
 .tooltip::after {
   content: "";
   position: absolute;
-  bottom: 110%;
+  top: 110%;
   left: 50%;
   transform: translateX(-50%);
   border-width: 6px;
   border-style: solid;
-  border-color: rgba(255, 255, 255, 0.12) transparent transparent transparent;
+  border-color: transparent transparent rgba(255, 255, 255, 0.95) transparent;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
   z-index: 1010;
+}
+
+.tooltip:hover {
+  z-index: 10;
 }
 
 .tooltip:hover::before {
