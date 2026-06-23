@@ -55,7 +55,7 @@ export default function RetentionActivationPage() {
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4500);
+    setTimeout(() => setToast(null), 30000);
   }, []);
 
   // Fetch initial data
@@ -179,6 +179,12 @@ export default function RetentionActivationPage() {
       return;
     }
 
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB limit
+    if (file.size > maxSizeBytes) {
+      showToast('File size is too large. Maximum allowed size is 5MB.', 'error');
+      return;
+    }
+
     setUploading(true);
     setWarnings([]);
 
@@ -197,6 +203,7 @@ export default function RetentionActivationPage() {
         showToast(res.data.message || 'Spreadsheet processed successfully.');
         if (res.data.warnings && res.data.warnings.length > 0) {
           setWarnings(res.data.warnings);
+          setTimeout(() => setWarnings([]), 30000);
         }
         fetchData(true); // refresh table silently
       } else {
@@ -213,25 +220,13 @@ export default function RetentionActivationPage() {
   const handleDownloadTemplate = () => {
     const headers = [
       'staffId',
-      'basic_salary',
-      'declare_salary',
-      'housing_allowance',
-      'transport_allowance',
-      'medical_allowance',
-      'utility_allowance',
-      'meal_allowance',
+      'gross_salary',
       'num_reten_months',
       'reten_act'
     ];
     const sampleRow = [
       '1',
-      '100000.00',
-      '100000.00',
-      '20000.00',
-      '10000.00',
-      '10000.00',
-      '10000.00',
-      '10000.00',
+      '250000.00',
       '0',
       '1'
     ];
@@ -532,7 +527,7 @@ export default function RetentionActivationPage() {
                 Download CSV Column Template
               </button>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Required columns: <strong>staffId, basic_salary, declare_salary, housing_allowance, transport_allowance, medical_allowance, utility_allowance, meal_allowance, num_reten_months, reten_act</strong>
+                Required columns: <strong>staffId, gross_salary, num_reten_months, reten_act</strong>
               </span>
             </div>
 

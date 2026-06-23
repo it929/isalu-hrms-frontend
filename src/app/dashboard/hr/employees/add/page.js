@@ -173,6 +173,12 @@ export default function AddNewStaff() {
       return;
     }
 
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB limit
+    if (file.size > maxSizeBytes) {
+      showToast('File size is too large. Maximum allowed size is 5MB.', 'error');
+      return;
+    }
+
     setUploading(true);
     setWarnings([]);
 

@@ -521,6 +521,11 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch }
   const handleAdd = async () => {
     if (!form.schoolattended || !form.category) return;
     
+    if (form.document && form.document.size > 5 * 1024 * 1024) {
+      alert('File size is too large. Maximum allowed size is 5MB.');
+      return;
+    }
+    
     setUploading(true);
     try {
       const formData = new FormData();
@@ -1036,6 +1041,12 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch }) {
 
   const handleUpload = async () => {
     if (!form.description || !form.filename) return;
+
+    if (form.filename && form.filename.size > 5 * 1024 * 1024) {
+      alert('File size is too large. Maximum allowed size is 5MB.');
+      return;
+    }
+
     setUploading(true);
     try {
       const formData = new FormData();
@@ -1258,6 +1269,12 @@ function StepMedia({ data, onChange }) {
 
   const handleFileChange = (field, file) => {
     if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size is too large. Maximum allowed size is 5MB.');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       onChange({

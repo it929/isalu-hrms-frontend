@@ -60,12 +60,12 @@ const TABLE_COLUMNS = [
   { key: 'TOTAL INCOME',     label: 'Total Income',     cls: styles.tdNum },
   { key: 'DECLARED INCOME',  label: 'Declared Inc.',    cls: styles.tdNum },
   { key: 'PAID DAYS',        label: 'Paid Days',        cls: styles.tdNum },
-  { key: 'P.TAX',            label: 'P. Tax',           cls: styles.tdTax, tooltip: 'P. Tax = declare_salary * (tax_rate / 100)' },
+  { key: 'P.TAX',            label: 'P. Tax',           cls: styles.tdTax, tooltip: 'P. Tax = (Annual Declared - 8% Pension if active) progressive bands / 12. Bands: First 800k @ 0%, next 2.2M @ 15%, next 9M @ 18%, next 13M @ 21%, next 25M @ 23%, above 50M @ 25%.' },
   { key: 'IOU',              label: 'IOU',              cls: styles.tdDeduction },
   { key: 'RETENTION',        label: 'Retention',        cls: styles.tdNum },
   { key: 'LOAN',             label: 'Loan',             cls: styles.tdDeduction },
   { key: 'SURGHARGES',       label: 'Surcharges',       cls: styles.tdNum },
-  { key: 'PENSION',          label: 'Pension',          cls: styles.tdDeduction, tooltip: 'Pension = (gross_pay * 0.5) * (pension_rate / 100)' },
+  { key: 'PENSION',          label: 'Pension',          cls: styles.tdDeduction, tooltip: 'Pension = Declared Salary * (Pension Rate / 100) if active' },
   { key: 'MEDICAL LOAN',     label: 'Med. Loan',        cls: styles.tdNum },
   { key: 'COOP. SAVING',     label: 'Coop. Saving',     cls: styles.tdDeduction },
   { key: 'COOP. LOAN RPYT',  label: 'Coop. Loan Rpyt',  cls: styles.tdDeduction },
@@ -580,11 +580,25 @@ export default function PayrollPage() {
                             </td>
                           );
                         }
+                        let cellTooltip = col.tooltip;
+                        if (col.key === 'PENSION') {
+                          const decSalary = parseFloat(row['DECLARED INCOME'] || 0);
+                          const pensionVal = parseFloat(row['PENSION'] || 0);
+                          const pensionRate = decSalary > 0 && pensionVal > 0 ? Math.round((pensionVal / decSalary) * 100) : 8;
+                          cellTooltip = `Pension = ${decSalary} * (${pensionRate}/100) if active`;
+                        } else if (col.key === 'P.TAX') {
+                          const decSalary = parseFloat(row['DECLARED INCOME'] || 0);
+                          const pensionVal = parseFloat(row['PENSION'] || 0);
+                          const annualGross = decSalary * 12;
+                          const annualPension = pensionVal * 12;
+                          const annualTaxable = Math.max(0, annualGross - annualPension);
+                          cellTooltip = `P. Tax = Progressive bands on annual taxable ₦${annualTaxable.toLocaleString('en-NG')} (₦${annualGross.toLocaleString('en-NG')} Declared - ₦${annualPension.toLocaleString('en-NG')} Pension) / 12`;
+                        }
                         return (
                           <td 
                             key={col.key} 
-                            className={`${col.cls} ${col.tooltip ? styles.tooltip : ''}`}
-                            data-tooltip={col.tooltip}
+                            className={`${col.cls} ${cellTooltip ? styles.tooltip : ''}`}
+                            data-tooltip={cellTooltip}
                           >
                             {val !== undefined && val !== null && val !== '' ? val : '—'}
                           </td>
