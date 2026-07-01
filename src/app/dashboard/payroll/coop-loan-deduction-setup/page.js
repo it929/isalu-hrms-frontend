@@ -451,7 +451,7 @@ export default function CoopLoanDeductionSetupPage() {
                               onClick={() => handleSelectStaff(staff)}
                             >
                               <span className={styles.staffName}>{staff.name}</span>
-                              <span className={styles.dropdownItemSub}>ID: {staff.id} | File No: {staff.fileNo}</span>
+                              <span className={styles.dropdownItemSub}>Staff ID: {staff.id}</span>
                             </li>
                           ))
                         ) : (
@@ -638,7 +638,7 @@ export default function CoopLoanDeductionSetupPage() {
                       <td>
                         <div className={styles.staffCell}>
                           <span className={styles.staffName}>{s.name}</span>
-                          <span className={styles.staffFile}>ID: {s.staffId} | File: {s.fileNo}</span>
+                          <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
                         </div>
                       </td>
                       <td>₦{fmt(s.loan_amount)}</td>

@@ -16,6 +16,8 @@ import {
   ShieldCheck,
   Coins,
   X,
+  Upload,
+  Paperclip,
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -65,8 +67,12 @@ export default function CoopSavingsLoanOffsetPage() {
   const [balancesLoading,setBalancesLoading] = useState(false);
 
   // ── Offset form
+  const [offsetType,   setOffsetType]   = useState('savings'); // 'savings' or 'bank'
   const [offsetAmount, setOffsetAmount] = useState('');
   const [notes,        setNotes]        = useState('');
+  const [proofFile,    setProofFile]    = useState(null);
+  const fileInputRef = useRef(null);
+  const [loanJustCleared, setLoanJustCleared] = useState(false);
 
   // ── Modal
   const [showConfirm, setShowConfirm] = useState(false);
@@ -184,16 +190,27 @@ export default function CoopSavingsLoanOffsetPage() {
     setShowDropdown(false);
     setOffsetAmount('');
     setNotes('');
+    setOffsetType('savings');
+    setProofFile(null);
+    setLoanJustCleared(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     fetchBalances(staff.staffId);
     fetchHistory(staff.staffId);
   };
+
+  // Auto set offset type to bank if staff has no active savings setup
+  useEffect(() => {
+    if (balances && !balances.savings) {
+      setOffsetType('bank');
+    }
+  }, [balances]);
 
   // ── Clear All shortcut
   const handleClearAll = () => {
     if (!balances) return;
     const savingsBal = balances.savings?.saving_balance ?? 0;
     const loanBal    = balances.loan?.balance_remaining ?? 0;
-    const max = Math.min(savingsBal, loanBal);
+    const max = offsetType === 'savings' ? Math.min(savingsBal, loanBal) : loanBal;
     setOffsetAmount(max > 0 ? String(max.toFixed(2)) : '');
   };
 
@@ -201,34 +218,57 @@ export default function CoopSavingsLoanOffsetPage() {
   const parsedAmount   = parseFloat(offsetAmount) || 0;
   const savingsBal     = balances?.savings?.saving_balance ?? 0;
   const loanBal        = balances?.loan?.balance_remaining ?? 0;
-  const savingsAfter   = Math.max(0, savingsBal - parsedAmount);
+  const savingsAfter   = Math.max(0, savingsBal - (offsetType === 'savings' ? parsedAmount : 0));
   const loanAfter      = Math.max(0, loanBal    - parsedAmount);
   const canSubmit      = parsedAmount > 0
-    && parsedAmount <= savingsBal
+    && (offsetType === 'savings'
+        ? (parsedAmount <= savingsBal && balances?.savings)
+        : (offsetType === 'bank' && proofFile)
+       )
     && parsedAmount <= loanBal
-    && balances?.savings
     && balances?.loan;
 
   // ── Submit offset
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      const formData = new FormData();
+      formData.append('staffId', selectedStaff.staffId);
+      formData.append('offset_type', offsetType);
+      formData.append('loan_setup_id', balances.loan.id);
+      formData.append('offset_amount', parsedAmount);
+      if (balances.savings) {
+        formData.append('savings_setup_id', balances.savings.id);
+      }
+      if (notes.trim()) {
+        formData.append('notes', notes.trim());
+      }
+      if (offsetType === 'bank' && proofFile) {
+        formData.append('proof_of_payment', proofFile);
+      }
+
       const res = await axios.post(
         `${API_BASE}/payroll/coop-savings-loan-offset`,
+        formData,
         {
-          staffId:          selectedStaff.staffId,
-          savings_setup_id: balances.savings.id,
-          loan_setup_id:    balances.loan.id,
-          offset_amount:    parsedAmount,
-          notes:            notes.trim() || null,
-        },
-        { headers: buildHeaders() }
+          headers: {
+            ...buildHeaders(),
+            'Content-Type': 'multipart/form-data',
+          }
+        }
       );
       if (res.data.status === 'success') {
         showToast(res.data.message, 'success');
         setShowConfirm(false);
         setOffsetAmount('');
         setNotes('');
+        setProofFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (res.data.loan_cleared) {
+          setLoanJustCleared(true);
+        } else {
+          setLoanJustCleared(false);
+        }
         // Refresh
         await fetchBalances(selectedStaff.staffId);
         await fetchHistory(selectedStaff.staffId);
@@ -244,8 +284,8 @@ export default function CoopSavingsLoanOffsetPage() {
     }
   };
 
-  const hasBalances = balances && balances.savings && balances.loan;
-  const missingBalances = balances && (!balances.savings || !balances.loan);
+  const hasBalances = balances && balances.loan;
+  const missingBalances = balances && !balances.loan;
 
   return (
     <motion.div
@@ -300,7 +340,7 @@ export default function CoopSavingsLoanOffsetPage() {
                         <div className={styles.staffOptionName}>{s.name.trim()}</div>
                         <div className={styles.staffOptionMeta}>{s.department || '—'}</div>
                       </div>
-                      <span className={styles.fileNoBadge}>{s.fileNo}</span>
+                      <span className={styles.fileNoBadge}>ID: {s.staffId}</span>
                     </div>
                   ))}
                 </motion.div>
@@ -318,23 +358,33 @@ export default function CoopSavingsLoanOffsetPage() {
         </div>
       )}
 
-      {/* ── Missing balances warning ── */}
-      {!balancesLoading && missingBalances && (
+      {/* ── Missing loan / Success cleared card ── */}
+      {!balancesLoading && balances && !balances.loan && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className={styles.card}
-          style={{ borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.07)' }}
+          style={
+            loanJustCleared
+              ? { borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.07)' }
+              : { borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.07)' }
+          }
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#f87171' }}>
-            <AlertCircle size={20} />
-            <div>
-              <strong>Cannot process offset:</strong>{' '}
-              {!balances.savings
-                ? 'This staff member has no active coop savings setup.'
-                : 'This staff member has no active coop loan setup.'}
+          {loanJustCleared ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#34d399' }}>
+              <CheckCircle2 size={20} />
+              <div>
+                <strong>Coop loan cleared:</strong> The staff member's cooperative loan has been fully paid and cleared!
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#f87171' }}>
+              <AlertCircle size={20} />
+              <div>
+                <strong>Cannot process offset:</strong> This staff member has no active coop loan setup.
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -352,7 +402,7 @@ export default function CoopSavingsLoanOffsetPage() {
             <div className={styles.balanceGrid}>
 
               {/* ── Coop Savings Card ── */}
-              <div className={`${styles.balanceCard} ${styles.balanceCardSavings}`}>
+              <div className={`${styles.balanceCard} ${styles.balanceCardSavings}`} style={{ opacity: balances.savings ? 1 : 0.55 }}>
                 <div className={styles.balanceCardHeader}>
                   <div className={`${styles.balanceIcon} ${styles.balanceIconGreen}`}>
                     <Wallet size={18} color="#10b981" />
@@ -362,18 +412,28 @@ export default function CoopSavingsLoanOffsetPage() {
                 <div className={styles.balanceAmountSection}>
                   <span className={`${styles.balanceCurrency} ${styles.balanceCurrencyGreen}`}>₦</span>
                   <span className={`${styles.balanceAmount} ${styles.balanceAmountSavings}`}>
-                    {parseFloat(balances.savings.saving_balance).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {balances.savings
+                      ? parseFloat(balances.savings.saving_balance).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      : '0.00'
+                    }
                   </span>
                 </div>
                 <div className={styles.balanceDivider} />
                 <div className={styles.balanceSubRow}>
                   <div className={styles.balanceSubItem}>
                     <span className={styles.balanceSubItemLabel}>Monthly Saving</span>
-                    <span className={styles.balanceSubItemValue}>₦{parseFloat(balances.savings.monthly_saving).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                    <span className={styles.balanceSubItemValue}>
+                      {balances.savings
+                        ? `₦${parseFloat(balances.savings.monthly_saving).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
+                        : '₦0.00'
+                      }
+                    </span>
                   </div>
                   <div className={styles.balanceSubItem} style={{ textAlign: 'right' }}>
                     <span className={styles.balanceSubItemLabel}>Status</span>
-                    <span className={styles.balanceSubItemValue} style={{ color: '#10b981' }}>● Active</span>
+                    <span className={styles.balanceSubItemValue} style={{ color: balances.savings ? '#10b981' : '#ef4444' }}>
+                      {balances.savings ? '● Active' : '● No Setup'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -423,12 +483,38 @@ export default function CoopSavingsLoanOffsetPage() {
 
 
             {/* Offset Form */}
+            {/* Offset Form */}
             <div className={styles.card}>
               <p className={styles.cardTitle}>Process Offset</p>
 
+              {/* Offset Method Selector */}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Offset Method</label>
+                <div className={styles.methodSelector}>
+                  <button
+                    type="button"
+                    className={`${styles.methodBtn} ${offsetType === 'savings' ? styles.methodBtnActive : ''}`}
+                    onClick={() => { setOffsetType('savings'); setProofFile(null); }}
+                    disabled={!balances?.savings}
+                    title={!balances?.savings ? 'No active savings setup available for this employee' : ''}
+                  >
+                    <Wallet size={16} />
+                    Coop Savings Offset
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.methodBtn} ${offsetType === 'bank' ? styles.methodBtnActive : ''}`}
+                    onClick={() => setOffsetType('bank')}
+                  >
+                    <CreditCard size={16} />
+                    Direct Bank Payment
+                  </button>
+                </div>
+              </div>
+
               <div className={styles.formGroup}>
                 <label className={styles.formLabel} htmlFor="cso-amount">
-                  Offset Amount (max: {fmtN(Math.min(savingsBal, loanBal))})
+                  Offset Amount (max: {fmtN(offsetType === 'savings' ? Math.min(savingsBal, loanBal) : loanBal)})
                 </label>
                 <div className={styles.amountRow}>
                   <input
@@ -450,17 +536,72 @@ export default function CoopSavingsLoanOffsetPage() {
                     Clear All
                   </button>
                 </div>
-                {parsedAmount > 0 && parsedAmount > savingsBal && (
+                {offsetType === 'savings' && parsedAmount > 0 && parsedAmount > savingsBal && (
                   <p style={{ color: '#f87171', fontSize: '0.78rem', marginTop: '0.3rem' }}>
                     ⚠ Amount exceeds available savings balance.
                   </p>
                 )}
-                {parsedAmount > 0 && parsedAmount > loanBal && parsedAmount <= savingsBal && (
+                {parsedAmount > 0 && parsedAmount > loanBal && (offsetType === 'bank' || parsedAmount <= savingsBal) && (
                   <p style={{ color: '#f87171', fontSize: '0.78rem', marginTop: '0.3rem' }}>
                     ⚠ Amount exceeds outstanding loan balance.
                   </p>
                 )}
               </div>
+
+              {/* Attach document for bank offset */}
+              {offsetType === 'bank' && (
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Attach Document (Payment Receipt) *</label>
+                  <div className={styles.fileUploadContainer}>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className={styles.fileInputHidden}
+                      accept=".jpeg,.png,.jpg,.pdf"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 2 * 1024 * 1024) {
+                            showToast('File size must be less than 2MB.', 'error');
+                            setProofFile(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          } else {
+                            setProofFile(file);
+                          }
+                        }
+                      }}
+                    />
+                    {!proofFile ? (
+                      <div
+                        className={styles.fileUploadLabel}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload size={16} />
+                        Choose Proof of Payment (Max 2MB)
+                      </div>
+                    ) : (
+                      <div className={styles.fileSelectedName}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                          <Paperclip size={14} style={{ flexShrink: 0 }} />
+                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {proofFile.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.fileRemoveBtn}
+                          onClick={() => {
+                            setProofFile(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel} htmlFor="cso-notes">Notes (optional)</label>
@@ -474,23 +615,27 @@ export default function CoopSavingsLoanOffsetPage() {
               </div>
 
               {/* Live Preview */}
-              {parsedAmount > 0 && parsedAmount <= savingsBal && parsedAmount <= loanBal && (
+              {parsedAmount > 0 && (offsetType === 'bank' || parsedAmount <= savingsBal) && parsedAmount <= loanBal && (
                 <motion.div
                   className={styles.previewBanner}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <div className={styles.previewItem}>
-                    <span className={styles.previewItemLabel}>Savings Balance</span>
-                    <span className={styles.previewItemValue}>{fmtN(savingsBal)}</span>
-                  </div>
-                  <div className={styles.arrow}><ArrowRight size={14} /></div>
-                  <div className={styles.previewItem}>
-                    <span className={styles.previewItemLabel}>After Offset</span>
-                    <span className={`${styles.previewItemValue} ${styles.previewItemValueGreen}`}>{fmtN(savingsAfter)}</span>
-                  </div>
+                  {offsetType === 'savings' && (
+                    <>
+                      <div className={styles.previewItem}>
+                        <span className={styles.previewItemLabel}>Savings Balance</span>
+                        <span className={styles.previewItemValue}>{fmtN(savingsBal)}</span>
+                      </div>
+                      <div className={styles.arrow}><ArrowRight size={14} /></div>
+                      <div className={styles.previewItem}>
+                        <span className={styles.previewItemLabel}>After Offset</span>
+                        <span className={`${styles.previewItemValue} ${styles.previewItemValueGreen}`}>{fmtN(savingsAfter)}</span>
+                      </div>
 
-                  <div style={{ flex: 1 }} />
+                      <div style={{ flex: 1, minWidth: '1rem' }} />
+                    </>
+                  )}
 
                   <div className={styles.previewItem}>
                     <span className={styles.previewItemLabel}>Loan Balance</span>
@@ -580,28 +725,58 @@ export default function CoopSavingsLoanOffsetPage() {
                 <thead>
                   <tr>
                     <th>Date</th>
+                    <th>Staff ID</th>
+                    <th>Staff Name</th>
+                    <th>Method</th>
                     <th>Offset Amount</th>
                     <th>Savings Before</th>
                     <th>Savings After</th>
                     <th>Loan Before</th>
                     <th>Loan After</th>
                     <th>Processed By</th>
-                    <th>Notes</th>
+                    <th>Attachment / Notes</th>
                   </tr>
                 </thead>
                 <tbody>
                   {history.map(row => (
                     <tr key={row.id}>
                       <td>{fmtDate(row.created_at)}</td>
+                      <td>
+                        <span className={styles.fileNoBadge}>ID: {row.staffId}</span>
+                      </td>
+                      <td style={{ fontWeight: 500 }}>{row.staff_name || '—'}</td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: row.offset_type === 'bank' ? '#3b82f6' : '#10b981' }}>
+                          {row.offset_type === 'bank' ? 'Bank Payment' : 'Savings Offset'}
+                        </span>
+                      </td>
                       <td><span className={styles.amountChip}>{fmtN(row.offset_amount)}</span></td>
-                      <td>{fmtN(row.savings_balance_before)}</td>
-                      <td style={{ color: '#34d399' }}>{fmtN(row.savings_balance_after)}</td>
+                      <td>{row.savings_balance_before !== null ? fmtN(row.savings_balance_before) : '—'}</td>
+                      <td style={{ color: '#34d399' }}>{row.savings_balance_after !== null ? fmtN(row.savings_balance_after) : '—'}</td>
                       <td>{fmtN(row.loan_balance_before)}</td>
                       <td style={{ color: parseFloat(row.loan_balance_after) <= 0 ? '#34d399' : '#f87171' }}>
                         {parseFloat(row.loan_balance_after) <= 0 ? '✓ Cleared' : fmtN(row.loan_balance_after)}
                       </td>
                       <td>{row.processed_by_name?.trim() || '—'}</td>
-                      <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.notes || '—'}</td>
+                      <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          {row.proof_of_payment && (
+                            <a
+                              href={row.proof_of_payment}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={styles.fileLink}
+                              title="Click to view payment receipt document"
+                            >
+                              <Paperclip size={12} />
+                              Proof of Payment
+                            </a>
+                          )}
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            {row.notes || '—'}
+                          </span>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -639,12 +814,24 @@ export default function CoopSavingsLoanOffsetPage() {
 
               <div className={styles.modalSummaryRow}>
                 <span>Staff</span>
-                <span className={styles.modalSummaryValue}>{selectedStaff?.name?.trim()} ({selectedStaff?.fileNo})</span>
+                <span className={styles.modalSummaryValue}>{selectedStaff?.name?.trim()} (ID: {selectedStaff?.staffId})</span>
               </div>
               <div className={styles.modalSummaryRow}>
-                <span>Savings Balance</span>
-                <span className={styles.modalSummaryValue}>{fmtN(savingsBal)} → {fmtN(savingsAfter)}</span>
+                <span>Offset Method</span>
+                <span className={styles.modalSummaryValue}>{offsetType === 'savings' ? 'Coop Savings Offset' : 'Direct Bank Payment'}</span>
               </div>
+              {offsetType === 'savings' && (
+                <div className={styles.modalSummaryRow}>
+                  <span>Savings Balance</span>
+                  <span className={styles.modalSummaryValue}>{fmtN(savingsBal)} → {fmtN(savingsAfter)}</span>
+                </div>
+              )}
+              {offsetType === 'bank' && proofFile && (
+                <div className={styles.modalSummaryRow}>
+                  <span>Attached Proof</span>
+                  <span className={styles.modalSummaryValue} style={{ color: '#60a5fa' }}>{proofFile.name}</span>
+                </div>
+              )}
               <div className={styles.modalSummaryRow}>
                 <span>Loan Balance</span>
                 <span className={styles.modalSummaryValue}>

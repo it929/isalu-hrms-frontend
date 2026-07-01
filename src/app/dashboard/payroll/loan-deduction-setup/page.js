@@ -515,7 +515,7 @@ export default function LoanDeductionSetupPage() {
                               onClick={() => handleSelectStaff(staff)}
                             >
                               <span className={styles.staffName}>{staff.name}</span>
-                              <span className={styles.staffFileNo}>({staff.fileNo})</span>
+                              <span className={styles.staffFileNo}>(ID: {staff.id})</span>
                             </li>
                           ))}
                         </ul>
@@ -772,7 +772,7 @@ export default function LoanDeductionSetupPage() {
                     <tr key={setup.id}>
                       <td>
                         <div style={{ fontWeight: '600' }}>{setup.name}</div>
-                        <div className={styles.staffFileNo} style={{ fontSize: '0.8rem' }}>{setup.fileNo}</div>
+                        <div className={styles.staffFileNo} style={{ fontSize: '0.8rem' }}>ID: {setup.staffId}</div>
                       </td>
                       <td style={{ fontWeight: '500' }}>₦ {fmt(setup.loan_amount)}</td>
                       <td>{setup.interest_rate}%</td>

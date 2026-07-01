@@ -383,7 +383,6 @@ export default function RetentionActivationPage() {
                      <thead>
                        <tr>
                          <th>Staff ID</th>
-                         <th>File No</th>
                          <th>Staff Name</th>
                          <th>Salary (₦)</th>
                          <th>Retention Status</th>
@@ -394,7 +393,6 @@ export default function RetentionActivationPage() {
                        {paginatedRecords.map((row) => (
                          <tr key={row.id}>
                            <td className={styles.tdPrimary}>#{row.id}</td>
-                           <td>{row.fileNo || '—'}</td>
                            <td style={{ fontWeight: 600 }}>{row.name}</td>
                            <td>
                              {row.basic_salary > 0 

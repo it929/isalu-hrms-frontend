@@ -563,3 +563,112 @@
 .idleState svg { display: block; margin: 0 auto 0.75rem; opacity: 0.3; }
 .idleState h3 { font-size: 1rem; color: var(--text-secondary, #94a3b8); margin: 0 0 0.3rem; }
 .idleState p  { font-size: 0.85rem; margin: 0; }
+
+/* ── Method Selector ── */
+.methodSelector {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.methodBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--input-bg, #0f172a);
+  border: 1px solid var(--border, #334155);
+  border-radius: 10px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.methodBtn:hover {
+  border-color: var(--text-secondary, #94a3b8);
+  color: var(--text, #e2e8f0);
+}
+.methodBtnActive {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+  color: #10b981;
+}
+.methodBtnActive:hover {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+/* ── File Upload ── */
+.fileUploadContainer {
+  margin-top: 0.5rem;
+}
+.fileInputHidden {
+  display: none;
+}
+.fileUploadLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--input-bg, #0f172a);
+  border: 1px dashed var(--border, #334155);
+  border-radius: 10px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.fileUploadLabel:hover {
+  border-color: #3b82f6;
+  color: var(--text, #e2e8f0);
+  background: rgba(59, 130, 246, 0.05);
+}
+.fileSelectedName {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: #93c5fd;
+}
+.fileRemoveBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ef4444;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.fileRemoveBtn:hover {
+  color: #f87171;
+}
+
+/* ── History File Link ── */
+.fileLink {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.fileLink:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
