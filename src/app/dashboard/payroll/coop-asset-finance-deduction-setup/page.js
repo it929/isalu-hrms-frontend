@@ -414,7 +414,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
                                 onClick={() => handleSelectStaff(staff)}
                               >
                                 <span className={styles.staffName}>{staff.name}</span>
-                                <span className={styles.dropdownItemSub}>ID: {staff.id} | File No: {staff.fileNo}</span>
+                                <span className={styles.dropdownItemSub}>Staff ID: {staff.id}</span>
                               </li>
                             ))
                           ) : (
@@ -425,7 +425,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
                     </div>
                     {selectedStaff && (
                       <span style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <CheckCircle2 size={12} /> {selectedStaff.name} ({selectedStaff.fileNo})
+                        <CheckCircle2 size={12} /> {selectedStaff.name} (ID: {selectedStaff.id})
                       </span>
                     )}
                   </div>
@@ -670,7 +670,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
                       <td>
                         <div className={styles.staffCell}>
                           <span className={styles.staffName}>{s.name}</span>
-                          <span className={styles.staffFile}>ID: {s.staffId} | File: {s.fileNo}</span>
+                          <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
                         </div>
                       </td>
                       <td>{s.department || '—'}</td>

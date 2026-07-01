@@ -500,9 +500,10 @@ export default function ApplyIouPage() {
           if (action === 'approve') {
             if (level === 'HOD') updated.hod_status = 1;
             if (level === 'HR') updated.admin_status = 1;
+            if (level === 'Audit') updated.audit_status = 1;
             if (level === 'Finance') {
               updated.finance_status = 1;
-              updated.status = 1; // overall approved
+              updated.status = 1; // overall approved (paid)
             }
           } else {
             if (level === 'HOD') {
@@ -511,6 +512,10 @@ export default function ApplyIouPage() {
             }
             if (level === 'HR') {
               updated.admin_status = 2;
+              updated.status = 2; // overall rejected
+            }
+            if (level === 'Audit') {
+              updated.audit_status = 2;
               updated.status = 2; // overall rejected
             }
             if (level === 'Finance') {
@@ -562,17 +567,17 @@ export default function ApplyIouPage() {
   const alreadyUsedAmount = limitDetails.used_amount || 0;
   const currentRequestAmount = parseFloat(amount) || 0;
   const totalPlannedAmount = alreadyUsedAmount + currentRequestAmount;
-  const percentUsed = grossSalary > 0 ? (totalPlannedAmount / grossSalary) * 100 : 0;
   const remainingLimit = limitDetails.remaining_limit !== undefined ? limitDetails.remaining_limit : maxIouLimit;
   const canTake = limitDetails.can_take_iou !== undefined ? limitDetails.can_take_iou : (selectedStaff?.can_take_iou ?? 1);
 
-  // Determine progress color
+  // Determine progress color based on percentage of max allowed limit used
+  const limitPercent = maxIouLimit > 0 ? (totalPlannedAmount / maxIouLimit) * 100 : 0;
   let progressClass = styles.progressBarGreen;
   let textClass = styles.limitTextGreen;
-  if (percentUsed > 40 && percentUsed <= 50) {
+  if (limitPercent > 80 && limitPercent <= 100) {
     progressClass = styles.progressBarYellow;
     textClass = styles.limitTextYellow;
-  } else if (percentUsed > 50) {
+  } else if (limitPercent > 100) {
     progressClass = styles.progressBarRed;
     textClass = styles.limitTextRed;
   }
@@ -613,27 +618,33 @@ export default function ApplyIouPage() {
     return canSelectStaff;
   };
 
+  const canApproveAudit = (row) => {
+    if (row.status !== 0 || row.admin_status !== 1 || row.audit_status !== 0) return false;
+    return canSelectStaff || userCtx.isAuditStaff;
+  };
+
   const canApproveFinance = (row) => {
-    if (row.status !== 0 || row.admin_status !== 1 || row.finance_status !== 0) return false;
+    if (row.status !== 0 || row.audit_status !== 1 || row.finance_status !== 0) return false;
     return canSelectStaff || userCtx.isFinanceStaff;
   };
 
   // Helper for overall application status badge mapping
   const getOverallBadge = (status) => {
-    if (status === 1) return <span className={`${styles.badge} ${styles.badgeApproved}`}>Approved</span>;
+    if (status === 1) return <span className={`${styles.badge} ${styles.badgeApproved}`}>Paid</span>;
     if (status === 2) return <span className={`${styles.badge} ${styles.badgeRejected}`}>Rejected</span>;
     return <span className={`${styles.badge} ${styles.badgePending}`}>Pending</span>;
   };
 
   // Helper for tier status representation
   const getTierBadge = (status, type) => {
-    const label = type === 'hod' ? 'HOD' : type === 'hr' ? 'HR' : 'Fin.';
-    const badgeStyle = type === 'hod' ? styles.badgeHodApproved : type === 'hr' ? styles.badgeHrApproved : styles.badgeFinanceApproved;
+    const label = type === 'hod' ? 'HOD' : type === 'hr' ? 'HR' : type === 'audit' ? 'Audit' : 'Fin.';
+    const badgeStyle = type === 'hod' ? styles.badgeHodApproved : type === 'hr' ? styles.badgeHrApproved : type === 'audit' ? styles.badgeAuditApproved : styles.badgeFinanceApproved;
     if (status === 1) {
+      const approvedLabel = type === 'finance' ? 'Paid' : 'Approved';
       return (
         <span className={styles.tierBadgeItem}>
           <span className={styles.tierLabel}>{label}:</span>
-          <span className={`${styles.badge} ${badgeStyle}`} style={{ padding: '0.1rem 0.4rem', fontSize: '0.68rem' }}>Approved</span>
+          <span className={`${styles.badge} ${badgeStyle}`} style={{ padding: '0.1rem 0.4rem', fontSize: '0.68rem' }}>{approvedLabel}</span>
         </span>
       );
     }
@@ -841,7 +852,7 @@ export default function ApplyIouPage() {
                 <button
                   type="submit"
                   className={`${styles.btn} ${styles.btnPrimary}`}
-                  disabled={saving || (percentUsed > 50)}
+                  disabled={saving || (totalPlannedAmount > maxIouLimit)}
                 >
                   {saving ? (
                     <>
@@ -931,8 +942,8 @@ export default function ApplyIouPage() {
                         <td style={{ fontWeight: 600 }}>₦{fmt(row.amount)}</td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <span>{row.percentage_of_salary}</span>
                             <Percent size={12} className="text-secondary" />
-                            <span>{row.percentage_of_salary}%</span>
                           </div>
                         </td>
                         <td>{row.iou_date}</td>
@@ -941,6 +952,7 @@ export default function ApplyIouPage() {
                           <div className={styles.tierBadgeContainer}>
                             {getTierBadge(row.hod_status, 'hod')}
                             {getTierBadge(row.admin_status, 'hr')}
+                            {getTierBadge(row.audit_status, 'audit')}
                             {getTierBadge(row.finance_status, 'finance')}
                           </div>
                         </td>
@@ -1023,12 +1035,33 @@ export default function ApplyIouPage() {
                               </div>
                             )}
 
+                            {canApproveAudit(row) && (
+                              <div style={{ display: 'flex', gap: '0.2rem' }}>
+                                <button
+                                  type="button"
+                                  className={`${styles.iconBtn} ${styles.approveBtn}`}
+                                  title="Audit Approve"
+                                  onClick={() => handleApprovalAction(row.id, 'Audit', 'approve')}
+                                >
+                                  <Check size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.iconBtn} ${styles.rejectBtn}`}
+                                  title="Audit Reject"
+                                  onClick={() => handleApprovalAction(row.id, 'Audit', 'reject')}
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            )}
+
                             {canApproveFinance(row) && (
                               <div style={{ display: 'flex', gap: '0.2rem' }}>
                                 <button
                                   type="button"
                                   className={`${styles.iconBtn} ${styles.approveBtn}`}
-                                  title="Finance Approve"
+                                  title="Mark as Paid"
                                   onClick={() => handleApprovalAction(row.id, 'Finance', 'approve')}
                                 >
                                   <Check size={16} />
@@ -1146,9 +1179,15 @@ export default function ApplyIouPage() {
                     </span>
                   </div>
                   <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Audit Status Details</span>
+                    <span className={styles.detailValue}>
+                      {detailRecord.audit_status === 1 ? `Approved by ${detailRecord.audit_name || 'Audit Staff'} on ${detailRecord.audit_date || '—'}` : detailRecord.audit_status === 2 ? 'Rejected' : 'Pending'}
+                    </span>
+                  </div>
+                  <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Finance Status Details</span>
                     <span className={styles.detailValue}>
-                      {detailRecord.finance_status === 1 ? `Approved by ${detailRecord.finance_name || 'Finance Staff'} on ${detailRecord.finance_date || '—'}` : detailRecord.finance_status === 2 ? 'Rejected' : 'Pending'}
+                      {detailRecord.finance_status === 1 ? `Paid by ${detailRecord.finance_name || 'Finance Staff'} on ${detailRecord.finance_date || '—'}` : detailRecord.finance_status === 2 ? 'Rejected' : 'Pending'}
                     </span>
                   </div>
 
@@ -1237,7 +1276,9 @@ export default function ApplyIouPage() {
             >
               <div className={styles.modalHeader}>
                 <h3 className={styles.modalTitle}>
-                  {approvalModal.action === 'approve' ? 'Approve Application' : 'Reject Application'}
+                  {approvalModal.action === 'approve' 
+                    ? (approvalModal.level === 'Finance' ? 'Mark as Paid' : 'Approve Application') 
+                    : 'Reject Application'}
                 </h3>
                 <button
                   className={styles.modalClose}
@@ -1275,7 +1316,11 @@ export default function ApplyIouPage() {
                   onClick={handleApprovalSubmit}
                   disabled={actionLoading}
                 >
-                  {actionLoading ? 'Processing...' : approvalModal.action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+                  {actionLoading 
+                    ? 'Processing...' 
+                    : approvalModal.action === 'approve' 
+                    ? (approvalModal.level === 'Finance' ? 'Confirm Payment' : 'Confirm Approval') 
+                    : 'Confirm Rejection'}
                 </button>
               </div>
             </motion.div>
