@@ -22,6 +22,26 @@ function buildHeaders() {
   return uid ? { 'X-User-Id': uid } : {};
 }
 
+function calculateLastDay(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return '';
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const date = new Date(year, month, day);
+    date.setDate(date.getDate() + 30);
+    
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  } catch {
+    return '';
+  }
+}
+
 export default function ApplyResignationPage() {
   // Loading & Toast States
   const [loading, setLoading] = useState(false);
@@ -337,9 +357,8 @@ export default function ApplyResignationPage() {
           const updated = { ...r };
           if (action === 'approve') {
             if (level === 'HOD') updated.hod_status = 1;
-            if (level === 'HR') updated.admin_status = 1;
-            if (level === 'Finance') {
-              updated.finance_status = 1;
+            if (level === 'HR') {
+              updated.admin_status = 1;
               updated.status = 1; // overall approved
             }
           } else {
@@ -349,10 +368,6 @@ export default function ApplyResignationPage() {
             }
             if (level === 'HR') {
               updated.admin_status = 2;
-              updated.status = 2; // overall rejected
-            }
-            if (level === 'Finance') {
-              updated.finance_status = 2;
               updated.status = 2; // overall rejected
             }
           }
@@ -419,11 +434,6 @@ export default function ApplyResignationPage() {
     return canSelectStaff;
   };
 
-  const canApproveFinance = (row) => {
-    if (row.status !== 0 || row.admin_status !== 1 || row.finance_status !== 0) return false;
-    return canSelectStaff || userCtx.isFinanceStaff;
-  };
-
   // Helper for overall application status badge mapping
   const getOverallBadge = (status) => {
     if (status === 1) return <span className={`${styles.badge} ${styles.badgeApproved}`}>Approved</span>;
@@ -433,8 +443,8 @@ export default function ApplyResignationPage() {
 
   // Helper for tier status representation
   const getTierBadge = (status, type) => {
-    const label = type === 'hod' ? 'HOD' : type === 'hr' ? 'HR' : 'Fin.';
-    const badgeStyle = type === 'hod' ? styles.badgeHodApproved : type === 'hr' ? styles.badgeHrApproved : styles.badgeFinanceApproved;
+    const label = type === 'hod' ? 'HOD' : 'HR';
+    const badgeStyle = type === 'hod' ? styles.badgeHodApproved : styles.badgeHrApproved;
     if (status === 1) {
       return (
         <span className={styles.tierBadgeItem}>
@@ -549,6 +559,11 @@ export default function ApplyResignationPage() {
                     disabled={isFormDisabled}
                   />
                 </div>
+                {resignationDate && (
+                  <span className={styles.helperText}>
+                    Notice Period: 30 Days | Last Day: <strong>{calculateLastDay(resignationDate)}</strong>
+                  </span>
+                )}
               </div>
 
               {/* Reason Description */}
@@ -637,12 +652,13 @@ export default function ApplyResignationPage() {
             </div>
           ) : (
             <>
-              <table className={styles.table}>
+               <table className={styles.table}>
                 <thead>
                   <tr>
                     <th>Staff Profile</th>
                     <th>Dept.</th>
                     <th>Resignation Date</th>
+                    <th>Last Day</th>
                     <th>Status</th>
                     <th>Approval Statuses</th>
                     <th>Actions</th>
@@ -666,12 +682,14 @@ export default function ApplyResignationPage() {
                         </td>
                         <td>{row.department || '—'}</td>
                         <td>{row.resignation_date}</td>
+                        <td style={{ fontWeight: 500, color: 'var(--primary, #3b82f6)' }}>
+                          {calculateLastDay(row.resignation_date)}
+                        </td>
                         <td>{getOverallBadge(row.status)}</td>
                         <td>
                           <div className={styles.tierBadgeContainer}>
                             {getTierBadge(row.hod_status, 'hod')}
                             {getTierBadge(row.admin_status, 'hr')}
-                            {getTierBadge(row.finance_status, 'finance')}
                           </div>
                         </td>
                         <td>
@@ -748,28 +766,6 @@ export default function ApplyResignationPage() {
                                   className={`${styles.iconBtn} ${styles.rejectBtn}`}
                                   title="HR Reject"
                                   onClick={() => handleApprovalAction(row.id, 'HR', 'reject')}
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Finance Approvals */}
-                            {canApproveFinance(row) && (
-                              <div style={{ display: 'flex', gap: '0.2rem' }}>
-                                <button
-                                  type="button"
-                                  className={`${styles.iconBtn} ${styles.approveBtn}`}
-                                  title="Finance Approve"
-                                  onClick={() => handleApprovalAction(row.id, 'Finance', 'approve')}
-                                >
-                                  <Check size={16} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className={`${styles.iconBtn} ${styles.rejectBtn}`}
-                                  title="Finance Reject"
-                                  onClick={() => handleApprovalAction(row.id, 'Finance', 'reject')}
                                 >
                                   <X size={16} />
                                 </button>
@@ -887,6 +883,12 @@ export default function ApplyResignationPage() {
                     <span className={styles.detailLabel}>Resignation Date</span>
                     <span className={styles.detailValue}>{detailRecord.resignation_date}</span>
                   </div>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Last Day of Work</span>
+                    <span className={styles.detailValue} style={{ color: 'var(--primary, #3b82f6)', fontWeight: 600 }}>
+                      {calculateLastDay(detailRecord.resignation_date)}
+                    </span>
+                  </div>
                   <div className={styles.detailItemFull}>
                     <span className={styles.detailLabel}>Overall Status</span>
                     <span className={styles.detailValue}>{getOverallBadge(detailRecord.status)}</span>
@@ -924,19 +926,6 @@ export default function ApplyResignationPage() {
                           {detailRecord.admin_name && (
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                               By {detailRecord.admin_name} on {detailRecord.admin_date?.split(' ')[0]}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                        <span>Finance Final Approval:</span>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                          <span style={{ fontWeight: 600 }}>
-                            {detailRecord.finance_status === 1 ? 'Approved' : detailRecord.finance_status === 2 ? 'Rejected' : 'Pending'}
-                          </span>
-                          {detailRecord.finance_name && (
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                              By {detailRecord.finance_name} on {detailRecord.finance_date?.split(' ')[0]}
                             </span>
                           )}
                         </div>
