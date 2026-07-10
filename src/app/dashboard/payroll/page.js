@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, TrendingDown, TrendingUp, Download, Search, Loader2, FileText, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Building2, Landmark } from 'lucide-react';
+import { Users, TrendingDown, TrendingUp, Download, Search, Loader2, FileText, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Building2, Landmark, Mail } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
@@ -60,12 +60,12 @@ const TABLE_COLUMNS = [
   { key: 'TOTAL INCOME',     label: 'Total Income',     cls: styles.tdNum },
   { key: 'DECLARED INCOME',  label: 'Declared Inc.',    cls: styles.tdNum },
   { key: 'PAID DAYS',        label: 'Paid Days',        cls: styles.tdNum },
-  { key: 'P.TAX',            label: 'P. Tax',           cls: styles.tdTax, tooltip: 'P. Tax = (Annual Declared - 8% Pension if active) progressive bands / 12. Bands: First 800k @ 0%, next 2.2M @ 15%, next 9M @ 18%, next 13M @ 21%, next 25M @ 23%, above 50M @ 25%.' },
+  { key: 'P.TAX',            label: 'P. Tax',           cls: styles.tdTax, tooltip: 'P. Tax = (Annual Declared - 8% of 50% of Pension if active) progressive bands / 12. Bands: First 800k @ 0%, next 2.2M @ 15%, next 9M @ 18%, next 13M @ 21%, next 25M @ 23%, above 50M @ 25%.' },
   { key: 'IOU',              label: 'IOU',              cls: styles.tdDeduction },
   { key: 'RETENTION',        label: 'Retention',        cls: styles.tdNum },
   { key: 'LOAN',             label: 'Loan',             cls: styles.tdDeduction },
   { key: 'SURGHARGES',       label: 'Surcharges',       cls: styles.tdNum },
-  { key: 'PENSION',          label: 'Pension',          cls: styles.tdDeduction, tooltip: 'Pension = Declared Salary * (Pension Rate / 100) if active' },
+  { key: 'PENSION',          label: 'Pension',          cls: styles.tdDeduction, tooltip: 'Pension = 8% of 50% of Gross Salary if active' },
   { key: 'MEDICAL LOAN',     label: 'Med. Loan',        cls: styles.tdNum },
   { key: 'COOP. SAVING',     label: 'Coop. Saving',     cls: styles.tdDeduction },
   { key: 'COOP. LOAN RPYT',  label: 'Coop. Loan Rpyt',  cls: styles.tdDeduction },
@@ -111,6 +111,10 @@ export default function PayrollPage() {
   const [exporting,  setExporting]  = useState(false);
   const [searched,   setSearched]   = useState(false);
   const [toast,      setToast]      = useState(null);
+  const [userCtx,    setUserCtx]    = useState({ isAuditStaff: false, isSuperAdmin: false, isFinanceStaff: false, isAdminStaff: false });
+  const [submittingWorkflow, setSubmittingWorkflow] = useState(false);
+  const [emailingStaffId, setEmailingStaffId] = useState(null);
+  const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -204,6 +208,9 @@ export default function PayrollPage() {
                 setPage(res.data.page);
                 setLastPage(res.data.lastPage);
                 setSearched(true);
+                if (res.data.userCtx) {
+                  setUserCtx(res.data.userCtx);
+                }
 
                 // Update cache
                 sessionStorage.setItem('hrms_payroll_last_search_cache', JSON.stringify({
@@ -246,6 +253,9 @@ export default function PayrollPage() {
         setPage(res.data.page);
         setLastPage(res.data.lastPage);
         setSearched(true);
+        if (res.data.userCtx) {
+          setUserCtx(res.data.userCtx);
+        }
 
         // Cache search parameters and results
         if (typeof window !== 'undefined') {
@@ -270,7 +280,154 @@ export default function PayrollPage() {
     } finally {
       setLoading(false);
     }
-  }, [month, year, divisionID, bankID, showToast]);
+  }, [month, year, divisionID, bankID, perPage, showToast]);
+
+  const handleAuditCheck = async (staffId, isChecked) => {
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/lock-active-month/audit-check`, {
+        year: parseInt(year),
+        month: month,
+        checked: isChecked ? 1 : 0,
+        staff_ids: [staffId]
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        setData(prev => prev.map(row => {
+          if (row.IDNO === staffId) {
+            return { ...row, audit_checked: isChecked ? 1 : 0 };
+          }
+          return row;
+        }));
+      } else {
+        showToast(res.data.message || 'Failed to update audit status.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error updating audit status.', 'error');
+    }
+  };
+
+  const handleAuditCheckAll = async (isChecked) => {
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/lock-active-month/audit-check`, {
+        year: parseInt(year),
+        month: month,
+        checked: isChecked ? 1 : 0,
+        check_all: true
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        setData(prev => prev.map(row => ({ ...row, audit_checked: isChecked ? 1 : 0 })));
+      } else {
+        showToast(res.data.message || 'Failed to update audit status.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error updating audit status.', 'error');
+    }
+  };
+
+  const handleForwardToAudit = async () => {
+    setSubmittingWorkflow(true);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/lock-active-month/forward-to-audit`, {
+        year: parseInt(year),
+        month: month
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Payroll forwarded to Audit successfully.', 'success');
+        fetchPage(page);
+      } else {
+        showToast(res.data.message || 'Failed to forward payroll.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error forwarding payroll.', 'error');
+    } finally {
+      setSubmittingWorkflow(false);
+    }
+  };
+
+  const handleAuditApprove = async () => {
+    setSubmittingWorkflow(true);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/lock-active-month/audit-approve`, {
+        year: parseInt(year),
+        month: month
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Payroll approved by Audit successfully.', 'success');
+        fetchPage(page);
+      } else {
+        showToast(res.data.message || 'Failed to approve payroll.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error approving payroll.', 'error');
+    } finally {
+      setSubmittingWorkflow(false);
+    }
+  };
+
+  const handlePay = async () => {
+    setSubmittingWorkflow(true);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/lock-active-month/pay`, {
+        year: parseInt(year),
+        month: month
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Payroll marked as paid successfully.', 'success');
+        fetchPage(page);
+      } else {
+        showToast(res.data.message || 'Failed to process payment.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error processing payment.', 'error');
+    } finally {
+      setSubmittingWorkflow(false);
+    }
+  };
+
+  const handleSendEmailSingle = async (staffId) => {
+    setEmailingStaffId(staffId);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/payslip/send-email`, {
+        staff_id: staffId,
+        month: month,
+        year: parseInt(year)
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Payslip email sent successfully.', 'success');
+      } else {
+        showToast(res.data.message || 'Failed to send email.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error sending email.', 'error');
+    } finally {
+      setEmailingStaffId(null);
+    }
+  };
+
+  const handleSendEmailBulk = async () => {
+    setSendingBulkEmail(true);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/payslip/send-email-bulk`, {
+        month: month,
+        year: parseInt(year)
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Bulk payslip emails sent successfully.', 'success');
+      } else {
+        showToast(res.data.message || 'Failed to send bulk emails.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error sending bulk emails.', 'error');
+    } finally {
+      setSendingBulkEmail(false);
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -552,63 +709,198 @@ export default function PayrollPage() {
               </div>
             </div>
 
-            {/* Scrollable table */}
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    {TABLE_COLUMNS.map(col => (
-                      <th 
-                        key={col.key}
-                        className={col.tooltip ? styles.tooltip : ''}
-                        data-tooltip={col.tooltip}
-                      >
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((row, idx) => (
-                    <tr key={`${row['IDNO']}-${idx}`}>
-                      {TABLE_COLUMNS.map(col => {
-                        const val = row[col.key];
-                        if (col.key === 'BANK') {
-                          return (
-                            <td key={col.key} className={col.cls}>
-                              {val ? <span className={styles.bankBadge}>{val}</span> : '—'}
-                            </td>
-                          );
-                        }
-                        let cellTooltip = col.tooltip;
-                        if (col.key === 'PENSION') {
-                          const decSalary = parseFloat(row['DECLARED INCOME'] || 0);
-                          const pensionVal = parseFloat(row['PENSION'] || 0);
-                          const pensionRate = decSalary > 0 && pensionVal > 0 ? Math.round((pensionVal / decSalary) * 100) : 8;
-                          cellTooltip = `Pension = ${decSalary} * (${pensionRate}/100) if active`;
-                        } else if (col.key === 'P.TAX') {
-                          const decSalary = parseFloat(row['DECLARED INCOME'] || 0);
-                          const pensionVal = parseFloat(row['PENSION'] || 0);
-                          const annualGross = decSalary * 12;
-                          const annualPension = pensionVal * 12;
-                          const annualTaxable = Math.max(0, annualGross - annualPension);
-                          cellTooltip = `P. Tax = Progressive bands on annual taxable ₦${annualTaxable.toLocaleString('en-NG')} (₦${annualGross.toLocaleString('en-NG')} Declared - ₦${annualPension.toLocaleString('en-NG')} Pension) / 12`;
-                        }
-                        return (
-                          <td 
-                            key={col.key} 
-                            className={`${col.cls} ${cellTooltip ? styles.tooltip : ''}`}
-                            data-tooltip={cellTooltip}
-                          >
-                            {val !== undefined && val !== null && val !== '' ? val : '—'}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+             {/* Scrollable table */}
+             {(() => {
+               const currentStage = data[0]?.vstage ?? 0;
+               let activeColumns = [...TABLE_COLUMNS];
+               if (currentStage === 2) {
+                 activeColumns = [
+                   { key: 'AUDIT_CHECK', label: 'Audit Check', cls: '' },
+                   ...TABLE_COLUMNS
+                 ];
+               } else if (currentStage === 4) {
+                 activeColumns = [
+                   { key: 'PAID', label: 'PaidStatus', cls: '' },
+                   ...TABLE_COLUMNS
+                 ];
+               }
+               const allChecked = data.length > 0 && data.every(row => row.audit_checked === 1);
+
+               return (
+                 <div className={styles.tableWrapper}>
+                    {/* Inject approval buttons in top table header dynamically */}
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                      {currentStage === 1 && (userCtx.isAdminStaff || userCtx.isSuperAdmin) && (
+                        <button
+                          type="button"
+                          onClick={handleForwardToAudit}
+                          disabled={submittingWorkflow}
+                          style={{ padding: '6px 12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          {submittingWorkflow ? 'Forwarding...' : 'Forward to Audit'}
+                        </button>
+                      )}
+                      {currentStage === 2 && (userCtx.isAuditStaff || userCtx.isSuperAdmin) && (
+                       <button
+                         type="button"
+                         onClick={handleAuditApprove}
+                         disabled={submittingWorkflow}
+                         style={{ padding: '6px 12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                       >
+                         {submittingWorkflow ? 'Approving...' : 'Audit Approve'}
+                       </button>
+                     )}
+                     {currentStage === 3 && (userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff) && (
+                       <button
+                         type="button"
+                         onClick={handlePay}
+                         disabled={submittingWorkflow}
+                         style={{ padding: '6px 12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                       >
+                         {submittingWorkflow ? 'Processing...' : 'Pay'}
+                       </button>
+                     )}
+                     {currentStage === 4 && (userCtx.isAdminStaff || userCtx.isSuperAdmin) && (
+                        <button
+                          type="button"
+                          onClick={handleSendEmailBulk}
+                          disabled={sendingBulkEmail}
+                          style={{ padding: '6px 12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          {sendingBulkEmail ? (
+                            <Loader2 size={14} className={styles.spinner} />
+                          ) : (
+                            <Mail size={14} />
+                          )}
+                          {sendingBulkEmail ? 'Sending...' : 'Email Payslips to All Paid Staff'}
+                        </button>
+                      )}
+                   </div>
+
+                   <table className={styles.table}>
+                     <thead>
+                       <tr>
+                         {activeColumns.map(col => {
+                           if (col.key === 'AUDIT_CHECK') {
+                             return (
+                               <th key={col.key} style={{ minWidth: '100px', textAlign: 'center' }}>
+                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                   <span style={{ fontSize: '0.75rem' }}>Audit Check</span>
+                                   <input 
+                                     type="checkbox" 
+                                     checked={allChecked} 
+                                     onChange={(e) => handleAuditCheckAll(e.target.checked)} 
+                                     style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                                   />
+                                 </div>
+                               </th>
+                             );
+                           }
+                           return (
+                             <th 
+                               key={col.key}
+                               className={col.tooltip ? styles.tooltip : ''}
+                               data-tooltip={col.tooltip}
+                             >
+                               {col.label}
+                             </th>
+                           );
+                         })}
+                       </tr>
+                     </thead>
+                     <tbody>
+                       {data.map((row, idx) => (
+                         <tr key={`${row['IDNO']}-${idx}`}>
+                           {activeColumns.map(col => {
+                             if (col.key === 'AUDIT_CHECK') {
+                               return (
+                                 <td key={col.key} style={{ textAlign: 'center' }}>
+                                   <input 
+                                     type="checkbox" 
+                                     checked={row.audit_checked === 1} 
+                                     onChange={(e) => handleAuditCheck(row.IDNO, e.target.checked)} 
+                                     style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                                   />
+                                 </td>
+                               );
+                             }
+                             if (col.key === 'PAID') {
+                                return (
+                                  <td key={col.key} style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                      <span style={{ color: row.is_paid === 1 ? '#10b981' : '#ef4444' }}>
+                                        {row.is_paid === 1 ? '✓ Paid' : 'Unpaid'}
+                                      </span>
+                                      {row.is_paid === 1 && (userCtx.isAdminStaff || userCtx.isSuperAdmin) && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSendEmailSingle(row.IDNO)}
+                                          title="Send Payslip Email"
+                                          disabled={emailingStaffId === row.IDNO}
+                                          style={{
+                                            padding: '2px 6px',
+                                            backgroundColor: '#3b82f6',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '2px'
+                                          }}
+                                        >
+                                          {emailingStaffId === row.IDNO ? (
+                                            <Loader2 size={12} className={styles.spinner} />
+                                          ) : (
+                                            <Mail size={12} />
+                                          )}
+                                          Email
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                );
+                              }
+
+                             const val = row[col.key];
+                             if (col.key === 'BANK') {
+                               return (
+                                 <td key={col.key} className={col.cls}>
+                                   {val ? <span className={styles.bankBadge}>{val}</span> : '—'}
+                                 </td>
+                               );
+                             }
+                             let cellTooltip = col.tooltip;
+                             if (col.key === 'PENSION') {
+                               const grossSalary = parseFloat(row['TOTAL INCOME'] || 0);
+                               cellTooltip = `Pension = 8% of 50% of ₦${grossSalary.toLocaleString()} (Gross) if active`;
+                             } else if (col.key === 'P.TAX') {
+                               const decSalary = parseFloat(row['DECLARED INCOME'] || 0);
+                               const pensionVal = parseFloat(row['PENSION'] || 0);
+                               const annualGross = decSalary * 12;
+                               // If pension is active, tax relief is 8% of 50% of declared salary
+                               const annualPension = pensionVal > 0 ? (annualGross * 0.5) * 0.08 : 0;
+                               const annualTaxable = Math.max(0, annualGross - annualPension);
+                               cellTooltip = `P. Tax = Progressive bands on annual taxable ₦${annualTaxable.toLocaleString('en-NG')} (₦${annualGross.toLocaleString('en-NG')} Declared - ₦${annualPension.toLocaleString('en-NG')} Pension Tax Relief) / 12`;
+                             }
+                             return (
+                               <td 
+                                 key={col.key} 
+                                 className={`${col.cls} ${cellTooltip ? styles.tooltip : ''}`}
+                                 data-tooltip={cellTooltip}
+                               >
+                                 {val !== undefined && val !== null && val !== '' ? val : '—'}
+                               </td>
+                             );
+                           })}
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                 </div>
+               );
+             })()}
 
             {/* Pagination */}
             {lastPage > 1 && (

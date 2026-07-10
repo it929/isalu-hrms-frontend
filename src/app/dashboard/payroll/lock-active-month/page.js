@@ -111,7 +111,7 @@ export default function LockUnlockActiveMonthPage() {
     if (!selectedYear || !selectedMonth) return;
 
     setSubmitting(true);
-    const urlSuffix = modalAction === 'lock' ? 'lock' : 'unlock';
+    const urlSuffix = modalAction === 'lock' ? 'lock' : modalAction === 'unlock' ? 'unlock' : 'forward-to-audit';
     try {
       const res = await axios.post(
         `${API_BASE}/payroll/lock-active-month/${urlSuffix}`,
@@ -251,10 +251,25 @@ export default function LockUnlockActiveMonthPage() {
                     <td>{activePeriod.month}</td>
                     <td>
                       <span className={styles.statusCell}>
-                        {lockStatus === 'Locked' ? (
+                        {maxVstage === 2 ? (
                           <>
-                            <Lock size={15} color="#449d44" style={{ display: 'inline' }} />
-                            <span style={{ marginLeft: '6px', color: '#449d44', fontWeight: 'bold' }}>Locked</span>
+                            <Lock size={15} color="#3b82f6" style={{ display: 'inline' }} />
+                            <span style={{ marginLeft: '6px', color: '#3b82f6', fontWeight: 'bold' }}>Forwarded to Audit</span>
+                          </>
+                        ) : maxVstage === 3 ? (
+                          <>
+                            <Lock size={15} color="#10b981" style={{ display: 'inline' }} />
+                            <span style={{ marginLeft: '6px', color: '#10b981', fontWeight: 'bold' }}>Audit Approved</span>
+                          </>
+                        ) : maxVstage === 4 ? (
+                          <>
+                            <CheckCircle2 size={15} color="#10b981" style={{ display: 'inline' }} />
+                            <span style={{ marginLeft: '6px', color: '#10b981', fontWeight: 'bold' }}>Paid</span>
+                          </>
+                        ) : lockStatus === 'Locked' ? (
+                          <>
+                            <Lock size={15} color="#ef4444" style={{ display: 'inline' }} />
+                            <span style={{ marginLeft: '6px', color: '#ef4444', fontWeight: 'bold' }}>Locked</span>
                           </>
                         ) : lockStatus === 'Open' ? (
                           <>

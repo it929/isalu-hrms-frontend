@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Printer, AlertCircle, FileText, CheckCircle2, Search, X } from 'lucide-react';
+import { Loader2, Printer, AlertCircle, FileText, CheckCircle2, Search, X, Mail } from 'lucide-react';
 import axios from 'axios';
 import styles from './page.module.css';
 
@@ -45,6 +45,7 @@ export default function PrintPayslip() {
   // Payslip rendering states
   const [payslipData, setPayslipData] = useState(null);
   const [fetchingPayslip, setFetchingPayslip] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   
   // Notification toast
   const [toast, setToast] = useState(null);
@@ -155,6 +156,31 @@ export default function PrintPayslip() {
       showToast(err.response?.data?.message || 'No record found for selected search parameters.', 'error');
     } finally {
       setFetchingPayslip(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!selectedStaffId || !selectedMonth || !selectedYear) return;
+    setSendingEmail(true);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/payslip/send-email`, {
+        staff_id: selectedStaffId,
+        month: selectedMonth,
+        year: selectedYear
+      }, {
+        headers: buildHeaders()
+      });
+
+      if (res.data.status === 'success') {
+        showToast('Payslip email sent successfully!', 'success');
+      } else {
+        showToast(res.data.message || 'Failed to send email.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err.response?.data?.message || 'Error sending payslip email.', 'error');
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -356,6 +382,12 @@ export default function PrintPayslip() {
               <Printer size={16} />
               Print Payslip
             </button>
+            {isAdmin && (
+              <button onClick={handleSendEmail} disabled={sendingEmail} className={styles.btnPrimary} style={{ height: '40px', backgroundColor: '#3b82f6' }}>
+                {sendingEmail ? <Loader2 size={16} className={styles.spinner} /> : <Mail size={16} />}
+                {sendingEmail ? 'Sending...' : 'Send Payslip to Email'}
+              </button>
+            )}
           </div>
 
           {/* Dynamic page print size overrides */}
@@ -538,6 +570,16 @@ export default function PrintPayslip() {
                   <div className={styles.netPayVal}>{formatCurrency(payslipData.payslip.net_pay)}</div>
                 </div>
               </div>
+            </div>
+
+            {/* Signature Section */}
+            <div style={{ marginTop: '20px', borderTop: '1px dashed var(--border)', paddingTop: '15px' }}>
+              <span className={styles.metaLabel} style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Authorized Signature (HR Head):</span>
+              {payslipData.hr_signature ? (
+                <img src={payslipData.hr_signature} alt="HR Head Signature" style={{ maxHeight: '70px', display: 'block' }} />
+              ) : (
+                <span style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No signature on file</span>
+              )}
             </div>
           </div>
         </motion.div>
