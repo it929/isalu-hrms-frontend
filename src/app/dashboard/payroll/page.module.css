@@ -578,6 +578,142 @@
   transform: translateX(-50%) scale(1);
 }
 
-.tooltip:hover::after {
-  opacity: 1;
+
+/* ─── Modal Styles ─── */
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1.5rem;
+}
+
+.modal {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow: visible;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #374151;
+  padding-bottom: 0.75rem;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.modalCloseBtn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.modalCloseBtn:hover {
+  color: #f3f4f6;
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.modalBody p {
+  margin: 0;
+  color: #d1d5db;
+  font-size: 0.95rem;
+}
+
+.modalBody label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.modalBody textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #111827;
+  border: 1px solid #374151;
+  color: #f3f4f6;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 80px;
+  outline: none;
+}
+
+.modalBody textarea:focus {
+  border-color: #3b82f6;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-top: 1px solid #374151;
+  padding-top: 0.75rem;
+}
+
+.modalCancelBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #4b5563;
+  color: #d1d5db;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.modalCancelBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.modalConfirmBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background: #10b981;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.modalConfirmBtn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.modalConfirmBtn:disabled, .modalCancelBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

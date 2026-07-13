@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Building2, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Upload } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
@@ -43,6 +44,8 @@ export default function CoopAssetFinanceDeductionSetupPage() {
   const [showDropdown, setShowDropdown]     = useState(false);
   const [selectedStaff, setSelectedStaff]   = useState(null);
   const dropdownRef = useRef(null);
+  const [staffNetPay, setStaffNetPay] = useState(null);
+  const [loadingNetPay, setLoadingNetPay] = useState(false);
 
   const [userCtx, setUserCtx] = useState({
     isSuperAdmin: false, isHod: false, isAdminStaff: false, isAuditStaff: false, employee: null,
@@ -183,6 +186,37 @@ export default function CoopAssetFinanceDeductionSetupPage() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
+
+  const fetchStaffNetPay = useCallback(async (staffId) => {
+    setLoadingNetPay(true);
+    try {
+      const headers = buildHeaders();
+      const res = await axios.get(`${API_BASE}/payroll/staff-netpay/${staffId}`, { headers });
+      if (res.data.status === 'success') {
+        setStaffNetPay({
+          amount: res.data.net_pay,
+          month: res.data.month,
+          year: res.data.year,
+          isEstimated: res.data.is_estimated
+        });
+      } else {
+        setStaffNetPay(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff net pay:', err);
+      setStaffNetPay(null);
+    } finally {
+      setLoadingNetPay(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedStaff) {
+      fetchStaffNetPay(selectedStaff.id);
+    } else {
+      setStaffNetPay(null);
+    }
+  }, [selectedStaff, fetchStaffNetPay]);
 
   const handleSelectStaff = (staff) => {
     setSelectedStaff(staff);
@@ -428,7 +462,40 @@ export default function CoopAssetFinanceDeductionSetupPage() {
                         <CheckCircle2 size={12} /> {selectedStaff.name} (ID: {selectedStaff.id})
                       </span>
                     )}
-                  </div>
+                  
+                    {selectedStaff && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{
+                          padding: '0.75rem 1rem',
+                          background: 'rgba(59, 130, 246, 0.08)',
+                          border: '1px solid rgba(59, 130, 246, 0.2)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: '0.9rem',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        <span style={{ color: '#9ca3af' }}>Current Net Pay:</span>
+                        {loadingNetPay ? (
+                          <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
+                        ) : (
+                          <span style={{ fontWeight: 'bold', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <NairaSign size={14} />
+                            {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
+                            {staffNetPay?.month && (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af', marginLeft: '4px' }}>
+                                ({staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </motion.div>
+                    )}
+</div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     {/* Total Amount */}

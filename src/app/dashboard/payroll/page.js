@@ -115,6 +115,10 @@ export default function PayrollPage() {
   const [submittingWorkflow, setSubmittingWorkflow] = useState(false);
   const [emailingStaffId, setEmailingStaffId] = useState(null);
   const [sendingBulkEmail, setSendingBulkEmail] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [approveRemarks, setApproveRemarks] = useState('');
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payRemarks, setPayRemarks] = useState('');
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -351,11 +355,14 @@ export default function PayrollPage() {
     try {
       const res = await axios.post(`${API_BASE}/payroll/lock-active-month/audit-approve`, {
         year: parseInt(year),
-        month: month
+        month: month,
+        remarks: approveRemarks
       }, { headers: buildHeaders() });
 
       if (res.data.status === 'success') {
         showToast(res.data.message || 'Payroll approved by Audit successfully.', 'success');
+        setShowApproveModal(false);
+        setApproveRemarks('');
         fetchPage(page);
       } else {
         showToast(res.data.message || 'Failed to approve payroll.', 'error');
@@ -372,11 +379,14 @@ export default function PayrollPage() {
     try {
       const res = await axios.post(`${API_BASE}/payroll/lock-active-month/pay`, {
         year: parseInt(year),
-        month: month
+        month: month,
+        remarks: payRemarks
       }, { headers: buildHeaders() });
 
       if (res.data.status === 'success') {
         showToast(res.data.message || 'Payroll marked as paid successfully.', 'success');
+        setShowPayModal(false);
+        setPayRemarks('');
         fetchPage(page);
       } else {
         showToast(res.data.message || 'Failed to process payment.', 'error');
@@ -741,19 +751,25 @@ export default function PayrollPage() {
                         </button>
                       )}
                       {currentStage === 2 && (userCtx.isAuditStaff || userCtx.isSuperAdmin) && (
-                       <button
-                         type="button"
-                         onClick={handleAuditApprove}
-                         disabled={submittingWorkflow}
-                         style={{ padding: '6px 12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                       >
-                         {submittingWorkflow ? 'Approving...' : 'Audit Approve'}
-                       </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setApproveRemarks('');
+                            setShowApproveModal(true);
+                          }}
+                          disabled={submittingWorkflow}
+                          style={{ padding: '6px 12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          {submittingWorkflow ? 'Approving...' : 'Audit Approve'}
+                        </button>
                      )}
                      {currentStage === 3 && (userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff) && (
                        <button
                          type="button"
-                         onClick={handlePay}
+                         onClick={() => {
+                           setPayRemarks('');
+                           setShowPayModal(true);
+                         }}
                          disabled={submittingWorkflow}
                          style={{ padding: '6px 12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                        >
@@ -971,6 +987,104 @@ export default function PayrollPage() {
           )
         )}
       </AnimatePresence>
+
+      {/* ── Audit Approve Modal ── */}
+      {showApproveModal && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h3>Audit Approve Payroll</h3>
+              <button 
+                type="button" 
+                className={styles.modalCloseBtn}
+                onClick={() => setShowApproveModal(false)}
+                disabled={submittingWorkflow}
+              >
+                &times;
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p>Are you sure you want to approve the payroll for <strong>{month} {year}</strong> globally?</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <label className={styles.formLabel}>Remarks / Comments</label>
+                <textarea
+                  placeholder="Enter approval remarks..."
+                  value={approveRemarks}
+                  onChange={(e) => setApproveRemarks(e.target.value)}
+                  disabled={submittingWorkflow}
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.modalCancelBtn}
+                onClick={() => setShowApproveModal(false)}
+                disabled={submittingWorkflow}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalConfirmBtn}
+                onClick={handleAuditApprove}
+                disabled={submittingWorkflow}
+              >
+                {submittingWorkflow ? 'Approving...' : 'Confirm Approve'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pay Modal ── */}
+      {showPayModal && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h3>Confirm Payroll Payment</h3>
+              <button 
+                type="button" 
+                className={styles.modalCloseBtn}
+                onClick={() => setShowPayModal(false)}
+                disabled={submittingWorkflow}
+              >
+                &times;
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p>Are you sure you want to mark the payroll for <strong>{month} {year}</strong> as paid globally?</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <label className={styles.formLabel}>Remarks / Comments</label>
+                <textarea
+                  placeholder="Enter payment remarks..."
+                  value={payRemarks}
+                  onChange={(e) => setPayRemarks(e.target.value)}
+                  disabled={submittingWorkflow}
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.modalCancelBtn}
+                onClick={() => setShowPayModal(false)}
+                disabled={submittingWorkflow}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalConfirmBtn}
+                onClick={handlePay}
+                disabled={submittingWorkflow}
+              >
+                {submittingWorkflow ? 'Processing...' : 'Confirm Pay'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Toast ── */}
       <AnimatePresence>
