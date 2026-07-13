@@ -99,6 +99,7 @@ export default function Sidebar() {
 
   const topMenuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Reports', path: '/dashboard/reports', icon: <FileText size={20} /> },
   ];
 
   const bottomMenuItems = [];
