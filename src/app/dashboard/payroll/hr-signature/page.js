@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  Printer,
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -32,6 +33,8 @@ function buildHeaders() {
 
 export default function HrSignaturePage() {
   const [signature, setSignature] = useState(null);
+  const [printActive, setPrintActive] = useState(false);
+  const [togglingPrint, setTogglingPrint] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
@@ -52,12 +55,36 @@ export default function HrSignaturePage() {
       });
       if (res.data.status === 'success') {
         setSignature(res.data.signature);
+        setPrintActive(!!res.data.print_active);
       }
     } catch (err) {
       console.error(err);
       showToast('Failed to retrieve current signature.', 'error');
     } finally {
       setFetching(false);
+    }
+  };
+
+  const handleTogglePrint = async () => {
+    setTogglingPrint(true);
+    try {
+      const newStatus = !printActive;
+      const res = await axios.post(`${API_BASE}/payroll/print-activation`, {
+        print_active: newStatus
+      }, {
+        headers: buildHeaders()
+      });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || `Payslip printing ${newStatus ? 'activated' : 'deactivated'} successfully!`, 'success');
+        setPrintActive(newStatus);
+      } else {
+        showToast(res.data.message || 'Failed to toggle print status.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error updating print status.', 'error');
+    } finally {
+      setTogglingPrint(false);
     }
   };
 
@@ -208,6 +235,44 @@ export default function HrSignaturePage() {
               <RefreshCw size={16} /> Refresh
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Payslip Print Control Card */}
+      <div className={styles.card} style={{ maxWidth: '100%', marginTop: '2rem' }}>
+        <p className={styles.cardTitle}>
+          <Printer size={18} /> Payslip Print Control
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem', padding: '1rem 0' }}>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+              {printActive ? 'Payslip Printing is ACTIVE' : 'Payslip Printing is INACTIVE'}
+            </h4>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              When active, staff members will be allowed to print and view their payslips once salaries are paid. When inactive, only Admin/HR staff can view payslips.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleTogglePrint}
+            disabled={togglingPrint}
+            style={{
+              padding: '0.65rem 1.5rem',
+              borderRadius: '10px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              border: 'none',
+              color: '#fff',
+              backgroundColor: printActive ? '#ef4444' : '#10b981',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            {togglingPrint ? <Loader2 size={16} className={styles.spinner} /> : null}
+            {printActive ? 'Deactivate Printing' : 'Activate Printing'}
+          </button>
         </div>
       </div>
 

@@ -358,6 +358,17 @@
   padding-top: 1rem;
 }
 
+.signatureSection {
+  margin-top: 2rem;
+  border-top: 1px dashed var(--border);
+  padding-top: 1.25rem;
+}
+
+.signatureImg {
+  max-height: 70px;
+  display: block;
+}
+
 /* ─── Spinner & Loading ─── */
 .loading {
   display: flex;
@@ -576,6 +587,62 @@
     padding: 0.5rem 1.25rem !important;
     min-width: 180px !important;
     border-radius: 8px !important;
+  }
+
+  /* A5 Specific Print Layout Overrides */
+  .payslipWrapper[data-print-size="A5"] {
+    max-width: 100% !important;
+    padding: 0.5rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .metaGrid {
+    margin-bottom: 0.35rem !important;
+    padding: 0.35rem !important;
+    grid-template-columns: repeat(4, 1fr) !important; /* 4 columns on A5 landscape print to save space */
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .breakdownGrid {
+    gap: 1rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .table tr td {
+    padding: 0.08rem 0 !important;
+    font-size: 0.675rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .sectionTitle {
+    margin-bottom: 0.2rem !important;
+    padding-bottom: 0.15rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .bottomSection {
+    margin-top: 0.35rem !important;
+    padding-top: 0.35rem !important;
+    gap: 0.75rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .balancesGrid {
+    padding: 0.15rem 0.35rem !important;
+    gap: 0.15rem 0.5rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .netPayCard {
+    padding: 0.35rem 1rem !important;
+    min-width: 150px !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .netPayVal {
+    font-size: 1.25rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .signatureSection {
+    margin-top: 0.35rem !important;
+    padding-top: 0.25rem !important;
+  }
+  
+  .payslipWrapper[data-print-size="A5"] .signatureSection img {
+    max-height: 40px !important;
   }
 }
 

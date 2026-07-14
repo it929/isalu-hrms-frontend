@@ -420,6 +420,10 @@ export default function PrintPayslip() {
                 <span className={styles.metaVal}>{payslipData.staff.name}</span>
               </div>
               <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Staff ID:</span>
+                <span className={styles.metaVal}>{payslipData.staff.id}</span>
+              </div>
+              <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Department:</span>
                 <span className={styles.metaVal}>{payslipData.staff.department}</span>
               </div>
@@ -430,14 +434,6 @@ export default function PrintPayslip() {
               <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Paid Days:</span>
                 <span className={styles.metaVal}>{payslipData.payslip.paid_days !== null && payslipData.payslip.paid_days !== undefined ? payslipData.payslip.paid_days : 'N/A'}</span>
-              </div>
-              <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Bank Name:</span>
-                <span className={styles.metaVal}>{payslipData.staff.bank_name}</span>
-              </div>
-              <div className={styles.metaItem}>
-                <span className={styles.metaLabel}>Bank Account:</span>
-                <span className={styles.metaVal}>{payslipData.staff.bank_account}</span>
               </div>
             </div>
 
@@ -573,10 +569,10 @@ export default function PrintPayslip() {
             </div>
 
             {/* Signature Section */}
-            <div style={{ marginTop: '20px', borderTop: '1px dashed var(--border)', paddingTop: '15px' }}>
+            <div className={styles.signatureSection}>
               <span className={styles.metaLabel} style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Authorized Signature (HR Head):</span>
               {payslipData.hr_signature ? (
-                <img src={payslipData.hr_signature} alt="HR Head Signature" style={{ maxHeight: '70px', display: 'block' }} />
+                <img src={payslipData.hr_signature} alt="HR Head Signature" className={styles.signatureImg} />
               ) : (
                 <span style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No signature on file</span>
               )}
