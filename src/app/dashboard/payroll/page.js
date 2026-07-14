@@ -119,6 +119,8 @@ export default function PayrollPage() {
   const [approveRemarks, setApproveRemarks] = useState('');
   const [showPayModal, setShowPayModal] = useState(false);
   const [payRemarks, setPayRemarks] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectRemarks, setRejectRemarks] = useState('');
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -369,6 +371,34 @@ export default function PayrollPage() {
       }
     } catch (err) {
       showToast(err.response?.data?.message || 'Error approving payroll.', 'error');
+    } finally {
+      setSubmittingWorkflow(false);
+    }
+  };
+
+  const handleAuditReject = async () => {
+    if (!rejectRemarks.trim()) {
+      showToast('Please enter remarks/comments for rejection.', 'error');
+      return;
+    }
+    setSubmittingWorkflow(true);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/lock-active-month/audit-reject`, {
+        year: parseInt(year),
+        month: month,
+        remarks: rejectRemarks
+      }, { headers: buildHeaders() });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Payroll rejected by Audit successfully.', 'success');
+        setShowRejectModal(false);
+        setRejectRemarks('');
+        fetchPage(page);
+      } else {
+        showToast(res.data.message || 'Failed to reject payroll.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error rejecting payroll.', 'error');
     } finally {
       setSubmittingWorkflow(false);
     }
@@ -751,18 +781,31 @@ export default function PayrollPage() {
                         </button>
                       )}
                       {currentStage === 2 && (userCtx.isAuditStaff || userCtx.isSuperAdmin) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setApproveRemarks('');
-                            setShowApproveModal(true);
-                          }}
-                          disabled={submittingWorkflow}
-                          style={{ padding: '6px 12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                          {submittingWorkflow ? 'Approving...' : 'Audit Approve'}
-                        </button>
-                     )}
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApproveRemarks('');
+                              setShowApproveModal(true);
+                            }}
+                            disabled={submittingWorkflow}
+                            style={{ padding: '6px 12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            {submittingWorkflow ? 'Approving...' : 'Audit Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejectRemarks('');
+                              setShowRejectModal(true);
+                            }}
+                            disabled={submittingWorkflow}
+                            style={{ padding: '6px 12px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            {submittingWorkflow ? 'Rejecting...' : 'Audit Reject'}
+                          </button>
+                        </>
+                      )}
                      {currentStage === 3 && (userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff) && (
                        <button
                          type="button"
@@ -1031,6 +1074,57 @@ export default function PayrollPage() {
                 disabled={submittingWorkflow}
               >
                 {submittingWorkflow ? 'Approving...' : 'Confirm Approve'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Audit Reject Modal ── */}
+      {showRejectModal && (
+        <div className={styles.modalBackdrop}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h3 style={{ color: '#ef4444' }}>Audit Reject Payroll</h3>
+              <button 
+                type="button" 
+                className={styles.modalCloseBtn}
+                onClick={() => setShowRejectModal(false)}
+                disabled={submittingWorkflow}
+              >
+                &times;
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p>Are you sure you want to reject the payroll for <strong>{month} {year}</strong> globally and send it back to HR/Finance?</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <label className={styles.formLabel}>Reason for Rejection *</label>
+                <textarea
+                  placeholder="Enter rejection remarks..."
+                  value={rejectRemarks}
+                  onChange={(e) => setRejectRemarks(e.target.value)}
+                  disabled={submittingWorkflow}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.modalCancelBtn}
+                onClick={() => setShowRejectModal(false)}
+                disabled={submittingWorkflow}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalConfirmBtn}
+                style={{ backgroundColor: '#ef4444' }}
+                onClick={handleAuditReject}
+                disabled={submittingWorkflow}
+              >
+                {submittingWorkflow ? 'Rejecting...' : 'Confirm Reject'}
               </button>
             </div>
           </div>
