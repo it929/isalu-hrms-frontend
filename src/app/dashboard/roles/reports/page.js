@@ -456,59 +456,7 @@ export default function ReportsDashboard() {
         { label: 'Total Pension Accrued', value: '₦' + fmt(data.reduce((acc, r) => acc + parseFloat(r.PENSION || 0) * 2.25, 0)), icon: <Coins size={16} /> }
       ]
     },
-    {
-      id: '5.3_nhf_report',
-      categoryId: 'STATUTORY',
-      title: '5.3 NHF Report',
-      description: 'National Housing Fund (NHF) deductions log (2.5% of monthly basic salary contribution rate).',
-      icon: <Building2 size={20} />,
-      isSimulated: true,
-      simulatedGenerator: (staff) => staff.map(s => {
-        const basic = Math.floor(Math.random() * 100000) + 50000;
-        return {
-          name: s.name,
-          id: s.id,
-          nhf: basic * 0.025,
-          period: 'OCTOBER 2026'
-        };
-      }),
-      columns: [
-        { key: 'name', label: 'Employee Name' },
-        { key: 'nhf', label: 'NHF Deduction (₦)', render: (val) => fmt(val) },
-        { key: 'period', label: 'Reporting Period' }
-      ],
-      getMetrics: (data) => [
-        { label: 'Total NHF Fund Value', value: '₦' + fmt(data.reduce((acc, r) => acc + r.nhf, 0)), icon: <Coins size={16} /> }
-      ]
-    },
-    {
-      id: '5.4_hmo_report',
-      categoryId: 'STATUTORY',
-      title: '5.4 HMO/NHIS Report',
-      description: 'Audit employee health insurance contributions, provider names, and employer counterpart contributions.',
-      icon: <Activity size={20} />,
-      isSimulated: true,
-      simulatedGenerator: (staff) => staff.map(s => {
-        const providers = ['Reliance HMO', 'Leadway Health', 'AXA Mansard HMO', 'Hygeia HMO'];
-        const p = providers[Math.floor(Math.random() * providers.length)];
-        return {
-          name: s.name,
-          provider: p,
-          employee_cont: 1500.00,
-          employer_cont: 2500.00
-        };
-      }),
-      columns: [
-        { key: 'name', label: 'Employee Name' },
-        { key: 'provider', label: 'HMO Provider' },
-        { key: 'employee_cont', label: 'Employee Contribution (₦)', render: (val) => fmt(val) },
-        { key: 'employer_cont', label: 'Employer Contribution (₦)', render: (val) => fmt(val) }
-      ],
-      getMetrics: (data) => [
-        { label: 'Active HMO Enrollments', value: data.length, icon: <Activity size={16} /> },
-        { label: 'Total Health Premium', value: '₦' + fmt(data.reduce((acc, r) => acc + r.employee_cont + r.employer_cont, 0)), icon: <Coins size={16} /> }
-      ]
-    },
+
 
     // ── 6. LOAN AND ADVANCE REPORTS ──
     {

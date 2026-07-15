@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, TrendingUp, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Settings, Calendar, Percent, Power } from 'lucide-react';
+import { Users, TrendingUp, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Settings, Calendar, Percent, Power, Upload } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
 
@@ -48,6 +48,9 @@ export default function CoopLoanDeductionSetupPage() {
   const dropdownRef = useRef(null);
   const [staffNetPay, setStaffNetPay] = useState(null);
   const [loadingNetPay, setLoadingNetPay] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
 
   // User Context State
   const [userCtx, setUserCtx] = useState({
@@ -399,6 +402,64 @@ export default function CoopLoanDeductionSetupPage() {
     }
   };
 
+  // Drag-and-drop Excel upload handlers
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      uploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadFile(e.target.files[0]);
+    }
+  };
+
+  const uploadFile = async (file) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+      showToast('Unsupported format. Please upload an Excel (.xlsx, .xls) or CSV file.', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    setImporting(true);
+
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/coop-loan-deduction-setups/import`, formData, {
+        headers: {
+          ...buildHeaders(),
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Bulk configurations imported successfully.');
+        fetchSetups(true);
+      } else {
+        showToast(res.data.message || 'Bulk import failed.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Server error processing file.', 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredStaff = dropdownSearch.trim() === ''
     ? staffList
     : staffList.filter(s =>
@@ -449,7 +510,9 @@ export default function CoopLoanDeductionSetupPage() {
       </div>
 
       {isConfigurator && (
-        <div className={styles.card}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          {/* Setup Form */}
+          <div className={styles.card} style={{ marginBottom: 0 }}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>{editSetupId ? 'Modify Deduction Setup' : 'Create Deduction Setup'}</h2>
           </div>
@@ -657,6 +720,78 @@ export default function CoopLoanDeductionSetupPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+          {/* Import Excel Zone */}
+          <div className={styles.card} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Bulk Import Excel/CSV</h2>
+            </div>
+            <div className={styles.cardBody} style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div
+                className={`${styles.dragDropZone} ${dragActive ? styles.dragActive : ''}`}
+                onDragEnter={handleDrag}
+                onDragOver={handleDrag}
+                onDragLeave={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current.click()}
+                style={{
+                  border: '2px dashed var(--border-color, #e2e8f0)',
+                  borderRadius: '0.5rem',
+                  padding: '2.5rem 1.5rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  backgroundColor: dragActive ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileChange}
+                />
+                {importing ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                    <p style={{ fontWeight: 500 }}>Processing spreadsheet...</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <Upload size={36} style={{ color: 'var(--primary)' }} />
+                    <p style={{ fontWeight: 500, fontSize: '0.95rem' }}>Drag & drop file here or click to browse</p>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Supports Excel (.xlsx, .xls) and CSV (.csv)</span>
+                  </div>
+                )}
+              </div>
+              <div style={{ marginTop: '1.25rem', fontSize: '0.825rem', color: '#64748b', lineHeight: '1.4' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                  <p style={{ fontWeight: 600, margin: 0 }}>Spreadsheet Formatting Guideline:</p>
+                  <a
+                    href={`${API_BASE}/payroll/coop-loan-deduction-setups/template`}
+                    download="coop_loan_setup_import_template.csv"
+                    style={{
+                      color: 'var(--primary, #6366f1)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: 500,
+                    }}
+                  >
+                    Download Template
+                  </a>
+                </div>
+                <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <li>Column 1: **Staff ID** or **File Number**</li>
+                  <li>Column 2: **Loan Amount**</li>
+                  <li>Column 3: **Interest Rate (%)**</li>
+                  <li>Column 4: **Duration Months**</li>
+                  <li>Column 5: **Start Month (YYYY-MM)**</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       )}
