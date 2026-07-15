@@ -99,7 +99,6 @@ export default function Sidebar() {
 
   const topMenuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Reports', path: '/dashboard/reports', icon: <FileText size={20} /> },
   ];
 
   const bottomMenuItems = [];
@@ -111,6 +110,7 @@ export default function Sidebar() {
     { name: 'Add Sub Module', path: '/dashboard/roles/submodule-create', icon: <Layers size={16} /> },
     { name: 'Assign Module', path: '/dashboard/roles/assign', icon: <Layers size={16} /> },
     { name: 'Assign User', path: '/dashboard/roles/assign-user', icon: <Users size={16} /> },
+    { name: 'Reports',     path: '/dashboard/roles/reports', icon: <FileText size={16} /> },
   ];
 
   // Fetch sidebar data

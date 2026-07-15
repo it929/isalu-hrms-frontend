@@ -212,12 +212,12 @@ export default function AddNewStaff() {
 
   const handleDownloadTemplate = () => {
     const headers = [
-      'staffID', 'title', 'surname', 'firstname', 'othernames', 'sex', 'maritalStatus',
+      'staffID', 'title', 'name', 'sex', 'maritalStatus',
       'date_of_birth', 'phoneNo', 'email', 'address', 'department', 'unit',
       'designation', 'date_of_joining'
     ];
     const sampleRow = [
-      '101', 'Mr', 'IBRAHIM', 'AMINU', 'SULEIMAN', 'Male', 'Single',
+      '101', 'Mr', 'Tijani Akeem Olanrewaju', 'Male', 'Single',
       '1990-01-01', '08012345678', 'aminu@isalu.gov.ng', '123 Main Street, Abuja', 'Admin', 'Billing',
       'Accountant', '2026-05-26'
     ];
