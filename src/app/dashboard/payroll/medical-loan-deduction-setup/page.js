@@ -438,7 +438,7 @@ export default function MedicalLoanDeductionSetupPage() {
     ? staffList
     : staffList.filter(s =>
         s.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        s.fileNo.toLowerCase().includes(dropdownSearch.toLowerCase())
+        String(s.id).includes(dropdownSearch)
       );
 
   const filteredSetups = setups.filter(s => {
@@ -446,7 +446,7 @@ export default function MedicalLoanDeductionSetupPage() {
       return false;
     }
     return s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.fileNo?.toLowerCase().includes(searchQuery.toLowerCase());
+      String(s.staffId).includes(searchQuery);
   });
 
   const totalPages = Math.ceil(filteredSetups.length / itemsPerPage);
@@ -500,7 +500,7 @@ export default function MedicalLoanDeductionSetupPage() {
                       <input
                         type="text"
                         className={styles.input}
-                        placeholder="Search by name, file number..."
+                        placeholder="Search by name, staff ID..."
                         value={dropdownSearch}
                         onChange={(e) => {
                           setDropdownSearch(e.target.value);
@@ -748,7 +748,7 @@ export default function MedicalLoanDeductionSetupPage() {
                   </a>
                 </div>
                 <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <li>Column 1: **Staff ID** or **File Number**</li>
+                  <li>Column 1: **Staff ID**</li>
                   <li>Column 2: **Loan Amount**</li>
                   <li>Column 3: **Duration Months**</li>
                   <li>Column 4: **Start Month** (format: `YYYY-MM`)</li>
@@ -767,7 +767,7 @@ export default function MedicalLoanDeductionSetupPage() {
             <input
               type="text"
               className={`${styles.input} ${styles.inputWithIcon}`}
-              placeholder="Search setups by staff name, file number..."
+              placeholder="Search setups by staff name or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

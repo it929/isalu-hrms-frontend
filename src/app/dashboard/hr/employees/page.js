@@ -11,6 +11,19 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/n
 const STORAGE_BASE = process.env.NEXT_PUBLIC_STORAGE_URL || 'http://127.0.0.1:8000/storage';
 
 // ── In-Memory Client Cache ───────────────────────────────────────────────────
+function getUserId() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('hrms_user');
+    if (raw) return JSON.parse(raw)?.id ?? null;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function buildHeaders() {
+  const uid = getUserId();
+  return uid ? { 'X-User-Id': uid } : {};
+}
 export default function EmployeeRecords() {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,9 +31,10 @@ export default function EmployeeRecords() {
 
   const fetchStaff = useCallback((silent = false) => {
     if (!silent) setLoading(true);
-    const cacheKey = 'hrms_employee_records_cache';
+    const uid = getUserId();
+    const cacheKey = uid ? `hrms_employee_records_cache_${uid}` : 'hrms_employee_records_cache';
 
-    axios.get(`${API_BASE}/hr/add-staff/list`)
+    axios.get(`${API_BASE}/hr/add-staff/list`, { headers: buildHeaders() })
       .then(res => {
         const staff = res.data.staff || [];
         setStaffList(staff);
@@ -37,7 +51,8 @@ export default function EmployeeRecords() {
   }, []);
 
   useEffect(() => {
-    const cacheKey = 'hrms_employee_records_cache';
+    const uid = getUserId();
+    const cacheKey = uid ? `hrms_employee_records_cache_${uid}` : 'hrms_employee_records_cache';
     let hasCache = false;
     if (typeof window !== 'undefined') {
       const cached = sessionStorage.getItem(cacheKey);
