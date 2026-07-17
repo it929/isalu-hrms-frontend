@@ -6,6 +6,7 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { UserPlus, X, UploadCloud, Download, AlertTriangle, Loader2 } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { useSession } from '@/contexts/SessionContext';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -57,8 +58,19 @@ const Select = ({ label, name, options, placeholder = 'Select…', value, onChan
 
 export default function AddNewStaff() {
   const router = useRouter();
+  const { user, activeRole } = useSession();
   const [activeTab, setActiveTab] = useState('single'); // 'single' | 'bulk'
   const [form, setForm] = useState(initialForm);
+
+  useEffect(() => {
+    if (user && activeRole) {
+      const isSuperAdmin = user?.user_type?.toLowerCase() === 'technical' || user?.user_type?.toLowerCase() === 'super admin';
+      const isHr = activeRole?.rolename?.toLowerCase()?.includes('hr');
+      if (!isSuperAdmin && !isHr) {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, activeRole, router]);
   const [departments, setDepartments] = useState([]);
   const [units, setUnits] = useState([]);
   const [designations, setDesignations] = useState([]);
