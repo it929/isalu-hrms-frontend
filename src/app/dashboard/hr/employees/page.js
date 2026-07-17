@@ -615,7 +615,7 @@ export default function EmployeeRecords() {
           <h1 className={styles.pageTitle}>Employee Records</h1>
           <p className={styles.pageSubtitle}>View and manage all administrative staff in the system.</p>
         </div>
-        {(user?.user_type?.toLowerCase() === 'technical' || activeRole?.name?.toLowerCase()?.includes('hr')) && (
+        {((user?.user_type?.toLowerCase() === 'technical' || user?.user_type?.toLowerCase() === 'super admin') || activeRole?.rolename?.toLowerCase()?.includes('hr')) && (
           <Link href="/dashboard/hr/employees/add" className={styles.addBtn}>
             <UserPlus size={18} />
             <span>Add New Staff</span>
@@ -712,7 +712,7 @@ export default function EmployeeRecords() {
                 <tr>
                   <td colSpan={7} className={styles.emptyRow}>
                     {search ? 'No results match your search.' : (
-                      (user?.user_type?.toLowerCase() === 'technical' || activeRole?.name?.toLowerCase()?.includes('hr'))
+                      ((user?.user_type?.toLowerCase() === 'technical' || user?.user_type?.toLowerCase() === 'super admin') || activeRole?.rolename?.toLowerCase()?.includes('hr'))
                         ? 'No staff records found. Click "Add New Staff" to get started.'
                         : 'No staff records found.'
                     )}
