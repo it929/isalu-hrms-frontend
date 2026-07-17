@@ -466,7 +466,7 @@ export default function LoanDeductionSetupPage() {
     ? staffList
     : staffList.filter(s =>
         s.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        s.fileNo.toLowerCase().includes(dropdownSearch.toLowerCase())
+        String(s.id).includes(dropdownSearch)
       );
 
   const filteredSetups = setups.filter(s => {
@@ -474,7 +474,7 @@ export default function LoanDeductionSetupPage() {
       return false;
     }
     return s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.fileNo?.toLowerCase().includes(searchQuery.toLowerCase());
+      String(s.staffId).includes(searchQuery);
   });
 
   const totalPages = Math.ceil(filteredSetups.length / itemsPerPage);
@@ -528,7 +528,7 @@ export default function LoanDeductionSetupPage() {
                       <input
                         type="text"
                         className={styles.input}
-                        placeholder="Search by name, file number..."
+                        placeholder="Search by name, staff ID..."
                         value={dropdownSearch}
                         onChange={(e) => {
                           setDropdownSearch(e.target.value);
@@ -776,7 +776,7 @@ export default function LoanDeductionSetupPage() {
                   </a>
                 </div>
                 <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <li>Column 1: **Staff ID** or **File Number**</li>
+                  <li>Column 1: **Staff ID**</li>
                   <li>Column 2: **Loan Amount**</li>
                   <li>Column 3: **Interest Rate (%)**</li>
                   <li>Column 4: **Duration Months**</li>

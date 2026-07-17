@@ -101,7 +101,6 @@ export default function DeclareSalaryPage() {
     ? staffList
     : staffList.filter(s =>
         s.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        s.fileNo.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
         String(s.id).includes(dropdownSearch)
       );
 
@@ -262,9 +261,8 @@ export default function DeclareSalaryPage() {
   const handleEditFromList = (row) => {
     const staff = staffList.find(s => s.id === row.staffId) || {
       id: row.staffId,
-      fileNo: row.fileNo || '',
       name: row.name,
-      label: (row.fileNo ? `[${row.fileNo}] ` : '') + row.name
+      label: `[ID: ${row.staffId}] ` + row.name
     };
 
     setSelectedStaff(staff);
@@ -279,7 +277,6 @@ export default function DeclareSalaryPage() {
   // Filtered list
   const filteredRecords = records.filter(s =>
     s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.fileNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(s.staffId).includes(searchQuery)
   );
 
@@ -527,7 +524,7 @@ export default function DeclareSalaryPage() {
             <Search size={16} className={styles.tableSearchIcon} />
             <input
               type="text"
-              placeholder="Search by staff name, ID or file no..."
+              placeholder="Search by staff name or ID..."
               className={styles.tableSearchInput}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -547,7 +544,7 @@ export default function DeclareSalaryPage() {
                 <tr>
                   <th>Staff ID</th>
                   <th>Staff Name</th>
-                  <th>Basic Salary (₦)</th>
+                  <th>Gross Salary (₦)</th>
                   <th>Declared Salary (₦)</th>
                   <th>Actions</th>
                 </tr>
@@ -557,7 +554,7 @@ export default function DeclareSalaryPage() {
                   <tr key={row.id}>
                     <td className={styles.tdPrimary}>{row.staffId}</td>
                     <td>{row.name}</td>
-                    <td className={styles.tdNum}>{fmt(row.basic_salary)}</td>
+                    <td className={styles.tdNum}>{fmt(row.gross_salary)}</td>
                     <td className={styles.tdNum}>{row.declare_salary !== null ? fmt(row.declare_salary) : '—'}</td>
                     <td>
                       <button

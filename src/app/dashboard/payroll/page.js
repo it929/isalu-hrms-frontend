@@ -50,15 +50,15 @@ const YEARS    = Array.from({ length: 6 }, (_, i) => curYear - i).map(y => ({ id
 const TABLE_COLUMNS = [
   { key: 'IDNO',             label: 'ID No',            cls: '' },
   { key: 'NAME',             label: 'Name',             cls: styles.tdName },
-  { key: 'DEPERTMENT',       label: 'Department',       cls: '' },
+  { key: 'DEPERTMENT',       label: 'Department',       cls: styles.tdDept },
   { key: 'BASIC',            label: 'Basic',            cls: styles.tdNum },
   { key: 'HOUSING',          label: 'Housing',          cls: styles.tdNum },
   { key: 'TRANSPORT',        label: 'Transport',        cls: styles.tdNum },
   { key: 'MEDICAL',          label: 'Medical',          cls: styles.tdNum },
   { key: 'UTILITY',          label: 'Utility',          cls: styles.tdNum },
   { key: 'MEAL',             label: 'Meal',             cls: styles.tdNum },
-  { key: 'TOTAL INCOME',     label: 'Total Income',     cls: styles.tdNum },
-  { key: 'DECLARED INCOME',  label: 'Declared Inc.',    cls: styles.tdNum },
+  { key: 'TOTAL INCOME',     label: 'Total Income',     cls: styles.tdIncome },
+  { key: 'DECLARED INCOME',  label: 'Declared Inc.',    cls: styles.tdIncome },
   { key: 'PAID DAYS',        label: 'Paid Days',        cls: styles.tdNum },
   { key: 'P.TAX',            label: 'P. Tax',           cls: styles.tdTax, tooltip: 'P. Tax = (Annual Declared - 8% of 50% of Pension if active) progressive bands / 12. Bands: First 800k @ 0%, next 2.2M @ 15%, next 9M @ 18%, next 13M @ 21%, next 25M @ 23%, above 50M @ 25%.' },
   { key: 'IOU',              label: 'IOU',              cls: styles.tdDeduction },
@@ -504,7 +504,7 @@ export default function PayrollPage() {
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = `Payroll_${month}_${year}.csv`;
+      a.download = `Payroll_${month}_${year}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -943,13 +943,18 @@ export default function PayrollPage() {
                                const annualTaxable = Math.max(0, annualGross - annualPension);
                                cellTooltip = `P. Tax = Progressive bands on annual taxable ₦${annualTaxable.toLocaleString('en-NG')} (₦${annualGross.toLocaleString('en-NG')} Declared - ₦${annualPension.toLocaleString('en-NG')} Pension Tax Relief) / 12`;
                              }
+
+                             const NON_MONEY_KEYS = ['IDNO', 'NAME', 'DEPERTMENT', 'PAID DAYS', 'ACC. NO', 'BANK', 'CODE', 'PAYER ID', 'AUDIT_CHECK', 'PAID'];
+                             const isMoney = !NON_MONEY_KEYS.includes(col.key);
+                             const displayVal = isMoney ? fmt(val) : (val !== undefined && val !== null && val !== '' ? val : '—');
+
                              return (
                                <td 
                                  key={col.key} 
                                  className={`${col.cls} ${cellTooltip ? styles.tooltip : ''}`}
                                  data-tooltip={cellTooltip}
                                >
-                                 {val !== undefined && val !== null && val !== '' ? val : '—'}
+                                 {displayVal}
                                </td>
                              );
                            })}

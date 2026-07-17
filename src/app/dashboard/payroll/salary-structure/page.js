@@ -137,7 +137,6 @@ export default function SalaryStructurePage() {
     ? staffList
     : staffList.filter(s =>
         s.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        s.fileNo.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
         String(s.id).includes(dropdownSearch)
       );
 
@@ -332,9 +331,8 @@ export default function SalaryStructurePage() {
   const handleEditFromList = (row) => {
     const staff = staffList.find(s => s.id === row.staffId) || {
       id: row.staffId,
-      fileNo: row.fileNo || '',
       name: row.name,
-      label: (row.fileNo ? `[${row.fileNo}] ` : '') + row.name
+      label: `[ID: ${row.staffId}] ` + row.name
     };
 
     setSelectedStaff(staff);
@@ -355,7 +353,6 @@ export default function SalaryStructurePage() {
   // Filtered structures list
   const filteredStructures = structures.filter(s =>
     s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.fileNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(s.staffId).includes(searchQuery)
   );
 
@@ -632,7 +629,7 @@ export default function SalaryStructurePage() {
             <Search size={16} className={styles.tableSearchIcon} />
             <input
               type="text"
-              placeholder="Search by staff name, ID or file no..."
+              placeholder="Search by staff name or ID..."
               className={styles.tableSearchInput}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

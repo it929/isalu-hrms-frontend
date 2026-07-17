@@ -332,9 +332,23 @@
 }
 
 .tdName {
-  min-width: 160px;
+  min-width: 250px;
   white-space: nowrap;
   font-weight: 500;
+}
+
+.tdDept {
+  min-width: 250px;
+  white-space: nowrap;
+}
+
+.tdIncome {
+  min-width: 180px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .tdNum {
