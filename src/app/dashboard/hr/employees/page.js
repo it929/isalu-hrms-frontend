@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import Link from 'next/link';
 import { UserPlus, Search, Eye, Users, FileText, X, Edit, RefreshCw, Printer } from 'lucide-react';
+import { useSession } from '@/contexts/SessionContext';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -25,6 +26,7 @@ function buildHeaders() {
   return uid ? { 'X-User-Id': uid } : {};
 }
 export default function EmployeeRecords() {
+  const { user, activeRole } = useSession();
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -613,10 +615,12 @@ export default function EmployeeRecords() {
           <h1 className={styles.pageTitle}>Employee Records</h1>
           <p className={styles.pageSubtitle}>View and manage all administrative staff in the system.</p>
         </div>
-        <Link href="/dashboard/hr/employees/add" className={styles.addBtn}>
-          <UserPlus size={18} />
-          <span>Add New Staff</span>
-        </Link>
+        {(user?.user_type?.toLowerCase() === 'technical' || activeRole?.name?.toLowerCase()?.includes('hr')) && (
+          <Link href="/dashboard/hr/employees/add" className={styles.addBtn}>
+            <UserPlus size={18} />
+            <span>Add New Staff</span>
+          </Link>
+        )}
       </div>
 
       {/* ── Stats Row ── */}
@@ -707,7 +711,11 @@ export default function EmployeeRecords() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className={styles.emptyRow}>
-                    {search ? 'No results match your search.' : 'No staff records found. Click "Add New Staff" to get started.'}
+                    {search ? 'No results match your search.' : (
+                      (user?.user_type?.toLowerCase() === 'technical' || activeRole?.name?.toLowerCase()?.includes('hr'))
+                        ? 'No staff records found. Click "Add New Staff" to get started.'
+                        : 'No staff records found.'
+                    )}
                   </td>
                 </tr>
               ) : (
