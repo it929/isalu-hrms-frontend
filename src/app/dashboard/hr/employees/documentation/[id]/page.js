@@ -218,10 +218,20 @@ export default function StaffDocumentation() {
   const handleChange = (section, e) => {
     const { name, value, type, checked } = e.target;
     const val = type === 'checkbox' ? (checked ? 'yes' : 'null') : value;
-    setData(prev => ({
-      ...prev,
-      [section]: { ...prev[section], [name]: val }
-    }));
+    
+    setData(prev => {
+      const nextSection = { ...prev[section], [name]: val };
+      
+      if (section === 'basic' && name === 'departmentID') {
+        nextSection.designationID = '';
+        nextSection.Designation = '';
+      }
+      
+      return {
+        ...prev,
+        [section]: nextSection
+      };
+    });
   };
 
   return (
@@ -649,6 +659,7 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch }
           <div className={styles.field}>
             <label>Attach Certificate</label>
             <input type="file" ref={fileInputRef} onChange={e => setForm({...form, document: e.target.files[0]})} />
+            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>
@@ -760,17 +771,7 @@ function StepMarital({ data, lookups = {}, onChange }) {
                 />
               </div>
 
-              <div className={styles.field}>
-                <label>Spouse Date of Birth *</label>
-                <input 
-                  type="date" 
-                  name="wifedateofbirth" 
-                  value={safeData.wifedateofbirth ? safeData.wifedateofbirth.split('T')[0] : ''} 
-                  max={new Date().toISOString().split('T')[0]}
-                  onChange={onChange} 
-                  required 
-                />
-              </div>
+
 
               <div className={styles.field}>
                 <label>Date of Marriage *</label>
@@ -855,20 +856,20 @@ function StepNextOfKin({ data = [], lookups = {}, onUpdate }) {
               <h4 style={{ margin: '0 0 1rem 0', color: 'var(--primary)' }}>Kin #{i + 1}</h4>
               <div className={styles.formGrid}>
                 <div className={styles.field}>
-                  <label>Full Name *</label>
-                  <input type="text" value={row.fullname || ''} onChange={e => update(i, 'fullname', e.target.value)} required placeholder="e.g. Jane Doe" />
+                  <label>Full Name {i === 0 ? '*' : ''}</label>
+                  <input type="text" value={row.fullname || ''} onChange={e => update(i, 'fullname', e.target.value)} required={i === 0} placeholder="e.g. Jane Doe" />
                 </div>
                 <div className={styles.field}>
-                  <label>Phone Number *</label>
-                  <input type="tel" value={row.phoneno || ''} onChange={e => update(i, 'phoneno', e.target.value)} required placeholder="e.g. 080XXXXXXXX" />
+                  <label>Phone Number {i === 0 ? '*' : ''}</label>
+                  <input type="tel" value={row.phoneno || ''} onChange={e => update(i, 'phoneno', e.target.value)} required={i === 0} placeholder="e.g. 080XXXXXXXX" />
                 </div>
                 <CustomSelect 
-                  label="Relationship *"
+                  label={`Relationship ${i === 0 ? '*' : ''}`}
                   name="relationship"
                   value={row.relationship || ''}
                   options={relationshipOptions}
                   onChange={e => update(i, 'relationship', e.target.value)}
-                  required
+                  required={i === 0}
                 />
                 <div className={styles.field} style={{ gridColumn: '1 / -1' }}>
                   <label>Resident Address</label>
@@ -1141,6 +1142,7 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch }) {
           <div className={styles.field}>
             <label>Attach File *</label>
             <input type="file" ref={fileInputRef} onChange={e => setForm({...form, filename: e.target.files[0]})} required />
+            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>
@@ -1216,21 +1218,21 @@ function StepAccount({ data, lookups = {}, onChange }) {
 
         <div className={styles.formGrid}>
           <CustomSelect 
-            label="Bank Name *"
+            label="Bank Name"
             name="bankID"
             value={data.bankID || ''}
             options={bankOptions}
             onChange={onChange}
-            required
+            disabled
           />
           <div className={styles.field}>
-            <label>Account Number *</label>
+            <label>Account Number</label>
             <input 
               type="text" 
               name="AccNo" 
               value={data.AccNo || ''} 
               onChange={onChange} 
-              required 
+              disabled
               maxLength={10}
               placeholder="e.g. 3012345678" 
             />
@@ -1469,6 +1471,7 @@ function StepMedia({ data, onChange }) {
             <div className={styles.field} style={{ width: '100%' }}>
               <label style={{ textAlign: 'left', fontWeight: '600' }}>Or Upload File</label>
               <input type="file" accept="image/*" onChange={e => { stopWebcam(); handleFileChange('passport', e.target.files[0]); }} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }} />
+              <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
             </div>
           </div>
 
@@ -1514,6 +1517,7 @@ function StepMedia({ data, onChange }) {
               <div className={styles.field} style={{ width: '100%' }}>
                 <label style={{ textAlign: 'left', fontWeight: '600' }}>Or Upload File</label>
                 <input type="file" accept="image/*" onChange={e => handleFileChange('signature', e.target.files[0])} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }} />
+                <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
               </div>
             </div>
           </div>
@@ -1875,7 +1879,6 @@ function StepPreview({ data, designations = [], lgas = [], onEditStep }) {
               {(basic.maritalstatus === 'Married' || basic.maritalstatus === 'married') && (
                 <>
                   <tr><td style={tdLabelStyle}><b>NAME OF SPOUSE:</b></td><td style={tdValStyle}>{marital?.wifename || ''}</td></tr>
-                  <tr><td style={tdLabelStyle}><b>SPOUSE DATE OF BIRTH:</b></td><td style={tdValStyle}>{formatDate(marital?.wifedateofbirth)}</td></tr>
                   <tr><td style={tdLabelStyle}><b>DATE OF MARRIAGE:</b></td><td style={tdValStyle}>{formatDate(marital?.dateofmarriage)}</td></tr>
                   <tr><td style={tdLabelStyle}><b>SPOUSE ADDRESS:</b></td><td style={tdValStyle}>{marital?.homeplace || ''}</td></tr>
                 </>
