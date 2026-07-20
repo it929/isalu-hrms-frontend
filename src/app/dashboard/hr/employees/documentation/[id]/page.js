@@ -1138,16 +1138,15 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
 
         <div className={styles.formGrid}>
           <CustomSelect 
-            label="File Description *"
+            label="File Description"
             name="description"
             value={form.description}
             options={fileDescriptions}
             onChange={e => setForm({...form, description: e.target.value})}
-            required
           />
           <div className={styles.field}>
-            <label>Attach File *</label>
-            <input type="file" ref={fileInputRef} onChange={e => setForm({...form, filename: e.target.files[0]})} required />
+            <label>Attach File</label>
+            <input type="file" ref={fileInputRef} onChange={e => setForm({...form, filename: e.target.files[0]})} />
             <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>The file size must not exceed 5MB.</small>
           </div>
           <div className={styles.field}>
