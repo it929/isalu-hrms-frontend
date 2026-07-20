@@ -330,7 +330,7 @@ function StepBasic({ data, lookups = {}, designations = [], onChange }) {
       </div>
       <div className={styles.field}>
         <label>Other Names</label>
-        <input type="text" value={data.othernames || ''} readOnly className={styles.readOnlyInput} />
+        <input type="text" name="othernames" value={data.othernames || ''} onChange={onChange} />
       </div>
 
       <CustomCombobox 
