@@ -264,7 +264,7 @@ export default function StaffDocumentation() {
             exit={{ opacity: 0, x: -20 }}
             className={styles.stepContent}
           >
-            {renderStep(currentStep, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep, errors)}
+            {renderStep(currentStep, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep, errors, showToast)}
           </motion.div>
         </AnimatePresence>
 
@@ -290,19 +290,19 @@ export default function StaffDocumentation() {
   );
 }
 
-function renderStep(step, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep, errors) {
+function renderStep(step, data, setData, handleChange, designations, lgas, id, fetchData, setCurrentStep, errors, showToast) {
   switch(step) {
     case 1: return <StepBasic data={data.basic} lookups={data.lookups} designations={designations} onChange={(e) => handleChange('basic', e)} />;
     case 2: return <StepContact data={data.basic} onChange={(e) => handleChange('basic', e)} errors={errors} />;
     case 3: return <StepOrigin data={data.basic} lookups={data.lookups} lgas={lgas} onChange={(e) => handleChange('basic', e)} />;
-    case 4: return <StepEducation staffId={id} data={data.education} lookups={data.lookups} onUpdate={(val) => setData({...data, education: val})} onRefetch={fetchData} />;
+    case 4: return <StepEducation staffId={id} data={data.education} lookups={data.lookups} onUpdate={(val) => setData({...data, education: val})} onRefetch={fetchData} showToast={showToast} />;
     case 5: return <StepMarital data={data.marital} lookups={data.lookups} onChange={(e) => handleChange('marital', e)} />;
     case 6: return <StepNextOfKin data={data.nextOfKin} lookups={data.lookups} onUpdate={(val) => setData({...data, nextOfKin: val})} />;
     case 7: return <StepChildren data={data.children} onUpdate={(val) => setData({...data, children: val})} />;
     case 8: return <StepExperience data={data.experience} onUpdate={(val) => setData({...data, experience: val})} />;
-    case 9: return <StepAttachments staffId={id} data={data.attachments} onUpdate={(val) => setData({...data, attachments: val})} onRefetch={fetchData} />;
+    case 9: return <StepAttachments staffId={id} data={data.attachments} onUpdate={(val) => setData({...data, attachments: val})} onRefetch={fetchData} showToast={showToast} />;
     case 10: return <StepAccount data={data.basic} lookups={data.lookups} onChange={(e) => handleChange('basic', e)} />;
-    case 11: return <StepMedia data={data.media} onChange={(mediaState) => setData({...data, media: mediaState})} />;
+    case 11: return <StepMedia data={data.media} onChange={(mediaState) => setData({...data, media: mediaState})} showToast={showToast} />;
     case 12: return <StepOthers data={data.others || {}} lookups={data.lookups} onChange={(e) => handleChange('others', e)} />;
     case 13: return <StepPreview data={data} designations={designations} lgas={lgas} onEditStep={setCurrentStep} />;
     default: return null;
@@ -514,7 +514,7 @@ function StepOrigin({ data, lookups = {}, lgas = [], onChange }) {
   );
 }
 
-function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch }) {
+function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, showToast }) {
   const [form, setForm] = useState({
     category: '',
     schoolattended: '',
@@ -532,7 +532,7 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch }
     if (!form.schoolattended || !form.category) return;
     
     if (form.document && form.document.size > 5 * 1024 * 1024) {
-      alert('File size is too large. Maximum allowed size is 5MB.');
+      showToast ? showToast('File size is too large. Maximum allowed size is 5MB.', 'error') : alert('File size is too large. Maximum allowed size is 5MB.');
       return;
     }
     
@@ -659,7 +659,7 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch }
           <div className={styles.field}>
             <label>Attach Certificate</label>
             <input type="file" ref={fileInputRef} onChange={e => setForm({...form, document: e.target.files[0]})} />
-            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
+            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>The file size must not exceed 5MB.</small>
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>
@@ -1031,7 +1031,7 @@ function StepExperience({ data = [], onUpdate }) {
   );
 }
 
-function StepAttachments({ staffId, data = [], onUpdate, onRefetch }) {
+function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast }) {
   const [form, setForm] = useState({
     description: '',
     filename: null
@@ -1044,7 +1044,7 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch }) {
     if (!form.description || !form.filename) return;
 
     if (form.filename && form.filename.size > 5 * 1024 * 1024) {
-      alert('File size is too large. Maximum allowed size is 5MB.');
+      showToast ? showToast('File size is too large. Maximum allowed size is 5MB.', 'error') : alert('File size is too large. Maximum allowed size is 5MB.');
       return;
     }
 
@@ -1142,7 +1142,7 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch }) {
           <div className={styles.field}>
             <label>Attach File *</label>
             <input type="file" ref={fileInputRef} onChange={e => setForm({...form, filename: e.target.files[0]})} required />
-            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
+            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>The file size must not exceed 5MB.</small>
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>
@@ -1243,7 +1243,7 @@ function StepAccount({ data, lookups = {}, onChange }) {
   );
 }
 
-function StepMedia({ data, onChange }) {
+function StepMedia({ data, onChange, showToast }) {
   const [webcamActive, setWebcamActive] = useState(false);
   const [webcamStream, setWebcamStream] = useState(null);
   const videoRef = useRef(null);
@@ -1273,7 +1273,7 @@ function StepMedia({ data, onChange }) {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size is too large. Maximum allowed size is 5MB.');
+      showToast ? showToast('File size is too large. Maximum allowed size is 5MB.', 'error') : alert('File size is too large. Maximum allowed size is 5MB.');
       return;
     }
 
@@ -1471,7 +1471,7 @@ function StepMedia({ data, onChange }) {
             <div className={styles.field} style={{ width: '100%' }}>
               <label style={{ textAlign: 'left', fontWeight: '600' }}>Or Upload File</label>
               <input type="file" accept="image/*" onChange={e => { stopWebcam(); handleFileChange('passport', e.target.files[0]); }} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }} />
-              <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
+              <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>The file size must not exceed 5MB.</small>
             </div>
           </div>
 
@@ -1517,7 +1517,7 @@ function StepMedia({ data, onChange }) {
               <div className={styles.field} style={{ width: '100%' }}>
                 <label style={{ textAlign: 'left', fontWeight: '600' }}>Or Upload File</label>
                 <input type="file" accept="image/*" onChange={e => handleFileChange('signature', e.target.files[0])} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }} />
-                <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>file to upload must not more than 100kb</small>
+                <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>The file size must not exceed 5MB.</small>
               </div>
             </div>
           </div>
