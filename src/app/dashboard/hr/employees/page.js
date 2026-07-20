@@ -601,7 +601,7 @@ export default function EmployeeRecords() {
       s.surname?.toLowerCase()?.includes(q) ||
       s.first_name?.toLowerCase()?.includes(q) ||
       s.email?.toLowerCase()?.includes(q) ||
-      s.pf_num?.toLowerCase()?.includes(q) ||
+      String(s.id)?.toLowerCase()?.includes(q) ||
       s.designation?.toLowerCase()?.includes(q) ||
       s.department?.toLowerCase()?.includes(q)
     );
@@ -681,7 +681,7 @@ export default function EmployeeRecords() {
               <Search size={16} className={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Search by name, PF No., dept…"
+                placeholder="Search by name, Staff ID, dept…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className={styles.searchInput}
