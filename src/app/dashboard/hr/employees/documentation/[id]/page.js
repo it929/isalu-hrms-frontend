@@ -255,7 +255,13 @@ export default function StaffDocumentation() {
         </div>
       </div>
 
-      <div className={`premium-card ${styles.wizardCard}`}>
+      <form 
+        className={`premium-card ${styles.wizardCard}`}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleStepSave();
+        }}
+      >
         <AnimatePresence mode="wait">
           <motion.div 
             key={currentStep}
@@ -269,17 +275,17 @@ export default function StaffDocumentation() {
         </AnimatePresence>
 
         <div className={styles.wizardFooter}>
-          <button className={styles.btnBack} onClick={handleBack} disabled={currentStep === 1 || saving}>
+          <button type="button" className={styles.btnBack} onClick={handleBack} disabled={currentStep === 1 || saving}>
             <ChevronLeft size={18} /> Back
           </button>
           
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <button className={styles.btnNext} onClick={handleStepSave} disabled={saving}>
+            <button type="submit" className={styles.btnNext} disabled={saving}>
               {saving ? 'Submitting...' : currentStep === 13 ? 'Finish & Submit' : 'Save & Next'} <ChevronRight size={18} />
             </button>
           </div>
         </div>
-      </div>
+      </form>
 
       {toast && (
         <div className={`${styles.toast} ${toast.type === 'error' ? styles.toastError : styles.toastSuccess}`}>
@@ -327,7 +333,7 @@ function StepBasic({ data, lookups = {}, designations = [], onChange }) {
         <input type="text" value={data.othernames || ''} readOnly className={styles.readOnlyInput} />
       </div>
 
-      <CustomSelect 
+      <CustomCombobox 
         label="Title"
         name="title"
         value={data.title}
@@ -336,8 +342,7 @@ function StepBasic({ data, lookups = {}, designations = [], onChange }) {
           { id: 'MRS.', name: 'MRS.' },
           { id: 'MISS', name: 'MISS' },
           { id: 'DR.', name: 'DR.' },
-          { id: 'PROF.', name: 'PROF.' },
-          { id: 'HON. JUSTICE', name: 'HON. JUSTICE' },
+          { id: 'PROF.', name: 'PROF.' }
         ]}
         onChange={onChange}
         required
@@ -604,8 +609,8 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
             </h3>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--secondary)' }}>Are you sure you want to remove this education record? This action cannot be undone.</p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ background: 'transparent', border: '1px solid var(--border)', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', color: 'var(--foreground)' }}>Cancel</button>
-              <button onClick={confirmDelete} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Yes, Delete</button>
+              <button type="button" onClick={() => setDeleteConfirm(null)} style={{ background: 'transparent', border: '1px solid var(--border)', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', color: 'var(--foreground)' }}>Cancel</button>
+              <button type="button" onClick={confirmDelete} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Yes, Delete</button>
             </div>
           </div>
         </div>
@@ -663,7 +668,7 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>
-            <button onClick={handleAdd} disabled={uploading} className={styles.btnPrimary} style={{width: '100%', padding: '1rem', borderRadius: '0.75rem'}}>
+            <button type="button" onClick={handleAdd} disabled={uploading} className={styles.btnPrimary} style={{width: '100%', padding: '1rem', borderRadius: '0.75rem'}}>
               <Plus size={16} style={{marginRight:'5px', verticalAlign: 'middle'}}/> {uploading ? 'Uploading...' : 'Upload'}
             </button>
           </div>
@@ -708,7 +713,7 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
                       ) : <span style={{color: 'var(--text-muted)'}}>None</span>}
                     </td>
                     <td>
-                      <button onClick={() => handleRemove(i, row.id)} style={{background: '#ef4444', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '0.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: '600'}}>
+                      <button type="button" onClick={() => handleRemove(i, row.id)} style={{background: '#ef4444', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '0.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: '600'}}>
                         <Trash2 size={14} /> Remove
                       </button>
                     </td>
@@ -837,7 +842,7 @@ function StepNextOfKin({ data = [], lookups = {}, onUpdate }) {
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
             <Users size={20} /> Next of Kin Details
           </h3>
-          <button onClick={add} className={styles.btnPrimary} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+          <button type="button" onClick={add} className={styles.btnPrimary} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
             <Plus size={16} /> Add Kin
           </button>
         </div>
@@ -909,7 +914,7 @@ function StepChildren({ data = [], onUpdate }) {
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
             <Baby size={20} /> Children's Particulars
           </h3>
-          <button onClick={add} className={styles.btnPrimary} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+          <button type="button" onClick={add} className={styles.btnPrimary} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
             <Plus size={16} /> Add Child
           </button>
         </div>
@@ -976,7 +981,7 @@ function StepExperience({ data = [], onUpdate }) {
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
             <Briefcase size={20} /> Previous Employment History
           </h3>
-          <button onClick={add} className={styles.btnPrimary} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+          <button type="button" onClick={add} className={styles.btnPrimary} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
             <Plus size={16} /> Add Record
           </button>
         </div>
@@ -1104,6 +1109,7 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
     { id: 'Certificate of Indigene', name: 'Certificate of Indigene' },
     { id: 'GEN 75', name: 'GEN 75' },
     { id: 'NIN Slip', name: 'NIN Slip' },
+    { id: 'Guarantor Form', name: 'Guarantor Form' },
   ];
 
   return (
@@ -1116,8 +1122,8 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
             </h3>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--secondary)' }}>Are you sure you want to remove this attached file? This action cannot be undone.</p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ background: 'transparent', border: '1px solid var(--border)', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', color: 'var(--foreground)' }}>Cancel</button>
-              <button onClick={confirmDelete} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Yes, Delete</button>
+              <button type="button" onClick={() => setDeleteConfirm(null)} style={{ background: 'transparent', border: '1px solid var(--border)', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', color: 'var(--foreground)' }}>Cancel</button>
+              <button type="button" onClick={confirmDelete} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }}>Yes, Delete</button>
             </div>
           </div>
         </div>
@@ -1146,7 +1152,7 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>
-            <button onClick={handleUpload} disabled={uploading || !form.description || !form.filename} className={styles.btnPrimary} style={{ width: '100%', padding: '1rem', borderRadius: '0.75rem' }}>
+            <button type="button" onClick={handleUpload} disabled={uploading || !form.description || !form.filename} className={styles.btnPrimary} style={{ width: '100%', padding: '1rem', borderRadius: '0.75rem' }}>
               <Plus size={16} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> {uploading ? 'Uploading...' : 'Upload Attachment'}
             </button>
           </div>
@@ -1184,7 +1190,7 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
                       ) : <span style={{ color: 'var(--text-muted)' }}>None</span>}
                     </td>
                     <td>
-                      <button onClick={() => handleRemove(i, row.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '0.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: '600' }}>
+                      <button type="button" onClick={() => handleRemove(i, row.id)} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '0.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: '600' }}>
                         <Trash2 size={14} /> Remove
                       </button>
                     </td>

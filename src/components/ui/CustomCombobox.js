@@ -49,6 +49,7 @@ export default function CustomCombobox({
           onChange={handleInputChange}
           placeholder={placeholder}
           disabled={disabled}
+          required={required}
           onFocus={() => setIsOpen(true)}
           style={{
             flex: 1,
