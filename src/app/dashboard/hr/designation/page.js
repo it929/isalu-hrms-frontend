@@ -193,6 +193,10 @@ export default function DesignationPage() {
 
   const filteredDepartments = departmentList;
 
+  const filteredDesignations = formData.department
+    ? designationList.filter(item => String(item.departmentID) === String(formData.department))
+    : designationList;
+
   return (
     <motion.div 
       className={styles.container}
@@ -299,14 +303,14 @@ export default function DesignationPage() {
                       </div>
                     </td>
                   </tr>
-                ) : designationList.length === 0 ? (
+                ) : filteredDesignations.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', padding: '3rem 0' }}>
                       No designations found.
                     </td>
                   </tr>
                 ) : (
-                  designationList.map((item, index) => (
+                  filteredDesignations.map((item, index) => (
                     <tr key={item.id}>
                       <td>{index + 1}</td>
                       <td>{item.department || 'N/A'}</td>
