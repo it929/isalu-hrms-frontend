@@ -615,6 +615,67 @@
   box-shadow: var(--shadow);
 }
 
+.leaveFiltersContainer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.25rem 0.5rem;
+  border-left: 1px solid var(--border);
+  margin-left: 0.5rem;
+}
+
+.leaveFilterField {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.leaveFilterLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--secondary);
+}
+
+.dateField {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  outline: none;
+  min-height: auto;
+  height: auto;
+}
+
+.leaveSelectField {
+  padding: 0.35rem 2rem 0.35rem 0.75rem;
+  border-radius: 8px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  min-height: auto;
+  height: auto;
+}
+
+@media (max-width: 1024px) {
+  .leaveFiltersContainer {
+    border-left: none;
+    margin-left: 0;
+    padding: 0;
+    width: 100%;
+  }
+}
+
 /* Print CSS */
 @media print {
   :global(aside), :global(nav), :global(button), :global(select), :global(input), .backBtn, .filtersRow, .pagination, .actionsGroup, .selectorRow, .tabsContainer {

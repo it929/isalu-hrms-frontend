@@ -26,7 +26,19 @@ export default function Navbar() {
         </button>
         <div className={styles.userInfo}>
           <div className={styles.avatar}>
-            <User size={20} />
+            {user?.passport_url ? (
+              <img
+                src={
+                  user.passport_url.startsWith('http') || user.passport_url.startsWith('data:')
+                    ? user.passport_url
+                    : `${process.env.NEXT_PUBLIC_STORAGE_URL || 'http://127.0.0.1:8000/storage'}/${user.passport_url}`
+                }
+                alt="User Passport"
+                className={styles.avatarImg}
+              />
+            ) : (
+              <User size={20} />
+            )}
           </div>
           <div className={styles.details}>
             <span className={styles.name}>

@@ -58,6 +58,18 @@ function fmt(n) {
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function parseLocalDate(dateStr) {
+  if (!dateStr) return null;
+  const cleanStr = String(dateStr).split(/[ T]/)[0];
+  const match = cleanStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 export default function ReportsDashboard() {
   // Navigation & Category states
   const [activeCategory, setActiveCategory] = useState('EMPLOYEE'); // EMPLOYEE, ATTENDANCE, LEAVE, PAYROLL, STATUTORY, LOANS, RECRUITMENT, PERFORMANCE, MANAGEMENT, AUDIT
@@ -84,6 +96,10 @@ export default function ReportsDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [deptSearchQuery, setDeptSearchQuery] = useState('');
   const [leaveSearchQuery, setLeaveSearchQuery] = useState('');
+  const [fromDateFilter, setFromDateFilter] = useState('');
+  const [toDateFilter, setToDateFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
   const itemsPerPage = 10;
 
@@ -925,6 +941,10 @@ export default function ReportsDashboard() {
     setProfileSearchQuery('');
     setDeptSearchQuery('');
     setLeaveSearchQuery('');
+    setFromDateFilter('');
+    setToDateFilter('');
+    setMonthFilter('');
+    setYearFilter('');
     
     if (report.isCustomLayout) {
       if (report.id === '1.3_departmental_staff') {
@@ -942,28 +962,78 @@ export default function ReportsDashboard() {
     setPayslipData(null);
     setLeaveBalanceStaff(null);
     setDepartmentGroups([]);
+    setFromDateFilter('');
+    setToDateFilter('');
+    setMonthFilter('');
+    setYearFilter('');
   };
 
   // Filter lists locally
   const filteredData = reportData.filter(row => {
     const query = searchQuery.toLowerCase().trim();
+    const fullName = trimName(row);
     const matchesSearch = query === '' || 
       (row.id && String(row.id).toLowerCase().includes(query)) ||
       (row.fileNo && String(row.fileNo).toLowerCase().includes(query)) ||
+      (row.staffId && String(row.staffId).toLowerCase().includes(query)) ||
+      (row.staffID && String(row.staffID).toLowerCase().includes(query)) ||
+      (row.staff_id && String(row.staff_id).toLowerCase().includes(query)) ||
       (row.name && String(row.name).toLowerCase().includes(query)) ||
+      (fullName && fullName.toLowerCase().includes(query)) ||
       (row.department && String(row.department).toLowerCase().includes(query)) ||
       (row.designation && String(row.designation).toLowerCase().includes(query)) ||
       (row.title && String(row.title).toLowerCase().includes(query)) ||
       (row.position && String(row.position).toLowerCase().includes(query));
 
     let matchesStatus = true;
-    if (statusFilter === 'active') {
-      matchesStatus = (row.is_active == 1 || row.staff_status == 1 || row.status === 'Open' || row.status === 'Hired');
-    } else if (statusFilter === 'inactive') {
-      matchesStatus = (row.is_active == 0 || row.staff_status == 2 || row.status === 'Closed' || row.status === 'Rejected');
+    if (activeReportId === '3.1_leave_applications') {
+      if (statusFilter === 'approved') {
+        matchesStatus = (row.status == 2);
+      } else if (statusFilter === 'pending') {
+        matchesStatus = (row.status == 0 || row.status == 1);
+      } else if (statusFilter === 'rejected') {
+        matchesStatus = (row.status == 3 || row.status == 4);
+      }
+    } else {
+      if (statusFilter === 'active') {
+        matchesStatus = (row.is_active == 1 || row.staff_status == 1 || row.status === 'Open' || row.status === 'Hired');
+      } else if (statusFilter === 'inactive') {
+        matchesStatus = (row.is_active == 0 || row.staff_status == 2 || row.status === 'Closed' || row.status === 'Rejected');
+      }
     }
 
-    return matchesSearch && matchesStatus;
+    // Specific filters for Leave Application Report
+    let matchesLeaveFilters = true;
+    if (activeReportId === '3.1_leave_applications') {
+      const targetDateStr = row.created_at || row.start_date;
+      const rowDate = parseLocalDate(targetDateStr);
+
+      if (rowDate) {
+        if (fromDateFilter) {
+          const fromLimit = parseLocalDate(fromDateFilter);
+          if (fromLimit && rowDate < fromLimit) matchesLeaveFilters = false;
+        }
+        if (toDateFilter) {
+          const toLimit = parseLocalDate(toDateFilter);
+          if (toLimit && rowDate > toLimit) matchesLeaveFilters = false;
+        }
+        if (monthFilter) {
+          const rowMonth = rowDate.getMonth() + 1;
+          if (rowMonth !== parseInt(monthFilter)) matchesLeaveFilters = false;
+        }
+        if (yearFilter) {
+          const rowYear = rowDate.getFullYear();
+          if (rowYear !== parseInt(yearFilter)) matchesLeaveFilters = false;
+        }
+      } else {
+        // If there's no parseable date, and filters are active, exclude the record.
+        if (fromDateFilter || toDateFilter || monthFilter || yearFilter) {
+          matchesLeaveFilters = false;
+        }
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesLeaveFilters;
   });
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
@@ -1664,18 +1734,95 @@ export default function ReportsDashboard() {
                       />
                     </div>
 
-                    <select
-                      className={styles.selectField}
-                      value={statusFilter}
-                      onChange={(e) => {
-                        setStatusFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                    >
-                      <option value="all">Status: All</option>
-                      <option value="active">Status: Active</option>
-                      <option value="inactive">Status: Completed/Inactive</option>
-                    </select>
+                    {activeReportId === '3.1_leave_applications' ? (
+                      <select
+                        className={styles.selectField}
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value="all">Status: All</option>
+                        <option value="approved">Status: Approved</option>
+                        <option value="pending">Status: Pending</option>
+                        <option value="rejected">Status: Rejected</option>
+                      </select>
+                    ) : (
+                      <select
+                        className={styles.selectField}
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value="all">Status: All</option>
+                        <option value="active">Status: Active</option>
+                        <option value="inactive">Status: Completed/Inactive</option>
+                      </select>
+                    )}
+                    
+                    {activeReportId === '3.1_leave_applications' && (
+                      <div className={styles.leaveFiltersContainer}>
+                        <div className={styles.leaveFilterField}>
+                          <span className={styles.leaveFilterLabel}>From:</span>
+                          <input
+                            type="date"
+                            className={styles.dateField}
+                            value={fromDateFilter}
+                            onChange={(e) => {
+                              setFromDateFilter(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                          />
+                        </div>
+                        <div className={styles.leaveFilterField}>
+                          <span className={styles.leaveFilterLabel}>To:</span>
+                          <input
+                            type="date"
+                            className={styles.dateField}
+                            value={toDateFilter}
+                            onChange={(e) => {
+                              setToDateFilter(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                          />
+                        </div>
+                        <div className={styles.leaveFilterField}>
+                          <span className={styles.leaveFilterLabel}>Month:</span>
+                          <select
+                            className={styles.leaveSelectField}
+                            value={monthFilter}
+                            onChange={(e) => {
+                              setMonthFilter(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                          >
+                            <option value="">Month: All</option>
+                            {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, idx) => (
+                              <option key={idx + 1} value={idx + 1}>{m}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className={styles.leaveFilterField}>
+                          <span className={styles.leaveFilterLabel}>Year:</span>
+                          <select
+                            className={styles.leaveSelectField}
+                            value={yearFilter}
+                            onChange={(e) => {
+                              setYearFilter(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                          >
+                            <option value="">Year: All</option>
+                            {['2025', '2026', '2027', '2028', '2029'].map(y => (
+                              <option key={y} value={y}>{y}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className={styles.actionsGroup}>
