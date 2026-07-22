@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from '../contexts/SessionContext';
 import axios from 'axios';
 import { Eye, EyeOff } from 'lucide-react';
@@ -99,6 +100,12 @@ export default function Login() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            <Link href="/forgot-password" style={{ fontSize: '0.875rem', color: 'var(--primary, #6366f1)', textDecoration: 'none' }}>
+              Forgot Password?
+            </Link>
           </div>
 
           <button type="submit" className="premium-btn" style={{ width: '100%', padding: '0.75rem', marginTop: '1rem' }} disabled={loading}>
