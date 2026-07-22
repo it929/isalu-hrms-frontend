@@ -135,6 +135,13 @@ export default function Sidebar() {
     }
 
     async function loadSidebar() {
+      const uid = getUserId();
+      if (!uid) {
+        setSidebarData([]);
+        setLoading(false);
+        return;
+      }
+
       if (!hasCache) {
         setLoading(true);
       }

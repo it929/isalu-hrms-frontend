@@ -79,8 +79,12 @@ export default function ReportsDashboard() {
 
   // Search, Pagination & Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [currentPage, setCurrentPage] = useState(1);
+  const [deptSearchQuery, setDeptSearchQuery] = useState('');
+  const [leaveSearchQuery, setLeaveSearchQuery] = useState('');
+  const [isPrinting, setIsPrinting] = useState(false);
   const itemsPerPage = 10;
 
   // Active month metadata
@@ -148,7 +152,11 @@ export default function ReportsDashboard() {
   };
 
   const handlePrint = () => {
-    window.print();
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+    }, 100);
   };
 
   // Helper to trim names
@@ -314,25 +322,27 @@ export default function ReportsDashboard() {
       description: 'Track all submitted leave applications, start/end dates, leave types, and approval states.',
       icon: <LogOut size={20} />,
       apiPath: '/hr/apply-leave/records',
+      dataKey: 'leaveRecords',
       columns: [
-        { key: 'fileNo', label: 'File No' },
+        { key: 'staffId', label: 'Staff ID' },
         { key: 'name', label: 'Employee Name', render: (val, row) => trimName(row) },
-        { key: 'leave_type', label: 'Leave Type', render: (val, row) => row.leave_type_name || '—' },
+        { key: 'leaveType', label: 'Leave Type', render: (val, row) => val || row.leave_type_name || '—' },
         { key: 'start_date', label: 'Start Date' },
         { key: 'end_date', label: 'End Date' },
         { key: 'duration_days', label: 'Number of Days' },
-        { key: 'is_approved_admin', label: 'Approval Status', 
+        { key: 'status', label: 'Approval Status', 
           render: (val, row) => {
-            if (row.is_rejected_admin == 1 || row.is_rejected_hod == 1) return <span className={`${styles.badge} ${styles.badgeInactive}`}>Rejected</span>;
-            if (val == 1) return <span className={`${styles.badge} ${styles.badgeActive}`}>Approved</span>;
+            if (val == 3 || val == 4) return <span className={`${styles.badge} ${styles.badgeInactive}`}>Rejected</span>;
+            if (val == 2) return <span className={`${styles.badge} ${styles.badgeActive}`}>Approved</span>;
+            if (val == 1) return <span className={styles.badge} style={{ background: '#3b82f6', color: '#fff' }}>HOD Approved</span>;
             return <span className={styles.badge} style={{ background: '#f59e0b', color: '#fff' }}>Pending</span>;
           }
         }
       ],
       getMetrics: (data) => [
         { label: 'Total Applications', value: data.length, icon: <FileText size={16} /> },
-        { label: 'Approved Leaves', value: data.filter(r => r.is_approved_admin == 1).length, icon: <CheckCircle2 size={16} /> },
-        { label: 'Pending Reviews', value: data.filter(r => r.is_approved_admin == 0 && r.is_rejected_admin == 0 && r.is_rejected_hod == 0).length, icon: <Clock size={16} /> }
+        { label: 'Approved Leaves', value: data.filter(r => r.status == 2).length, icon: <CheckCircle2 size={16} /> },
+        { label: 'Pending Reviews', value: data.filter(r => r.status == 0 || r.status == 1).length, icon: <Clock size={16} /> }
       ]
     },
     {
@@ -841,26 +851,36 @@ export default function ReportsDashboard() {
       // Fetch leave records
       const res = await axios.get(`${API_BASE}/hr/apply-leave/records`, { headers });
       const staffListRes = await axios.get(`${API_BASE}/payroll/coop-loans/staff`, { headers });
+      const leaveTypesRes = await axios.get(`${API_BASE}/hr/leave-types`, { headers });
       
       const matchedStaff = staffListRes.data.data.find(s => s.id === parseInt(staffId));
-      const records = res.data.data || [];
+      const records = res.data.leaveRecords || [];
+      const leaveTypes = leaveTypesRes.data.data || [];
       
       // Calculate leave balances
       const employeeRecords = records.filter(r => r.staffId === parseInt(staffId));
-      const annualUsed = employeeRecords.filter(r => r.leave_type_name?.toLowerCase().includes('annual') && r.is_approved_admin == 1).reduce((acc, r) => acc + (parseInt(r.duration_days) || 0), 0);
-      const sickUsed = employeeRecords.filter(r => r.leave_type_name?.toLowerCase().includes('sick') && r.is_approved_admin == 1).reduce((acc, r) => acc + (parseInt(r.duration_days) || 0), 0);
-      const casualUsed = employeeRecords.filter(r => r.leave_type_name?.toLowerCase().includes('casual') && r.is_approved_admin == 1).reduce((acc, r) => acc + (parseInt(r.duration_days) || 0), 0);
+      
+      const balances = leaveTypes.map(lt => {
+        // Sum approved days for this leave type
+        const used = employeeRecords
+          .filter(r => r.leave_type_id === lt.id && r.status == 2)
+          .reduce((acc, r) => acc + (parseInt(r.duration_days) || 0), 0);
+          
+        const limit = parseInt(lt.days) || 0;
+        
+        return {
+          type: lt.leaveType,
+          limit: limit,
+          used: used,
+          remaining: Math.max(0, limit - used)
+        };
+      });
 
       setLeaveBalanceStaff({
         name: matchedStaff?.name || 'Staff member',
         id: staffId,
         fileNo: matchedStaff?.fileNo || '',
-        balances: [
-          { type: 'Annual Leave', limit: 30, used: annualUsed, remaining: Math.max(0, 30 - annualUsed) },
-          { type: 'Sick Leave', limit: 12, used: sickUsed, remaining: Math.max(0, 12 - sickUsed) },
-          { type: 'Casual Leave', limit: 7, used: casualUsed, remaining: Math.max(0, 7 - casualUsed) },
-          { type: 'Maternity/Paternity Leave', limit: 90, used: 0, remaining: 90 }
-        ]
+        balances: balances
       });
     } catch (err) {
       console.error(err);
@@ -902,6 +922,9 @@ export default function ReportsDashboard() {
     setPayslipData(null);
     setLeaveBalanceStaff(null);
     setDepartmentGroups([]);
+    setProfileSearchQuery('');
+    setDeptSearchQuery('');
+    setLeaveSearchQuery('');
     
     if (report.isCustomLayout) {
       if (report.id === '1.3_departmental_staff') {
@@ -925,12 +948,13 @@ export default function ReportsDashboard() {
   const filteredData = reportData.filter(row => {
     const query = searchQuery.toLowerCase().trim();
     const matchesSearch = query === '' || 
-      (row.fileNo && row.fileNo.toLowerCase().includes(query)) ||
-      (row.name && row.name.toLowerCase().includes(query)) ||
-      (row.department && row.department.toLowerCase().includes(query)) ||
-      (row.designation && row.designation.toLowerCase().includes(query)) ||
-      (row.title && row.title.toLowerCase().includes(query)) ||
-      (row.position && row.position.toLowerCase().includes(query));
+      (row.id && String(row.id).toLowerCase().includes(query)) ||
+      (row.fileNo && String(row.fileNo).toLowerCase().includes(query)) ||
+      (row.name && String(row.name).toLowerCase().includes(query)) ||
+      (row.department && String(row.department).toLowerCase().includes(query)) ||
+      (row.designation && String(row.designation).toLowerCase().includes(query)) ||
+      (row.title && String(row.title).toLowerCase().includes(query)) ||
+      (row.position && String(row.position).toLowerCase().includes(query));
 
     let matchesStatus = true;
     if (statusFilter === 'active') {
@@ -1067,21 +1091,38 @@ export default function ReportsDashboard() {
             {/* ──────── 1.2 EMPLOYEE PROFILE CUSTOM VIEW ──────── */}
             {activeReportId === '1.2_profile_report' && (
               <div>
-                <div className={styles.selectorRow}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Select Employee:</label>
-                  <select
-                    className={styles.selectField}
-                    value={selectedStaffId}
-                    onChange={(e) => {
-                      setSelectedStaffId(e.target.value);
-                      handleLoadEmployeeProfile(e.target.value);
-                    }}
-                  >
-                    <option value="">-- Choose Employee --</option>
-                    {staffList.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} (ID: {s.id})</option>
-                    ))}
-                  </select>
+                <div className={styles.selectorRow} style={{ flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Select Employee:</label>
+                    <input
+                      type="text"
+                      className={styles.searchInput}
+                      placeholder="Search name, ID, dept..."
+                      value={profileSearchQuery}
+                      onChange={(e) => setProfileSearchQuery(e.target.value)}
+                      style={{ padding: '0.4rem', border: '1px solid var(--border)', borderRadius: '4px', maxWidth: '200px' }}
+                    />
+                    <select
+                      className={styles.selectField}
+                      value={selectedStaffId}
+                      onChange={(e) => {
+                        setSelectedStaffId(e.target.value);
+                        handleLoadEmployeeProfile(e.target.value);
+                      }}
+                    >
+                      <option value="">-- Choose Employee --</option>
+                      {staffList.filter(s => {
+                        const q = profileSearchQuery.toLowerCase().trim();
+                        return !q || 
+                          (s.name && s.name.toLowerCase().includes(q)) || 
+                          (s.id && String(s.id).toLowerCase().includes(q)) || 
+                          (s.department && s.department.toLowerCase().includes(q)) ||
+                          (s.fileNo && String(s.fileNo).toLowerCase().includes(q));
+                      }).map(s => (
+                        <option key={s.id} value={s.id}>{s.name} (ID: {s.id}) {s.department ? `- ${s.department}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
 
                   {profileData && (
                     <div style={{ marginLeft: 'auto' }}>
@@ -1114,7 +1155,7 @@ export default function ReportsDashboard() {
                       <div className={styles.profileSidebarList}>
                         <div className={styles.sidebarItem}>
                           <span className={styles.sidebarLabel}>Staff Number</span>
-                          <span className={styles.sidebarValue}>{profileData.staffFullDetails?.fileNo || '—'}</span>
+                          <span className={styles.sidebarValue}>{profileData.staffFullDetails?.staffID || '—'}</span>
                         </div>
                         <div className={styles.sidebarItem}>
                           <span className={styles.sidebarLabel}>Department</span>
@@ -1229,9 +1270,9 @@ export default function ReportsDashboard() {
                             <span className={styles.fieldValue}>{profileData.staffFullDetails?.AccNo || '—'}</span>
                           </div>
                           <div className={styles.profileField}>
-                            <span className={styles.fieldLabel}>Basic Monthly Salary</span>
+                            <span className={styles.fieldLabel}>Gross Monthly Salary</span>
                             <span className={styles.fieldValue}>
-                              ₦{fmt(profileData.staffFullDetails?.basic_salary || 0)}
+                              ₦{fmt(profileData.staffFullDetails?.gross || 0)}
                             </span>
                           </div>
                         </div>
@@ -1251,7 +1292,17 @@ export default function ReportsDashboard() {
             {/* ──────── 1.3 DEPARTMENTAL STAFF REPORT CUSTOM VIEW ──────── */}
             {activeReportId === '1.3_departmental_staff' && (
               <div>
-                <div className={styles.filtersRow} style={{ justifyContent: 'flex-end' }}>
+                <div className={styles.filtersRow} style={{ justifyContent: 'space-between' }}>
+                  <div className={styles.searchWrapper}>
+                    <Search size={16} className={styles.searchIcon} />
+                    <input
+                      type="text"
+                      className={styles.searchInput}
+                      placeholder="Search department..."
+                      value={deptSearchQuery}
+                      onChange={(e) => setDeptSearchQuery(e.target.value)}
+                    />
+                  </div>
                   <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handlePrint}>
                     <Printer size={16} />
                     <span>Print Dept Sheet</span>
@@ -1263,7 +1314,9 @@ export default function ReportsDashboard() {
                     <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary, #6366f1)' }} />
                   </div>
                 ) : departmentGroups.length > 0 ? (
-                  departmentGroups.map((group, idx) => (
+                  departmentGroups
+                    .filter(g => g.name.toLowerCase().includes(deptSearchQuery.toLowerCase()))
+                    .map((group, idx) => (
                     <div key={idx} className={styles.deptBlock}>
                       <div className={styles.deptHeader}>
                         <div className={styles.deptTitleGroup}>
@@ -1289,8 +1342,8 @@ export default function ReportsDashboard() {
                           <tbody>
                             {group.staff.map((s, sIdx) => (
                               <tr key={sIdx} className={styles.tr}>
-                                <td className={styles.td}>{s.fileNo || '—'}</td>
-                                <td className={styles.td} style={{ fontWeight: 600, color: '#ffffff' }}>{s.name}</td>
+                                <td className={styles.td}>{s.id || '—'}</td>
+                                <td className={styles.td} style={{ fontWeight: 600 }}>{s.name}</td>
                                 <td className={styles.td}>{s.designation}</td>
                                 <td className={styles.td}>
                                   {s.status == 1 ? <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span> : <span className={`${styles.badge} ${styles.badgeInactive}`}>Inactive</span>}
@@ -1314,21 +1367,38 @@ export default function ReportsDashboard() {
             {/* ──────── 3.2 LEAVE BALANCE CUSTOM VIEW ──────── */}
             {activeReportId === '3.2_leave_balances' && (
               <div>
-                <div className={styles.selectorRow}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Select Employee:</label>
-                  <select
-                    className={styles.selectField}
-                    value={selectedStaffId}
-                    onChange={(e) => {
-                      setSelectedStaffId(e.target.value);
-                      handleLoadLeaveBalance(e.target.value);
-                    }}
-                  >
-                    <option value="">-- Choose Employee --</option>
-                    {staffList.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} (ID: {s.id})</option>
-                    ))}
-                  </select>
+                <div className={styles.selectorRow} style={{ flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Select Employee:</label>
+                    <input
+                      type="text"
+                      className={styles.searchInput}
+                      placeholder="Search name, ID, dept..."
+                      value={leaveSearchQuery}
+                      onChange={(e) => setLeaveSearchQuery(e.target.value)}
+                      style={{ padding: '0.4rem', border: '1px solid var(--border)', borderRadius: '4px', maxWidth: '200px' }}
+                    />
+                    <select
+                      className={styles.selectField}
+                      value={selectedStaffId}
+                      onChange={(e) => {
+                        setSelectedStaffId(e.target.value);
+                        handleLoadLeaveBalance(e.target.value);
+                      }}
+                    >
+                      <option value="">-- Choose Employee --</option>
+                      {staffList.filter(s => {
+                        const q = leaveSearchQuery.toLowerCase().trim();
+                        return !q || 
+                          (s.name && s.name.toLowerCase().includes(q)) || 
+                          (s.id && String(s.id).toLowerCase().includes(q)) || 
+                          (s.department && s.department.toLowerCase().includes(q)) ||
+                          (s.fileNo && String(s.fileNo).toLowerCase().includes(q));
+                      }).map(s => (
+                        <option key={s.id} value={s.id}>{s.name} (ID: {s.id}) {s.department ? `- ${s.department}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
 
                   {leaveBalanceStaff && (
                     <div style={{ marginLeft: 'auto' }}>
@@ -1648,7 +1718,7 @@ export default function ReportsDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {paginatedData.map((row, rowIdx) => (
+                            {(isPrinting ? filteredData : paginatedData).map((row, rowIdx) => (
                               <tr key={rowIdx} className={styles.tr}>
                                 {selectedReport.columns.map((col, colIdx) => (
                                   <td key={colIdx} className={styles.td}>

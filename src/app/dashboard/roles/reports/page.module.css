@@ -621,12 +621,15 @@
     display: none !important;
   }
 
-  body, .container {
+  :global(html), :global(body), :global(#__next), :global(main), :global(div[class*="DashboardLayout"]), :global(div[class*="mainContainer"]), .container {
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
     max-width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
 
   .title {
@@ -635,12 +638,15 @@
     margin-bottom: 1.5rem;
   }
 
-  .tableCard, .profileBlock, .profileSidebar, .deptBlock {
+  .tableCard, .tableContainer, .profileBlock, .profileSidebar, .deptBlock {
     background: transparent !important;
     border: 1px solid #cbd5e1 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    page-break-inside: auto !important;
   }
 
   .profileLayout {
