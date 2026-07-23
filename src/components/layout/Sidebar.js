@@ -80,6 +80,8 @@ export default function Sidebar() {
   const [sidebarData, setSidebarData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isHod, setIsHod] = useState(false);
+  const [isHr, setIsHr] = useState(false);
   const [openDropdowns, setOpenDropdowns] = useState({});
   const [rolesOpen, setRolesOpen] = useState(pathname.startsWith('/dashboard/roles'));
 
@@ -126,6 +128,8 @@ export default function Sidebar() {
           const parsed = JSON.parse(cached);
           setSidebarData(parsed.sidebar || []);
           setIsAdmin(!!parsed.is_admin);
+          setIsHod(!!parsed.is_hod);
+          setIsHr(!!parsed.is_hr);
           setLoading(false);
           hasCache = true;
         }
@@ -151,10 +155,14 @@ export default function Sidebar() {
         if (res.data.status === 'success') {
           setSidebarData(res.data.sidebar || []);
           setIsAdmin(!!res.data.is_admin);
+          setIsHod(!!res.data.is_hod);
+          setIsHr(!!res.data.is_hr);
           if (cacheKey && typeof window !== 'undefined') {
             sessionStorage.setItem(cacheKey, JSON.stringify({
               sidebar: res.data.sidebar || [],
-              is_admin: !!res.data.is_admin
+              is_admin: !!res.data.is_admin,
+              is_hod: !!res.data.is_hod,
+              is_hr: !!res.data.is_hr
             }));
           }
         }
@@ -272,8 +280,8 @@ export default function Sidebar() {
             ))
           )}
 
-          {/* Role Management Module with dropdown - visible statically to Admins */}
-          {isAdmin && !loading && (
+          {/* Role Management Module with dropdown - visible statically to Admins or if delegated Assign User */}
+          {(isAdmin || sidebarData.some(m => m.moduleID === 'security_roles')) && !loading && (
             <div className={styles.groupContainer}>
               {!isCollapsed && (
                 <div className={styles.groupHeader}>
@@ -296,22 +304,75 @@ export default function Sidebar() {
 
                   <div className={`${styles.subMenu} ${rolesOpen ? styles.subMenuOpen : ''}`}>
                     <ul className={styles.subMenuList}>
-                      {rolesSubModules.map((sub) => {
-                        const isSubActive = pathname === sub.path;
-                        return (
-                          <li key={sub.path}>
-                            <Link
-                              href={sub.path}
-                              className={`${styles.subMenuItem} ${isSubActive ? styles.subMenuItemActive : ''}`}
-                            >
-                              <span className={styles.subIcon}>{sub.icon}</span>
-                              <span>{sub.name}</span>
-                            </Link>
-                          </li>
-                        );
-                      })}
+                      {rolesSubModules
+                        .filter((sub) => {
+                          if (isAdmin) return true;
+                          // If delegated, only show the Assign User (Assign Role) link
+                          if (sub.path === '/dashboard/roles/assign-user') {
+                            return sidebarData.some(m => m.submodules?.some(s => s.id === 999));
+                          }
+                          return false;
+                        })
+                        .map((sub) => {
+                          const isSubActive = pathname === sub.path;
+                          return (
+                            <li key={sub.path}>
+                              <Link
+                                href={sub.path}
+                                className={`${styles.subMenuItem} ${isSubActive ? styles.subMenuItemActive : ''}`}
+                              >
+                                <span className={styles.subIcon}>{sub.icon}</span>
+                                <span>{sub.name}</span>
+                              </Link>
+                            </li>
+                          );
+                        })}
                     </ul>
                   </div>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* HOD Menu - visible statically to HODs */}
+          {isHod && !loading && (
+            <div className={styles.groupContainer}>
+              {!isCollapsed && (
+                <div className={styles.groupHeader}>
+                  HOD PANEL
+                </div>
+              )}
+              <ul className={styles.groupList}>
+                <li>
+                  <Link
+                    href="/dashboard/hod/delegation"
+                    className={`${styles.menuItem} ${pathname === '/dashboard/hod/delegation' ? styles.active : ''}`}
+                  >
+                    <span className={styles.icon}><ShieldCheck size={20} /></span>
+                    <span className={styles.text}>Role Delegation</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* HR Menu - visible statically to HR Heads */}
+          {isHr && !loading && (
+            <div className={styles.groupContainer}>
+              {!isCollapsed && (
+                <div className={styles.groupHeader}>
+                  HR PANEL
+                </div>
+              )}
+              <ul className={styles.groupList}>
+                <li>
+                  <Link
+                    href="/dashboard/hr/delegation"
+                    className={`${styles.menuItem} ${pathname === '/dashboard/hr/delegation' ? styles.active : ''}`}
+                  >
+                    <span className={styles.icon}><ShieldCheck size={20} /></span>
+                    <span className={styles.text}>Role Delegation</span>
+                  </Link>
                 </li>
               </ul>
             </div>
