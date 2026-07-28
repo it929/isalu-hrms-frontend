@@ -118,18 +118,18 @@ export default function DashboardHome() {
         <div className="hide-scrollbar" style={{ width: '100%', marginBottom: '2.5rem' }}>
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(4, minmax(240px, 1fr))', 
+            gridTemplateColumns: 'repeat(3, minmax(240px, 1fr))', 
             gap: '1rem', 
             width: 'max-content',
             minWidth: '100%'
           }}>
             {loading ? (
               // Skeleton loader
-              [1, 2, 3, 4].map((i) => (
+              [1, 2, 3].map((i) => (
                 <div key={i} className="premium-card" style={{ height: '140px', background: 'var(--surface-hover)', animate: 'pulse' }} />
               ))
             ) : (
-              stats.map((stat, i) => (
+              stats.filter(stat => stat.label !== 'Open Positions').map((stat, i) => (
                 <motion.div 
                   key={i}
                   initial={{ opacity: 0, y: 20 }}

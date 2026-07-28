@@ -322,11 +322,11 @@ function StepBasic({ data, lookups = {}, designations = [], onChange }) {
     <div className={styles.formGrid}>
       <div className={styles.field}>
         <label>Surname</label>
-        <input type="text" value={data.surname || ''} readOnly className={styles.readOnlyInput} />
+        <input type="text" name="surname" value={data.surname || ''} onChange={onChange} />
       </div>
       <div className={styles.field}>
         <label>First Name</label>
-        <input type="text" value={data.first_name || ''} readOnly className={styles.readOnlyInput} />
+        <input type="text" name="first_name" value={data.first_name || ''} onChange={onChange} />
       </div>
       <div className={styles.field}>
         <label>Other Names</label>
@@ -1107,9 +1107,11 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
     { id: 'Letter of Appointment', name: 'Letter of Appointment' },
     { id: 'Birth Certificate', name: 'Birth Certificate' },
     { id: 'Certificate of Indigene', name: 'Certificate of Indigene' },
-    { id: 'GEN 75', name: 'GEN 75' },
+    { id: 'Drivers licence', name: 'Driver\'s licence' },
+    { id: 'NYSC', name: 'NYSC' },
     { id: 'NIN Slip', name: 'NIN Slip' },
     { id: 'Guarantor Form', name: 'Guarantor Form' },
+    { id: 'Others', name: 'Others' },
   ];
 
   return (

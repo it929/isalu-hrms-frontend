@@ -624,35 +624,37 @@ export default function EmployeeRecords() {
       </div>
 
       {/* ── Stats Row ── */}
-      <div className={styles.statsRow}>
-        <div className={`premium-card ${styles.statCard}`}>
-          <div className={styles.statIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--primary)' }}>
-            <Users size={22} />
+      {user?.user_type?.toLowerCase() !== 'staff' && (
+        <div className={styles.statsRow}>
+          <div className={`premium-card ${styles.statCard}`}>
+            <div className={styles.statIcon} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--primary)' }}>
+              <Users size={22} />
+            </div>
+            <div>
+              <p className={styles.statValue}>{staffList.length}</p>
+              <p className={styles.statLabel}>Total Staff</p>
+            </div>
           </div>
-          <div>
-            <p className={styles.statValue}>{staffList.length}</p>
-            <p className={styles.statLabel}>Total Staff</p>
+          <div className={`premium-card ${styles.statCard}`}>
+            <div className={styles.statIcon} style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+              <Users size={22} />
+            </div>
+            <div>
+              <p className={styles.statValue}>{staffList.filter(s => s.gender === 'Male').length}</p>
+              <p className={styles.statLabel}>Male Staff</p>
+            </div>
+          </div>
+          <div className={`premium-card ${styles.statCard}`}>
+            <div className={styles.statIcon} style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+              <Users size={22} />
+            </div>
+            <div>
+              <p className={styles.statValue}>{staffList.filter(s => s.gender === 'Female').length}</p>
+              <p className={styles.statLabel}>Female Staff</p>
+            </div>
           </div>
         </div>
-        <div className={`premium-card ${styles.statCard}`}>
-          <div className={styles.statIcon} style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
-            <Users size={22} />
-          </div>
-          <div>
-            <p className={styles.statValue}>{staffList.filter(s => s.gender === 'Male').length}</p>
-            <p className={styles.statLabel}>Male Staff</p>
-          </div>
-        </div>
-        <div className={`premium-card ${styles.statCard}`}>
-          <div className={styles.statIcon} style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
-            <Users size={22} />
-          </div>
-          <div>
-            <p className={styles.statValue}>{staffList.filter(s => s.gender === 'Female').length}</p>
-            <p className={styles.statLabel}>Female Staff</p>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* ── Table Card ── */}
       <div className={`premium-card ${styles.tableCard}`}>
