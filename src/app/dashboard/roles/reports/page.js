@@ -739,7 +739,8 @@ export default function ReportsDashboard() {
         }
       } else if (report.isPayrollPeriodQuery) {
         // Fetch payroll-bound reports
-        const res = await axios.get(`${API_BASE}/payroll?month=${customMonth}&year=${customYear}`, { headers });
+        const perPageParam = report.id === '4.2_salary_register' ? '&perPage=100000' : '';
+        const res = await axios.get(`${API_BASE}/payroll?month=${customMonth}&year=${customYear}${perPageParam}`, { headers });
         if (res.data.status === 'success') {
           if (report.id === '4.1_payroll_summary') {
             const summary = res.data.summary || {};
@@ -974,13 +975,16 @@ export default function ReportsDashboard() {
     const fullName = trimName(row);
     const matchesSearch = query === '' || 
       (row.id && String(row.id).toLowerCase().includes(query)) ||
+      (row.IDNO && String(row.IDNO).toLowerCase().includes(query)) ||
       (row.fileNo && String(row.fileNo).toLowerCase().includes(query)) ||
       (row.staffId && String(row.staffId).toLowerCase().includes(query)) ||
       (row.staffID && String(row.staffID).toLowerCase().includes(query)) ||
       (row.staff_id && String(row.staff_id).toLowerCase().includes(query)) ||
       (row.name && String(row.name).toLowerCase().includes(query)) ||
+      (row.NAME && String(row.NAME).toLowerCase().includes(query)) ||
       (fullName && fullName.toLowerCase().includes(query)) ||
       (row.department && String(row.department).toLowerCase().includes(query)) ||
+      (row.DEPERTMENT && String(row.DEPERTMENT).toLowerCase().includes(query)) ||
       (row.designation && String(row.designation).toLowerCase().includes(query)) ||
       (row.title && String(row.title).toLowerCase().includes(query)) ||
       (row.position && String(row.position).toLowerCase().includes(query));
@@ -1036,8 +1040,9 @@ export default function ReportsDashboard() {
     return matchesSearch && matchesStatus && matchesLeaveFilters;
   });
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
-  const paginatedData = filteredData.slice(
+  const isNoPagination = activeReportId === '4.2_salary_register';
+  const totalPages = isNoPagination ? 1 : (Math.ceil(filteredData.length / itemsPerPage) || 1);
+  const paginatedData = isNoPagination ? filteredData : filteredData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -1879,29 +1884,37 @@ export default function ReportsDashboard() {
                       </div>
 
                       {/* Pagination footer */}
-                      <div className={styles.pagination}>
-                        <div>
-                          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records
+                      {isNoPagination ? (
+                        <div className={styles.pagination}>
+                          <div>
+                            Showing all {filteredData.length} records
+                          </div>
                         </div>
-                        <div className={styles.paginationButtons}>
-                          <button
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            style={{ padding: '0.25rem 0.5rem' }}
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(prev => prev - 1)}
-                          >
-                            <ChevronLeft size={16} />
-                          </button>
-                          <button
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            style={{ padding: '0.25rem 0.5rem' }}
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(prev => prev + 1)}
-                          >
-                            <ChevronRight size={16} />
-                          </button>
+                      ) : (
+                        <div className={styles.pagination}>
+                          <div>
+                            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records
+                          </div>
+                          <div className={styles.paginationButtons}>
+                            <button
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              style={{ padding: '0.25rem 0.5rem' }}
+                              disabled={currentPage === 1}
+                              onClick={() => setCurrentPage(prev => prev - 1)}
+                            >
+                              <ChevronLeft size={16} />
+                            </button>
+                            <button
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              style={{ padding: '0.25rem 0.5rem' }}
+                              disabled={currentPage === totalPages}
+                              onClick={() => setCurrentPage(prev => prev + 1)}
+                            >
+                              <ChevronRight size={16} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </>
                   ) : (
                     <div className={styles.emptyState}>

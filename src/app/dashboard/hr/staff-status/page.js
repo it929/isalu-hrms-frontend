@@ -67,7 +67,7 @@ export default function StaffStatusPage() {
       if (res.data.status === 'success') {
         const staffOpts = res.data.staffList.map(s => ({
           id: s.ID,
-          name: `${s.surname} ${s.first_name} ${s.othernames || ''}`.trim()
+          name: `[ID: ${s.ID}] ${s.surname} ${s.first_name} ${s.othernames || ''}`.trim()
         }));
         const divOpts = res.data.divisions.map(d => ({
           id: d.divisionID,
@@ -194,8 +194,8 @@ export default function StaffStatusPage() {
                 <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
                   <div className={styles.infoGrid}>
                     <div className={styles.infoItem}>
-                      <span className={styles.infoLabel}><FileText size={14} style={{display:'inline', marginRight:'4px'}}/> File Number</span>
-                      <span className={styles.infoValue}>{staffDetails.fileNo}</span>
+                      <span className={styles.infoLabel}><FileText size={14} style={{display:'inline', marginRight:'4px'}}/> Staff ID</span>
+                      <span className={styles.infoValue}>{staffDetails.staffID || '—'}</span>
                     </div>
                     <div className={styles.infoItem}>
                       <span className={styles.infoLabel}><Building2 size={14} style={{display:'inline', marginRight:'4px'}}/> Company</span>

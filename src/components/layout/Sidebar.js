@@ -112,7 +112,6 @@ export default function Sidebar() {
     { name: 'Add Sub Module', path: '/dashboard/roles/submodule-create', icon: <Layers size={16} /> },
     { name: 'Assign Module', path: '/dashboard/roles/assign', icon: <Layers size={16} /> },
     { name: 'Assign User', path: '/dashboard/roles/assign-user', icon: <Users size={16} /> },
-    { name: 'Reports',     path: '/dashboard/roles/reports', icon: <FileText size={16} /> },
   ];
 
   // Fetch sidebar data
@@ -199,6 +198,9 @@ export default function Sidebar() {
   // Group modules by link_type
   const groupedModules = {};
   sidebarData.forEach(item => {
+    if (item.moduleID === 56 || item.submodules?.some(s => s.path?.includes('dashboard/roles/reports'))) {
+      return;
+    }
     const type = item.link_type ? item.link_type.toUpperCase() : 'GENERAL';
     if (!groupedModules[type]) {
       groupedModules[type] = [];
@@ -281,7 +283,7 @@ export default function Sidebar() {
           )}
 
           {/* Role Management Module with dropdown - visible statically to Admins or if delegated Assign User */}
-          {(isAdmin || sidebarData.some(m => m.moduleID === 'security_roles')) && !loading && (
+          {(isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || m.moduleID === 56 || m.submodules?.some(s => s.path?.includes('dashboard/roles/reports')))) && !loading && (
             <div className={styles.groupContainer}>
               {!isCollapsed && (
                 <div className={styles.groupHeader}>
@@ -291,7 +293,7 @@ export default function Sidebar() {
               <ul className={styles.groupList}>
                 <li>
                   <button
-                    className={`${styles.menuItem} ${styles.menuItemBtn} ${isRolesActive ? styles.active : ''}`}
+                    className={`${styles.menuItem} ${styles.menuItemBtn} ${(isRolesActive && pathname !== '/dashboard/roles/reports') ? styles.active : ''}`}
                     onClick={() => setRolesOpen((prev) => !prev)}
                     aria-expanded={rolesOpen}
                   >
@@ -330,6 +332,18 @@ export default function Sidebar() {
                     </ul>
                   </div>
                 </li>
+
+                {(isAdmin || sidebarData.some(m => m.moduleID === 56 || m.submodules?.some(s => s.path?.includes('dashboard/roles/reports')))) && (
+                  <li>
+                    <Link
+                      href="/dashboard/roles/reports"
+                      className={`${styles.menuItem} ${pathname === '/dashboard/roles/reports' ? styles.active : ''}`}
+                    >
+                      <span className={styles.icon}><FileText size={20} /></span>
+                      <span className={styles.text}>Reports</span>
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
           )}
