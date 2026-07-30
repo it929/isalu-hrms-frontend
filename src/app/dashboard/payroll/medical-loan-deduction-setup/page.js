@@ -163,16 +163,57 @@ export default function MedicalLoanDeductionSetupPage() {
     return () => clearTimeout(timer);
   }, [fetchStaffData, fetchSetups]);
 
-  // Dynamic calculations for Monthly Deduction and End Month
+  // Set default Monthly Deduction when loanAmount changes
   useEffect(() => {
     const amount = parseFloat(loanAmount);
-    const months = parseInt(durationMonths);
-    if (!isNaN(amount) && amount > 0 && !isNaN(months) && months > 0) {
-      setMonthlyDeduction((amount / months).toFixed(2));
+    if (!isNaN(amount) && amount > 0) {
+      let deduct = 0;
+      if (amount < 5000) {
+        deduct = amount;
+      } else if (amount >= 5000 && amount <= 10000) {
+        deduct = 5000;
+      } else if (amount > 10000 && amount <= 30000) {
+        deduct = 10000;
+      } else if (amount > 30000 && amount <= 60000) {
+        deduct = 15000;
+      } else if (amount > 60000 && amount <= 120000) {
+        deduct = 20000;
+      } else if (amount > 120000 && amount <= 160000) {
+        deduct = 25000;
+      } else if (amount > 160000 && amount <= 300000) {
+        deduct = 30000;
+      } else if (amount > 300000 && amount <= 600000) {
+        deduct = 35000;
+      } else {
+        deduct = 50000;
+      }
+      setMonthlyDeduction(deduct.toString());
     } else {
       setMonthlyDeduction('');
     }
-  }, [loanAmount, durationMonths]);
+  }, [loanAmount]);
+
+  // Dynamically calculate duration based on loanAmount and monthlyDeduction
+  useEffect(() => {
+    const amount = parseFloat(loanAmount);
+    const deduct = parseFloat(monthlyDeduction);
+    if (!isNaN(amount) && amount > 0 && !isNaN(deduct) && deduct > 0) {
+      let tempBal = amount;
+      let months = 0;
+      while (tempBal > 0) {
+        if (tempBal <= deduct) {
+          tempBal = 0;
+        } else {
+          tempBal -= deduct;
+        }
+        months++;
+        if (months > 1000) break; // safety breakout
+      }
+      setDurationMonths(months.toString());
+    } else {
+      setDurationMonths('');
+    }
+  }, [loanAmount, monthlyDeduction]);
 
   useEffect(() => {
     const months = parseInt(durationMonths);
@@ -586,15 +627,14 @@ export default function MedicalLoanDeductionSetupPage() {
 
                     {/* Duration Months */}
                     <div className={styles.formGroup}>
-                      <label className={styles.label}>Duration (Months) *</label>
+                      <label className={styles.label}>Duration (Months)</label>
                       <input
-                        type="number"
-                        min="1"
+                        type="text"
                         className={styles.input}
-                        placeholder="e.g. 12"
+                        placeholder="Calculated automatically"
                         value={durationMonths}
-                        onChange={(e) => setDurationMonths(e.target.value)}
-                        required
+                        disabled
+                        style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
                       />
                     </div>
                   </div>
@@ -602,16 +642,18 @@ export default function MedicalLoanDeductionSetupPage() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     {/* Calculated Monthly Deduction */}
                     <div className={styles.formGroup}>
-                      <label className={styles.label}>Monthly Deduction (₦)</label>
+                      <label className={styles.label}>Monthly Deduction (₦) *</label>
                       <div className={styles.inputGroup}>
                         <NairaSign size={16} className={styles.inputIcon} />
                         <input
-                          type="text"
+                          type="number"
+                          step="0.01"
+                          min="0"
                           className={`${styles.input} ${styles.inputWithIcon}`}
-                          placeholder="Calculated automatically"
+                          placeholder="Enter monthly deduction"
                           value={monthlyDeduction}
-                          disabled
-                          style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
+                          onChange={(e) => setMonthlyDeduction(e.target.value)}
+                          required
                         />
                       </div>
                     </div>

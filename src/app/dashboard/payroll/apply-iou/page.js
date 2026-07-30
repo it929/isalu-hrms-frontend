@@ -852,7 +852,7 @@ export default function ApplyIouPage() {
                 <button
                   type="submit"
                   className={`${styles.btn} ${styles.btnPrimary}`}
-                  disabled={saving || (totalPlannedAmount > maxIouLimit)}
+                  disabled={saving || (totalPlannedAmount > maxIouLimit) || (selectedStaff && selectedStaff.has_uploaded_education === false)}
                 >
                   {saving ? (
                     <>
@@ -867,6 +867,11 @@ export default function ApplyIouPage() {
                   )}
                 </button>
               </div>
+            )}
+            {selectedStaff && selectedStaff.has_uploaded_education === false && (
+              <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.5rem', textAlign: 'right', fontWeight: '500' }}>
+                Complete your documentation
+              </p>
             )}
           </form>
         </div>
