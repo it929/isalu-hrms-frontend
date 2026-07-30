@@ -16,6 +16,7 @@ import {
   Clock,
   X,
   Edit,
+  Printer,
 } from 'lucide-react';
 import CustomSelect from '../../../../components/ui/CustomSelect';
 import styles from './page.module.css';
@@ -383,10 +384,21 @@ export default function ApplyLoaPage() {
       </div>
 
       {/* ── Records Table ── */}
-      <div className={styles.card}>
-        <h2 className={styles.cardTitle}>
-          <Clock size={18} style={{ marginRight: '0.5rem', flexShrink: 0 }} />
-          Leave of Absence Records
+      <div className={`${styles.card} ${styles.printCard}`}>
+        <h2 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            <Clock size={18} style={{ marginRight: '0.5rem', flexShrink: 0 }} />
+            Leave of Absence Records
+          </span>
+          <button
+            type="button"
+            className={`${styles.cancelBtn} ${styles.noPrint}`}
+            onClick={() => window.print()}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', borderColor: 'var(--border)' }}
+          >
+            <Printer size={15} />
+            Print LOA Record
+          </button>
         </h2>
 
         <div className={styles.tableWrapper}>
