@@ -606,9 +606,9 @@ export default function ApplyIouPage() {
     if (row.status !== 0 || row.hod_status !== 0) return false;
     if (canSelectStaff) return true;
     if (userCtx.isHod && userCtx.employee) {
-      // Must belong to HOD's department
       const empId = userCtx.employee.ID ?? userCtx.employee.id;
-      return row.department === userCtx.employee.department || String(row.staff_id) === String(empId);
+      const activeDeptId = userCtx.isDelegatedHod ? userCtx.delegated_department_id : userCtx.employee.departmentID;
+      return String(row.department_id) === String(activeDeptId) || String(row.staff_id) === String(empId);
     }
     return false;
   };
