@@ -299,6 +299,12 @@ export default function ApplyLeavePage() {
         : []
       );
 
+  const selectedEmpObj = (isSuperAdmin || isAdminStaff)
+    ? employees.find(e => String(e.ID) === String(form.employee_id))
+    : currentEmployee;
+
+  const hasNotUploadedEducation = selectedEmpObj && selectedEmpObj.has_uploaded_education === false;
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <motion.div
@@ -427,7 +433,7 @@ export default function ApplyLeavePage() {
                 Cancel Edit
               </button>
             )}
-            <button type="submit" className={styles.submitBtn} disabled={submitting || formLoading}>
+            <button type="submit" className={styles.submitBtn} disabled={submitting || formLoading || hasNotUploadedEducation}>
               {submitting
                 ? (editRecordId
                     ? <><Loader2 size={16} className={styles.btnSpinner} /> Updating…</>
@@ -440,6 +446,11 @@ export default function ApplyLeavePage() {
               }
             </button>
           </div>
+          {hasNotUploadedEducation && (
+            <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.5rem', textAlign: 'right', fontWeight: '500' }}>
+              Complete your documentation
+            </p>
+          )}
         </form>
       </div>
 

@@ -184,7 +184,6 @@ export default function ReportsDashboard() {
   // Categories config mapping exactly to the EMPLOYEE REPORTS PDF specifications
   const categoriesList = [
     { id: 'EMPLOYEE', label: 'Employee Reports' },
-    { id: 'ATTENDANCE', label: 'Attendance Reports' },
     { id: 'LEAVE', label: 'Leave Management' },
     { id: 'PAYROLL', label: 'Payroll Reports' },
     { id: 'STATUTORY', label: 'Statutory Deductions' },
@@ -239,95 +238,6 @@ export default function ReportsDashboard() {
       description: 'Provides a breakdown of sections, detailing HOD, number of active staff, and full staff list per department.',
       icon: <Building2 size={20} />,
       isCustomLayout: true
-    },
-
-    // ── 2. ATTENDANCE REPORTS ──
-    {
-      id: '2.1_daily_attendance',
-      categoryId: 'ATTENDANCE',
-      title: '2.1 Daily Attendance Report',
-      description: 'Log of daily check-in times, check-out times, and attendance status for employees.',
-      icon: <Clock size={20} />,
-      isSimulated: true,
-      simulatedGenerator: (staff) => staff.map(s => ({
-        name: s.name,
-        id: s.id,
-        checkIn: '08:00 AM',
-        checkOut: '05:00 PM',
-        status: Math.random() > 0.08 ? 'Present' : 'Absent'
-      })),
-      columns: [
-        { key: 'name', label: 'Employee Name' },
-        { key: 'id', label: 'Employee ID' },
-        { key: 'checkIn', label: 'Check-in Time' },
-        { key: 'checkOut', label: 'Check-out Time' },
-        { key: 'status', label: 'Attendance Status',
-          render: (val) => val === 'Present' ? <span className={`${styles.badge} ${styles.badgeActive}`}>{val}</span> : <span className={`${styles.badge} ${styles.badgeInactive}`}>{val}</span>
-        }
-      ],
-      getMetrics: (data) => [
-        { label: 'Total Present', value: data.filter(r => r.status === 'Present').length, icon: <UserCheck size={16} /> },
-        { label: 'Total Absent', value: data.filter(r => r.status === 'Absent').length, icon: <UserX size={16} /> }
-      ]
-    },
-    {
-      id: '2.2_monthly_attendance',
-      categoryId: 'ATTENDANCE',
-      title: '2.2 Monthly Attendance Summary',
-      description: 'Aggregated monthly attendance summary including days present, absent, late arrivals, and early departures.',
-      icon: <Calendar size={20} />,
-      isSimulated: true,
-      simulatedGenerator: (staff) => staff.map(s => ({
-        name: s.name,
-        id: s.id,
-        workingDays: 22,
-        daysPresent: Math.floor(Math.random() * 3) + 20,
-        daysAbsent: 22 - (Math.floor(Math.random() * 3) + 20),
-        lateArrivals: Math.floor(Math.random() * 4),
-        earlyDepartures: Math.floor(Math.random() * 3)
-      })),
-      columns: [
-        { key: 'name', label: 'Employee Name' },
-        { key: 'id', label: 'Employee ID' },
-        { key: 'workingDays', label: 'Total Working Days' },
-        { key: 'daysPresent', label: 'Days Present' },
-        { key: 'daysAbsent', label: 'Days Absent' },
-        { key: 'lateArrivals', label: 'Late Arrivals' },
-        { key: 'earlyDepartures', label: 'Early Departures' }
-      ],
-      getMetrics: (data) => [
-        { label: 'Average Days Present', value: (data.reduce((acc, r) => acc + r.daysPresent, 0) / (data.length || 1)).toFixed(1) + ' days', icon: <UserCheck size={16} /> },
-        { label: 'Total Late Arrivals', value: data.reduce((acc, r) => acc + r.lateArrivals, 0), icon: <Clock size={16} /> }
-      ]
-    },
-    {
-      id: '2.3_overtime_report',
-      categoryId: 'ATTENDANCE',
-      title: '2.3 Overtime Report',
-      description: 'Audit records of employee overtime hours worked, rate per hour, and total overtime compensation.',
-      icon: <TrendingUp size={20} />,
-      isSimulated: true,
-      simulatedGenerator: (staff) => staff.filter((_, idx) => idx % 4 === 0).map(s => {
-        const hours = Math.floor(Math.random() * 15) + 5;
-        const rate = 1500;
-        return {
-          name: s.name,
-          id: s.id,
-          hours: hours,
-          rate: rate,
-          amount: hours * rate
-        };
-      }),
-      columns: [
-        { key: 'name', label: 'Employee Name' },
-        { key: 'hours', label: 'Overtime Hours' },
-        { key: 'rate', label: 'Overtime Rate (₦/hr)', render: (val) => fmt(val) },
-        { key: 'amount', label: 'Overtime Amount (₦)', render: (val) => fmt(val) }
-      ],
-      getMetrics: (data) => [
-        { label: 'Employees with Overtime', value: data.length, icon: <Users size={16} /> },
-        { label: 'Total Overtime Paid', value: '₦' + fmt(data.reduce((acc, r) => acc + r.amount, 0)), icon: <Coins size={16} /> }
-      ]
     },
 
     // ── 3. LEAVE MANAGEMENT REPORTS ──

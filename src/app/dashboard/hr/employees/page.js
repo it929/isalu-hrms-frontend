@@ -616,10 +616,16 @@ export default function EmployeeRecords() {
           <p className={styles.pageSubtitle}>View and manage all administrative staff in the system.</p>
         </div>
         {((user?.user_type?.toLowerCase() === 'technical' || user?.user_type?.toLowerCase() === 'super admin') || activeRole?.rolename?.toLowerCase()?.includes('hr')) && (
-          <Link href="/dashboard/hr/employees/add" className={styles.addBtn}>
-            <UserPlus size={18} />
-            <span>Add New Staff</span>
-          </Link>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <Link href="/dashboard/hr/employees/education-status" className={styles.addBtn} style={{ background: '#7c3aed' }}>
+              <FileText size={18} />
+              <span>Education Upload Status</span>
+            </Link>
+            <Link href="/dashboard/hr/employees/add" className={styles.addBtn}>
+              <UserPlus size={18} />
+              <span>Add New Staff</span>
+            </Link>
+          </div>
         )}
       </div>
 
