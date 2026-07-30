@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, ChevronDown, X, Calendar, Info, Check, Building2, Percent } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, ChevronDown, X, Calendar, Info, Check, Building2, Percent, Printer } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
@@ -606,9 +606,9 @@ export default function ApplyIouPage() {
     if (row.status !== 0 || row.hod_status !== 0) return false;
     if (canSelectStaff) return true;
     if (userCtx.isHod && userCtx.employee) {
-      // Must belong to HOD's department
       const empId = userCtx.employee.ID ?? userCtx.employee.id;
-      return row.department === userCtx.employee.department || String(row.staff_id) === String(empId);
+      const activeDeptId = userCtx.isDelegatedHod ? userCtx.delegated_department_id : userCtx.employee.departmentID;
+      return String(row.department_id) === String(activeDeptId) || String(row.staff_id) === String(empId);
     }
     return false;
   };
@@ -878,9 +878,18 @@ export default function ApplyIouPage() {
       </div>
 
       {/* Directory Records List */}
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.printCard}`}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>IOU Applications Registry</h2>
+          <button
+            type="button"
+            className={`${styles.btn} ${styles.btnPrimary} ${styles.noPrint}`}
+            onClick={() => window.print()}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}
+          >
+            <Printer size={15} />
+            Print IOU Record
+          </button>
         </div>
 
         {/* Search tool */}

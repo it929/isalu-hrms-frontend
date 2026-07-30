@@ -620,3 +620,33 @@
 .cancelBtn:active {
   transform: scale(0.97);
 }
+
+/* ── Media Print Styles ── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printCard,
+  .printCard * {
+    visibility: visible;
+  }
+  .printCard {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .noPrint {
+    display: none !important;
+  }
+  /* Hide interactive/non-printable items inside the card */
+  .printCard th:last-child,
+  .printCard td:last-child {
+    display: none !important;
+  }
+}
