@@ -408,8 +408,8 @@ export default function ApplyCoopLoanPage() {
   };
 
   const canSelectStaff = userCtx.isSuperAdmin || userCtx.isAdminStaff || checkAdminPrivilege();
-  const canHodAct = userCtx.isHod || userCtx.isSuperAdmin || userCtx.isAdminStaff || checkAdminPrivilege();
-  const canAuditAct = userCtx.isAuditStaff || userCtx.isSuperAdmin || userCtx.isAdminStaff || checkAdminPrivilege();
+  const canHodAct = userCtx.isHod || userCtx.isSuperAdmin;
+  const canAuditAct = userCtx.isAuditStaff || userCtx.isSuperAdmin;
   const canAdminAct = userCtx.isAdminStaff || userCtx.isSuperAdmin || checkAdminPrivilege();
 
   const canEditDelete = (loan) => {

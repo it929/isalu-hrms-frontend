@@ -130,23 +130,7 @@ export default function ApplyIouPage() {
 
   // Fetch submitted IOUs list
   const fetchRecords = useCallback(async (silent = false) => {
-    const cacheKeyRecords = 'hrms_ious_records_cache';
-    const cacheKeyCtx = 'hrms_apply_iou_user_ctx_cache';
-    let hasCache = false;
-
-    if (typeof window !== 'undefined') {
-      const cachedRecords = sessionStorage.getItem(cacheKeyRecords);
-      const cachedCtx = sessionStorage.getItem(cacheKeyCtx);
-      if (cachedRecords && cachedCtx) {
-        setRecords(JSON.parse(cachedRecords));
-        setUserCtx(JSON.parse(cachedCtx));
-        hasCache = true;
-      } else if (cachedRecords) {
-        setRecords(JSON.parse(cachedRecords));
-      }
-    }
-
-    if (!silent && !hasCache) {
+    if (!silent) {
       setLoading(true);
     }
 
@@ -162,13 +146,11 @@ export default function ApplyIouPage() {
           isFinanceStaff: res.data.isFinanceStaff || false,
           isAuditStaff: res.data.isAuditStaff || false,
           isHod: res.data.isHod || false,
+          isDelegatedHod: res.data.isDelegatedHod || false,
+          delegated_department_id: res.data.delegated_department_id || null,
           employee: res.data.employee || null,
         };
         setUserCtx(freshCtx);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(cacheKeyRecords, JSON.stringify(freshRecords));
-          sessionStorage.setItem(cacheKeyCtx, JSON.stringify(freshCtx));
-        }
       }
     } catch (err) {
       showToast('Failed to retrieve IOU records.', 'error');
@@ -178,13 +160,9 @@ export default function ApplyIouPage() {
   }, [showToast]);
 
   useEffect(() => {
-    let hasCache = false;
-    if (typeof window !== 'undefined') {
-      hasCache = !!(sessionStorage.getItem('hrms_ious_records_cache') && sessionStorage.getItem('hrms_apply_iou_staff_cache'));
-    }
     const timer = setTimeout(() => {
       fetchStaffData();
-      fetchRecords(hasCache);
+      fetchRecords(false);
       setMounted(true);
     }, 50);
     return () => clearTimeout(timer);
@@ -207,7 +185,7 @@ export default function ApplyIouPage() {
   }, [selectedStaff]);
 
   // Determine if active user can select other staff members (Admin privileges)
-  const canSelectStaff = userCtx.isSuperAdmin || userCtx.isAdminStaff || 
+  const canSelectStaff = userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isHod || 
     (mounted && typeof window !== 'undefined' && (() => {
       try {
         const role = JSON.parse(localStorage.getItem('hrms_role'));
@@ -584,14 +562,15 @@ export default function ApplyIouPage() {
 
   // Filter and paginated records
   const filteredRecords = records.filter(r => {
-    if (selectedStaff && String(r.staff_id) !== String(selectedStaff.id)) {
+    const isApprover = userCtx.isHod || userCtx.isFinanceStaff || userCtx.isAuditStaff || userCtx.isSuperAdmin || userCtx.isAdminStaff;
+    if (!isApprover && selectedStaff && String(r.staff_id) !== String(selectedStaff.id)) {
       return false;
     }
     return (
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       (r.staff_id && r.staff_id.toString().includes(searchQuery)) ||
-      r.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.department && r.department.toLowerCase().includes(searchQuery.toLowerCase()))
+      (r.reason?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (r.department && (r.department.toLowerCase() || '').includes(searchQuery.toLowerCase()))
     );
   });
 
@@ -603,7 +582,7 @@ export default function ApplyIouPage() {
 
   // Helper check to determine if a tier approval button should show
   const canRecommendHOD = (row) => {
-    if (row.status !== 0 || row.hod_status !== 0) return false;
+    if (Number(row.status) !== 0 || Number(row.hod_status) !== 0) return false;
     if (canSelectStaff) return true;
     if (userCtx.isHod && userCtx.employee) {
       const empId = userCtx.employee.ID ?? userCtx.employee.id;
@@ -614,18 +593,18 @@ export default function ApplyIouPage() {
   };
 
   const canRecommendHR = (row) => {
-    if (row.status !== 0 || row.hod_status !== 1 || row.admin_status !== 0) return false;
-    return canSelectStaff;
+    if (Number(row.status) !== 0 || Number(row.hod_status) !== 1 || Number(row.admin_status) !== 0) return false;
+    return userCtx.isSuperAdmin || userCtx.isAdminStaff;
   };
 
   const canApproveAudit = (row) => {
-    if (row.status !== 0 || row.admin_status !== 1 || row.audit_status !== 0) return false;
-    return canSelectStaff || userCtx.isAuditStaff;
+    if (Number(row.status) !== 0 || Number(row.admin_status) !== 1 || Number(row.audit_status) !== 0) return false;
+    return userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isAuditStaff;
   };
 
   const canApproveFinance = (row) => {
-    if (row.status !== 0 || row.audit_status !== 1 || row.finance_status !== 0) return false;
-    return canSelectStaff || userCtx.isFinanceStaff;
+    if (Number(row.status) !== 0 || Number(row.audit_status) !== 1 || Number(row.finance_status) !== 0) return false;
+    return userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff;
   };
 
   // Helper for overall application status badge mapping
