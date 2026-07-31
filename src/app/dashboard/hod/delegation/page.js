@@ -22,7 +22,7 @@ function buildHeaders() {
 }
 
 const PERMISSION_OPTIONS = [
-  { id: 'approve_leave', label: 'Leave Approvals' },
+  { id: 'approve_leave', label: 'Leave & LOA Approvals' },
   { id: 'approve_iou', label: 'IOU Approvals' },
   { id: 'approve_refund', label: 'Refund Approvals' },
   { id: 'approve_resignation', label: 'Resignation Approvals' },
