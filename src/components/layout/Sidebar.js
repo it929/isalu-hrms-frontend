@@ -76,6 +76,11 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { logout } = useSession();
   const { isCollapsed, setIsCollapsed } = useSidebar();
+
+  const getSubmodulesList = (submodules) => {
+    if (!submodules) return [];
+    return Array.isArray(submodules) ? submodules : Object.values(submodules);
+  };
   
   const [sidebarData, setSidebarData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +184,7 @@ export default function Sidebar() {
     if (sidebarData.length > 0) {
       const newOpen = {};
       sidebarData.forEach(mod => {
-        const hasActiveSub = mod.submodules.some(sub => pathname === sub.path);
+        const hasActiveSub = getSubmodulesList(mod.submodules).some(sub => pathname === sub.path);
         if (hasActiveSub) {
           newOpen[mod.moduleID] = true;
         }
@@ -198,7 +203,7 @@ export default function Sidebar() {
   // Group modules by link_type
   const groupedModules = {};
   sidebarData.forEach(item => {
-    if (item.moduleID === 56 || item.submodules?.some(s => s.path?.includes('dashboard/roles/reports'))) {
+    if (item.moduleID === 56 || getSubmodulesList(item.submodules).some(s => s.path?.includes('dashboard/roles/reports'))) {
       return;
     }
     const type = item.link_type ? item.link_type.toUpperCase() : 'GENERAL';
@@ -241,7 +246,8 @@ export default function Sidebar() {
                 <ul className={styles.groupList}>
                   {mods.map((mod) => {
                     const isOpen = !!openDropdowns[mod.moduleID];
-                    const hasActiveSub = mod.submodules.some(sub => pathname === sub.path);
+                    const subList = getSubmodulesList(mod.submodules);
+                    const hasActiveSub = subList.some(sub => pathname === sub.path);
                     return (
                       <li key={mod.moduleID}>
                         <button
@@ -255,10 +261,10 @@ export default function Sidebar() {
                             <ChevronDown size={16} />
                           </span>
                         </button>
-
+ 
                         <div className={`${styles.subMenu} ${isOpen ? styles.subMenuOpen : ''}`}>
                           <ul className={styles.subMenuList}>
-                            {mod.submodules.map((sub) => {
+                            {subList.map((sub) => {
                               const isSubActive = pathname === sub.path;
                               return (
                                 <li key={sub.path}>
@@ -281,9 +287,9 @@ export default function Sidebar() {
               </div>
             ))
           )}
-
+ 
           {/* Role Management Module with dropdown - visible statically to Admins or if delegated Assign User */}
-          {(isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || m.moduleID === 56 || m.submodules?.some(s => s.path?.includes('dashboard/roles/reports')))) && !loading && (
+          {(isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || m.moduleID === 56 || getSubmodulesList(m.submodules).some(s => s.path?.includes('dashboard/roles/reports')))) && !loading && (
             <div className={styles.groupContainer}>
               {!isCollapsed && (
                 <div className={styles.groupHeader}>
@@ -303,7 +309,7 @@ export default function Sidebar() {
                       <ChevronDown size={16} />
                     </span>
                   </button>
-
+ 
                   <div className={`${styles.subMenu} ${rolesOpen ? styles.subMenuOpen : ''}`}>
                     <ul className={styles.subMenuList}>
                       {rolesSubModules
@@ -311,7 +317,7 @@ export default function Sidebar() {
                           if (isAdmin) return true;
                           // If delegated, only show the Assign User (Assign Role) link
                           if (sub.path === '/dashboard/roles/assign-user') {
-                            return sidebarData.some(m => m.submodules?.some(s => s.id === 999));
+                            return sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.id === 999));
                           }
                           return false;
                         })

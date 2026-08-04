@@ -29,6 +29,21 @@ function fmt(n) {
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function formatIouDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month}, ${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function ApplyIouPage() {
   // Loading & Toast States
   const [loading, setLoading] = useState(false);
@@ -59,6 +74,7 @@ export default function ApplyIouPage() {
 
   // Modal States
   const [confirmDelete, setConfirmDelete] = useState(null); // id of record to delete
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [detailRecord, setDetailRecord] = useState(null); // record for detailed view modal
   
@@ -88,6 +104,11 @@ export default function ApplyIouPage() {
     remaining_limit: 0,
     month_name: ''
   });
+
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedIds, setSelectedIds] = useState([]);
 
   // Client-side pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -562,9 +583,70 @@ export default function ApplyIouPage() {
 
   // Filter and paginated records
   const filteredRecords = records.filter(r => {
-    const isApprover = userCtx.isHod || userCtx.isFinanceStaff || userCtx.isAuditStaff || userCtx.isSuperAdmin || userCtx.isAdminStaff;
-    if (!isApprover && selectedStaff && String(r.staff_id) !== String(selectedStaff.id)) {
+    const empId = userCtx.employee ? (userCtx.employee.ID ?? userCtx.employee.id) : null;
+    const isOwnRow = empId && String(r.staff_id) === String(empId);
+
+    // If it is the user's own application or user is Super Admin, they can always see it
+    if (isOwnRow || userCtx.isSuperAdmin) {
+      // Apply date filters & search filters below
+    } else {
+      // Check role-based visibility conditions (additive)
+      let visible = false;
+      let hasRole = false;
+
+      // 1. HOD rule: see records of staff in his department
+      if (userCtx.isHod && userCtx.employee) {
+        hasRole = true;
+        const activeDeptId = userCtx.isDelegatedHod ? userCtx.delegated_department_id : userCtx.employee.departmentID;
+        if (String(r.department_id) === String(activeDeptId)) {
+          visible = true;
+        }
+      }
+
+      // 2. HR Head rule: only see records that HOD has approved (exclude if user is Audit or Finance)
+      const isHrHead = userCtx.isAdminStaff && !userCtx.isAuditStaff && !userCtx.isFinanceStaff;
+      if (isHrHead) {
+        hasRole = true;
+        if (Number(r.hod_status) === 1) {
+          visible = true;
+        }
+      }
+
+      // 3. Audit Head rule: only see record that HR head has approved
+      if (userCtx.isAuditStaff) {
+        hasRole = true;
+        if (Number(r.admin_status) === 1) {
+          visible = true;
+        }
+      }
+
+      // 4. Finance Head rule: only see records that Audit head has approved
+      if (userCtx.isFinanceStaff) {
+        hasRole = true;
+        if (Number(r.audit_status) === 1) {
+          visible = true;
+        }
+      }
+
+      if (!hasRole || !visible) {
+        return false;
+      }
+    }
+
+    if (filterStartDate && r.iou_date < filterStartDate) {
       return false;
+    }
+    if (filterEndDate && r.iou_date > filterEndDate) {
+      return false;
+    }
+    if (filterStatus !== 'all') {
+      const isPending = Number(r.status) !== 1 && Number(r.status) !== 2;
+      const isApproved = Number(r.status) === 1;
+      const isRejected = Number(r.status) === 2;
+
+      if (filterStatus === 'pending' && !isPending) return false;
+      if (filterStatus === 'approved' && !isApproved) return false;
+      if (filterStatus === 'rejected' && !isRejected) return false;
     }
     return (
       (r.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
@@ -583,7 +665,7 @@ export default function ApplyIouPage() {
   // Helper check to determine if a tier approval button should show
   const canRecommendHOD = (row) => {
     if (Number(row.status) !== 0 || Number(row.hod_status) !== 0) return false;
-    if (canSelectStaff) return true;
+    if (userCtx.isSuperAdmin) return true;
     if (userCtx.isHod && userCtx.employee) {
       const empId = userCtx.employee.ID ?? userCtx.employee.id;
       const activeDeptId = userCtx.isDelegatedHod ? userCtx.delegated_department_id : userCtx.employee.departmentID;
@@ -594,17 +676,75 @@ export default function ApplyIouPage() {
 
   const canRecommendHR = (row) => {
     if (Number(row.status) !== 0 || Number(row.hod_status) !== 1 || Number(row.admin_status) !== 0) return false;
-    return userCtx.isSuperAdmin || userCtx.isAdminStaff;
+    const isHrHead = userCtx.isAdminStaff && !userCtx.isAuditStaff && !userCtx.isFinanceStaff;
+    return userCtx.isSuperAdmin || isHrHead;
   };
 
   const canApproveAudit = (row) => {
     if (Number(row.status) !== 0 || Number(row.admin_status) !== 1 || Number(row.audit_status) !== 0) return false;
-    return userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isAuditStaff;
+    return userCtx.isSuperAdmin || userCtx.isAuditStaff;
   };
 
   const canApproveFinance = (row) => {
     if (Number(row.status) !== 0 || Number(row.audit_status) !== 1 || Number(row.finance_status) !== 0) return false;
-    return userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff;
+    return userCtx.isSuperAdmin || userCtx.isFinanceStaff;
+  };
+
+  const getApprovalLevel = (row) => {
+    if (canRecommendHOD(row)) return 'HOD';
+    if (canRecommendHR(row)) return 'HR';
+    if (canApproveAudit(row)) return 'Audit';
+    if (canApproveFinance(row)) return 'Finance';
+    return null;
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return;
+
+    setActionLoading(true);
+    const headers = buildHeaders();
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      const row = records.find(r => r.id === id);
+      if (!row) continue;
+
+      const level = getApprovalLevel(row);
+      if (!level) {
+        failCount++;
+        continue;
+      }
+
+      const actionUrl = `${API_BASE}/payroll/ious/${level.toLowerCase()}-approve/${id}?remarks=${encodeURIComponent('Bulk approved')}`;
+      try {
+        const res = await axios.get(actionUrl, { headers });
+        if (res.data.status === 'success') {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      showToast(`Successfully approved ${successCount} IOU application(s).${failCount > 0 ? ` Failed: ${failCount}` : ''}`);
+      if (typeof window !== 'undefined') {
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.startsWith('hrms_apply_iou_limit_cache_')) {
+            sessionStorage.removeItem(key);
+          }
+        });
+      }
+      setSelectedIds([]);
+      fetchRecords(true);
+    } else {
+      showToast(`Failed to approve selected application(s).`, 'error');
+    }
+    setShowBulkApproveModal(false);
+    setActionLoading(false);
   };
 
   // Helper for overall application status badge mapping
@@ -733,13 +873,8 @@ export default function ApplyIouPage() {
                     ) : (
                       <>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Gross Salary: <strong>₦{fmt(grossSalary)}</strong></span>
-                            <span>Max IOU Limit: <strong>₦{fmt(maxIouLimit)}</strong></span>
-                          </div>
                           {limitDetails.month_name && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85, fontSize: '0.78rem', borderTop: '1px dashed rgba(0,0,0,0.1)', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
-                              <span>Already Applied ({limitDetails.month_name}): <strong>₦{fmt(alreadyUsedAmount)}</strong></span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85, fontSize: '0.78rem', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
                               <span>Remaining Limit: <strong style={{ color: remainingLimit > 0 ? 'var(--primary)' : 'var(--danger)' }}>₦{fmt(remainingLimit)}</strong></span>
                             </div>
                           )}
@@ -860,21 +995,35 @@ export default function ApplyIouPage() {
       <div className={`${styles.card} ${styles.printCard}`}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>IOU Applications Registry</h2>
-          <button
-            type="button"
-            className={`${styles.btn} ${styles.btnPrimary} ${styles.noPrint}`}
-            onClick={() => window.print()}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}
-          >
-            <Printer size={15} />
-            Print IOU Record
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.noPrint}`}
+                onClick={() => setShowBulkApproveModal(true)}
+                disabled={actionLoading}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', background: '#10b981', borderColor: '#10b981', color: '#fff' }}
+              >
+                {actionLoading ? <Loader2 className={styles.loadingSpinner} size={15} /> : <Check size={15} />}
+                Approve Selected ({selectedIds.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={`${styles.btn} ${styles.btnPrimary} ${styles.noPrint}`}
+              onClick={() => window.print()}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}
+            >
+              <Printer size={15} />
+              Print IOU Record
+            </button>
+          </div>
         </div>
 
         {/* Search tool */}
-        <div className={styles.searchBar}>
+        <div className={`${styles.searchBar} ${styles.noPrint}`}>
           <div className={styles.searchInputWrapper}>
-            <Search className={styles.searchIcon} />
+            <Search className={styles.searchIcon} size={16} />
             <input
               type="text"
               placeholder="Search table by employee, department, reason..."
@@ -886,6 +1035,62 @@ export default function ApplyIouPage() {
               }}
             />
           </div>
+          <div className={styles.dateFilterGroup}>
+            <span>From:</span>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={filterStartDate}
+              onChange={(e) => {
+                setFilterStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <div className={styles.dateFilterGroup}>
+            <span>To:</span>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={filterEndDate}
+              onChange={(e) => {
+                setFilterEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <div className={styles.dateFilterGroup}>
+            <span>Status:</span>
+            <select
+              className={styles.dateInput}
+              style={{ minHeight: 'auto', padding: '0.4rem 0.5rem', cursor: 'pointer' }}
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery) && (
+            <button
+              type="button"
+              className={styles.clearFiltersBtn}
+              onClick={() => {
+                setFilterStartDate('');
+                setFilterEndDate('');
+                setFilterStatus('all');
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         {/* List Table */}
@@ -902,9 +1107,36 @@ export default function ApplyIouPage() {
             </div>
           ) : (
             <>
-              <table className={styles.table}>
+              {/* Screen Table (Paginated, Hidden on print) */}
+              <table className={`${styles.table} ${styles.noPrint}`}>
                 <thead>
                   <tr>
+                    <th style={{ width: '40px' }}>
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredRecords.length > 0 &&
+                          filteredRecords.filter(getApprovalLevel).length > 0 &&
+                          filteredRecords.filter(getApprovalLevel).every(r => selectedIds.includes(r.id))
+                        }
+                        onChange={(e) => {
+                          const eligible = filteredRecords.filter(getApprovalLevel);
+                          if (e.target.checked) {
+                            setSelectedIds(prev => {
+                              const next = [...prev];
+                              eligible.forEach(r => {
+                                if (!next.includes(r.id)) next.push(r.id);
+                              });
+                              return next;
+                            });
+                          } else {
+                            setSelectedIds(prev =>
+                              prev.filter(id => !eligible.some(r => r.id === id))
+                            );
+                          }
+                        }}
+                      />
+                    </th>
                     <th>Staff Profile</th>
                     <th>Dept.</th>
                     <th>Requested</th>
@@ -926,6 +1158,31 @@ export default function ApplyIouPage() {
                     return (
                       <tr key={row.id}>
                         <td>
+                          {getApprovalLevel(row) ? (
+                            <input
+                              key={`chk-active-${row.id}`}
+                              type="checkbox"
+                              checked={selectedIds.includes(row.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedIds(prev => [...prev, row.id]);
+                                } else {
+                                  setSelectedIds(prev => prev.filter(id => id !== row.id));
+                                }
+                              }}
+                            />
+                          ) : (
+                            <input
+                              key={`chk-disabled-${row.id}`}
+                              type="checkbox"
+                              checked={false}
+                              readOnly
+                              disabled
+                              style={{ opacity: 0.3 }}
+                            />
+                          )}
+                        </td>
+                        <td>
                           <div className={styles.staffCell}>
                             <span className={styles.staffName}>{row.name}</span>
                             <span className={styles.staffFile}>Staff ID: {row.staff_id}</span>
@@ -939,7 +1196,7 @@ export default function ApplyIouPage() {
                             <Percent size={12} className="text-secondary" />
                           </div>
                         </td>
-                        <td>{row.iou_date}</td>
+                        <td>{formatIouDate(row.iou_date)}</td>
                         <td>{getOverallBadge(row.status)}</td>
                         <td>
                           <div className={styles.tierBadgeContainer}>
@@ -1078,6 +1335,51 @@ export default function ApplyIouPage() {
                 </tbody>
               </table>
 
+              {/* Print-only Table (All records, Hidden on screen) */}
+              <table className={`${styles.table} ${styles.printOnlyTable}`}>
+                <thead>
+                  <tr>
+                    <th>Staff Profile</th>
+                    <th>Dept.</th>
+                    <th>Requested</th>
+                    <th>Limit Check</th>
+                    <th>App Date</th>
+                    <th>Status</th>
+                    <th>Approval Statuses</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRecords.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <div className={styles.staffCell}>
+                          <span className={styles.staffName}>{row.name}</span>
+                          <span className={styles.staffFile}>Staff ID: {row.staff_id}</span>
+                        </div>
+                      </td>
+                      <td>{row.department || '—'}</td>
+                      <td style={{ fontWeight: 600 }}>₦{fmt(row.amount)}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>{row.percentage_of_salary}</span>
+                          <Percent size={12} className="text-secondary" />
+                        </div>
+                      </td>
+                      <td>{formatIouDate(row.iou_date)}</td>
+                      <td>{getOverallBadge(row.status)}</td>
+                      <td>
+                        <div className={styles.tierBadgeContainer}>
+                          {getTierBadge(row.hod_status, 'hod')}
+                          {getTierBadge(row.admin_status, 'hr')}
+                          {getTierBadge(row.audit_status, 'audit')}
+                          {getTierBadge(row.finance_status, 'finance')}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
               {/* Client Pagination */}
               {totalPages > 1 && (
                 <div className={styles.pagination}>
@@ -1152,7 +1454,7 @@ export default function ApplyIouPage() {
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Application Date</span>
-                    <span className={styles.detailValue}>{detailRecord.iou_date}</span>
+                    <span className={styles.detailValue}>{formatIouDate(detailRecord.iou_date)}</span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Overall Status</span>
@@ -1319,6 +1621,62 @@ export default function ApplyIouPage() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Confirmation Bulk Approval Modal */}
+      <AnimatePresence>
+        {showBulkApproveModal && (() => {
+          const selectedLevels = Array.from(new Set(
+            selectedIds
+              .map(id => records.find(r => r.id === id))
+              .filter(Boolean)
+              .map(getApprovalLevel)
+              .filter(Boolean)
+          )).join(', ');
+
+          return (
+            <div className={styles.modalOverlay} onClick={() => setShowBulkApproveModal(false)}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className={styles.modalBox}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className={styles.confirmBox}>
+                  <div className={`${styles.confirmIcon}`} style={{ background: '#d1fae5', color: '#10b981' }}>
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <h3 className={styles.cardTitle} style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
+                    Confirm Bulk Approval
+                  </h3>
+                  <p className={styles.confirmMsg}>
+                    Are you sure you want to approve the <strong>{selectedIds.length}</strong> selected IOU application(s)? This will recommend or finalize approvals at your authorized authorization tier level(s): <strong>{selectedLevels || 'N/A'}</strong>.
+                  </p>
+
+                  <div className={styles.confirmActions}>
+                    <button
+                      className={`${styles.btn} ${styles.btnSecondary}`}
+                      onClick={() => setShowBulkApproveModal(false)}
+                      disabled={actionLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className={`${styles.confirmActionBtn}`}
+                      style={{ background: '#10b981', color: '#fff' }}
+                      onClick={handleBulkApprove}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? 'Approving...' : 'Confirm Approve'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
     </div>

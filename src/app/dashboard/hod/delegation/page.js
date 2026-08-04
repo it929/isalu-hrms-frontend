@@ -21,7 +21,7 @@ function buildHeaders() {
   return uid ? { 'X-User-Id': uid } : {};
 }
 
-const PERMISSION_OPTIONS = [
+const STATIC_APPROVAL_OPTIONS = [
   { id: 'approve_leave', label: 'Leave & LOA Approvals' },
   { id: 'approve_iou', label: 'IOU Approvals' },
   { id: 'approve_refund', label: 'Refund Approvals' },
@@ -32,6 +32,7 @@ const PERMISSION_OPTIONS = [
 export default function HODRoleDelegation() {
   const [staff, setStaff] = useState([]);
   const [delegations, setDelegations] = useState([]);
+  const [assignedSubmodules, setAssignedSubmodules] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [startDate, setStartDate] = useState('');
@@ -54,6 +55,7 @@ export default function HODRoleDelegation() {
       if (res.data.status === 'success') {
         setStaff(res.data.staff || []);
         setDelegations(res.data.delegations || []);
+        setAssignedSubmodules(res.data.assignedSubmodules || []);
       } else {
         showToast('Failed to load delegation data.', 'error');
       }
@@ -77,10 +79,15 @@ export default function HODRoleDelegation() {
   };
 
   const handleToggleAllPermissions = () => {
-    if (selectedPermissions.length === PERMISSION_OPTIONS.length) {
+    const allIds = [
+      ...STATIC_APPROVAL_OPTIONS.map(p => p.id),
+      ...assignedSubmodules.map(s => s.submoduleID)
+    ];
+
+    if (selectedPermissions.length === allIds.length) {
       setSelectedPermissions([]);
     } else {
-      setSelectedPermissions(PERMISSION_OPTIONS.map(p => p.id));
+      setSelectedPermissions(allIds);
     }
   };
 
@@ -142,8 +149,21 @@ export default function HODRoleDelegation() {
   };
 
   const getPermissionLabel = (permId) => {
-    return PERMISSION_OPTIONS.find(p => p.id === permId)?.label || permId;
+    const staticOpt = STATIC_APPROVAL_OPTIONS.find(a => a.id === permId);
+    if (staticOpt) return staticOpt.label;
+
+    const id = parseInt(permId);
+    const sub = assignedSubmodules.find(s => s.submoduleID === id);
+    return sub ? `${sub.modulename} > ${sub.submodulename}` : `Submodule ${permId}`;
   };
+
+  // Group other submodules by module name
+  const groupedSubmodules = assignedSubmodules.reduce((acc, sub) => {
+    const key = sub.modulename || 'General';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(sub);
+    return acc;
+  }, {});
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -202,21 +222,53 @@ export default function HODRoleDelegation() {
                     onClick={handleToggleAllPermissions}
                     style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    {selectedPermissions.length === PERMISSION_OPTIONS.length ? 'Clear All' : 'Select All'}
+                    {selectedPermissions.length === (STATIC_APPROVAL_OPTIONS.length + assignedSubmodules.length) ? 'Clear All' : 'Select All'}
                   </button>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', border: '1px solid var(--border)', padding: '1rem', borderRadius: 'var(--radius)', background: 'rgba(0,0,0,0.02)' }}>
-                  {PERMISSION_OPTIONS.map((perm) => (
-                    <label key={perm.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPermissions.includes(perm.id)}
-                        onChange={() => handlePermissionChange(perm.id)}
-                        style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                      />
-                      <span>{perm.label}</span>
-                    </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--border)', padding: '1rem', borderRadius: 'var(--radius)', background: 'rgba(0,0,0,0.02)', maxHeight: '380px', overflowY: 'auto' }}>
+                  
+                  {/* HOD Approval Authority */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      HOD Approval Roles
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '0.5rem' }}>
+                      {STATIC_APPROVAL_OPTIONS.map((opt) => (
+                        <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedPermissions.includes(opt.id)}
+                            onChange={() => handlePermissionChange(opt.id)}
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                          />
+                          <span>{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Assigned Module Permissions */}
+                  {Object.keys(groupedSubmodules).map((moduleName) => (
+                    <div key={moduleName} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {moduleName}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '0.5rem' }}>
+                        {groupedSubmodules[moduleName].map((sub) => (
+                          <label key={sub.submoduleID} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedPermissions.includes(sub.submoduleID)}
+                              onChange={() => handlePermissionChange(sub.submoduleID)}
+                              style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                            />
+                            <span>{sub.submodulename}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
+
                 </div>
               </div>
 

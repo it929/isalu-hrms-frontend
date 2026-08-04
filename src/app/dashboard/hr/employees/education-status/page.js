@@ -70,7 +70,7 @@ export default function EducationStatusReport() {
     const fullName = [s.title, s.surname, s.first_name, s.othernames].filter(Boolean).join(' ').toLowerCase();
     return (
       fullName.includes(q) ||
-      s.fileNo?.toLowerCase().includes(q) ||
+      String(s.id).toLowerCase().includes(q) ||
       s.department?.toLowerCase().includes(q) ||
       s.designation?.toLowerCase().includes(q)
     );
@@ -191,7 +191,7 @@ export default function EducationStatusReport() {
             <thead>
               <tr>
                 <th style={{ width: '60px' }}>S/N</th>
-                <th style={{ width: '120px' }}>File No.</th>
+                <th style={{ width: '120px' }}>Staff ID</th>
                 <th>Full Name</th>
                 <th>Department</th>
                 <th>Designation</th>
@@ -217,7 +217,7 @@ export default function EducationStatusReport() {
                 filteredList.map((s, i) => (
                   <tr key={s.id || i} className={styles.tableRow}>
                     <td>{i + 1}</td>
-                    <td>{s.fileNo || '—'}</td>
+                    <td>{s.id || '—'}</td>
                     <td className={styles.nameCell}>
                       {[s.title, s.surname, s.first_name, s.othernames].filter(Boolean).join(' ')}
                     </td>

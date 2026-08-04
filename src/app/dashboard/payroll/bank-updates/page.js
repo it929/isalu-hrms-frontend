@@ -81,7 +81,8 @@ export default function BankUpdates() {
   // Filter staff based on search input
   const filteredStaff = staff.filter(s => 
     s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
-    s.fileNo.toLowerCase().includes(staffSearch.toLowerCase())
+    String(s.id).toLowerCase().includes(staffSearch.toLowerCase()) ||
+    (s.department && s.department.toLowerCase().includes(staffSearch.toLowerCase()))
   );
 
   // Individual Form Submit
@@ -188,7 +189,7 @@ export default function BankUpdates() {
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Search & Select Staff</label>
                 <input 
                   type="text" 
-                  placeholder="Type to search staff name/File No..." 
+                  placeholder="Type to search by name/Staff ID/Department..." 
                   value={staffSearch}
                   onChange={(e) => {
                     setStaffSearch(e.target.value);
@@ -222,7 +223,7 @@ export default function BankUpdates() {
                           key={s.id}
                           onClick={() => {
                             setSelectedStaff(s.id);
-                            setStaffSearch(`${s.name} (${s.fileNo})`);
+                            setStaffSearch(`${s.name} (ID: ${s.id})`);
                           }}
                           style={{
                             padding: '0.75rem',
@@ -232,7 +233,7 @@ export default function BankUpdates() {
                           }}
                           className="sidebar-hover-effect"
                         >
-                          {s.name} <span style={{ color: 'var(--secondary)', fontSize: '0.8rem' }}>({s.fileNo})</span>
+                          {s.name} <span style={{ color: 'var(--secondary)', fontSize: '0.8rem' }}>(ID: {s.id}{s.department ? ` - ${s.department}` : ''})</span>
                         </div>
                       ))
                     )}

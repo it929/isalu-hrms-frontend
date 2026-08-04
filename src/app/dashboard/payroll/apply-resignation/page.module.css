@@ -722,3 +722,124 @@
 .helperText strong {
   color: var(--primary, #3b82f6);
 }
+
+.filterBar {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 150px;
+}
+
+.filterLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.filterInput,
+.filterSelect {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.filterInput:focus,
+.filterSelect:focus {
+  border-color: var(--primary);
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .printCard, .printCard * {
+    visibility: visible;
+  }
+
+  .printCard {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .noPrint, .noPrint * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .cardHeader {
+    border: none !important;
+    padding: 0 0 10px 0 !important;
+    margin-bottom: 10px !important;
+  }
+
+  .cardTitle {
+    font-size: 1.3rem !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+  }
+
+  .tableContainer {
+    overflow: visible !important;
+  }
+
+  .table {
+    width: 100% !important;
+    border: 1px solid #000 !important;
+  }
+
+  .table th {
+    background: #f3f4f6 !important;
+    color: #000 !important;
+    font-size: 11px !important;
+    padding: 8px 10px !important;
+    border-bottom: 1px solid #000 !important;
+  }
+
+  .table td {
+    font-size: 11px !important;
+    padding: 8px 10px !important;
+    border-bottom: 1px solid #ddd !important;
+    color: #000 !important;
+  }
+
+  .staffName {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+  }
+
+  .staffFile {
+    font-size: 9px !important;
+    color: #555 !important;
+  }
+
+  .badge {
+    font-size: 8px !important;
+    padding: 1px 4px !important;
+    border: 1px solid #000 !important;
+    background: transparent !important;
+    color: #000 !important;
+  }
+}
