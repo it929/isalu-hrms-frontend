@@ -206,7 +206,7 @@ export default function Sidebar() {
     if (item.moduleID === 56 || getSubmodulesList(item.submodules).some(s => s.path?.includes('dashboard/roles/reports'))) {
       return;
     }
-    const type = item.link_type ? item.link_type.toUpperCase() : 'GENERAL';
+    const type = item.link_type != null ? String(item.link_type).toUpperCase() : 'GENERAL';
     if (!groupedModules[type]) {
       groupedModules[type] = [];
     }
