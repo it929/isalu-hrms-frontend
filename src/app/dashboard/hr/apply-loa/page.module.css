@@ -621,8 +621,56 @@
   transform: scale(0.97);
 }
 
+/* ── Filter Bar ── */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--secondary);
+  white-space: nowrap;
+}
+
+.filterInput,
+.filterSelect {
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 0.82rem;
+  outline: none;
+  font-family: inherit;
+  min-height: auto;
+}
+
+.filterInput:focus,
+.filterSelect:focus {
+  border-color: var(--primary);
+}
+
 /* ── Media Print Styles ── */
 @media print {
+  @page {
+    size: portrait;
+    margin: 15mm 10mm;
+  }
   body * {
     visibility: hidden;
   }
@@ -648,5 +696,35 @@
   .printCard th:last-child,
   .printCard td:last-child {
     display: none !important;
+  }
+  /* Adjust table for portrait print */
+  .tableWrapper {
+    border: 1px solid #ccc !important;
+    overflow: visible !important;
+  }
+  .table {
+    min-width: 100% !important;
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+  .table th {
+    padding: 0.5rem 0.4rem !important;
+    font-size: 9px !important;
+    background-color: #f3f4f6 !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ccc !important;
+  }
+  .table td {
+    padding: 0.5rem 0.4rem !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    border-bottom: 1px solid #eee !important;
+  }
+  .badge {
+    font-size: 8px !important;
+    padding: 0.1rem 0.4rem !important;
+    border: 1px solid #ccc !important;
+    background: transparent !important;
+    color: #000 !important;
   }
 }

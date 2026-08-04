@@ -36,8 +36,9 @@ function buildHeaders() {
 }
 
 // Custom Select trigger dropdown matching style and z-index context
-function CustomSelect({ options, value, onChange, placeholder, disabled }) {
+function CustomSelect({ options, value, onChange, placeholder, disabled, searchable }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
   const selectedOption = options.find(opt => String(opt.value) === String(value));
 
@@ -54,6 +55,16 @@ function CustomSelect({ options, value, onChange, placeholder, disabled }) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  const filteredOptions = searchQuery 
+    ? options.filter(opt => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    : options;
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', zIndex: isOpen ? 1000 : 1 }}>
@@ -92,10 +103,31 @@ function CustomSelect({ options, value, onChange, placeholder, disabled }) {
             overflowY: 'auto',
           }}
         >
-          {options.length === 0 ? (
-            <div style={{ padding: '0.65rem 0.85rem', color: '#9ca3af', fontSize: '0.9rem' }}>No options available</div>
+          {searchable && (
+            <div style={{ padding: '0.5rem', borderBottom: '1px solid #374151', position: 'sticky', top: 0, background: '#1f2937', zIndex: 10 }}>
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.4rem 0.6rem',
+                  borderRadius: '4px',
+                  border: '1px solid #4b5563',
+                  background: '#374151',
+                  color: '#f3f4f6',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+          {filteredOptions.length === 0 ? (
+            <div style={{ padding: '0.65rem 0.85rem', color: '#9ca3af', fontSize: '0.9rem' }}>No options found</div>
           ) : (
-            options.map((opt) => (
+            filteredOptions.map((opt) => (
               <div
                 key={opt.value}
                 style={{
@@ -411,6 +443,7 @@ export default function AssignUserRolePage() {
                   onChange={setSelectedUser}
                   placeholder="Choose user account..."
                   disabled={loading || saving}
+                  searchable={true}
                 />
               </div>
 

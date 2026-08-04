@@ -83,6 +83,12 @@ export default function ApplyLeavePage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const [toast, setToast] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // ── Toast helper ───────────────────────────────────────────────────────────
   const showToast = useCallback((message, type = 'success') => {
@@ -290,12 +296,12 @@ export default function ApplyLeavePage() {
   const employeeOptions = (isSuperAdmin || isAdminStaff)
     ? employees.map(emp => ({
         id:   emp.ID,
-        name: `${emp.surname} ${emp.first_name} ${emp.othernames}`.trim(),
+        name: `${emp.surname} ${emp.first_name} ${emp.othernames}`.trim() + (emp.office_shift == 1 ? ' (Admin)' : ' (Shift)'),
       }))
     : (currentEmployee
         ? [{
             id:   currentEmployee.ID,
-            name: `${currentEmployee.surname} ${currentEmployee.first_name} ${currentEmployee.othernames}`.trim(),
+            name: `${currentEmployee.surname} ${currentEmployee.first_name} ${currentEmployee.othernames}`.trim() + (currentEmployee.office_shift == 1 ? ' (Admin)' : ' (Shift)'),
           }]
         : []
       );
@@ -305,6 +311,100 @@ export default function ApplyLeavePage() {
     : currentEmployee;
 
   const hasNotUploadedEducation = selectedEmpObj && selectedEmpObj.has_uploaded_education === false;
+
+  const getApprovalLevel = useCallback((rec) => {
+    if (rec.status === 0 && canHodAct) {
+      return 'hod-approve';
+    }
+    if (rec.status === 1 && canAdminAct) {
+      return 'admin-approve';
+    }
+    return null;
+  }, [canHodAct, canAdminAct]);
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return;
+    setActionLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    const headers = buildHeaders();
+
+    for (const id of selectedIds) {
+      const rec = leaveRecords.find(r => r.id === id);
+      if (!rec) continue;
+
+      const actionType = getApprovalLevel(rec);
+      if (!actionType) {
+        failCount++;
+        continue;
+      }
+
+      try {
+        const endpoint = `${API_BASE}/hr/apply-leave/${actionType}/${id}`;
+        const res = await axios.get(endpoint, { headers });
+        if (res.data.status === 'success') {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      showToast(`Successfully approved ${successCount} leave application(s).${failCount > 0 ? ` Failed: ${failCount}` : ''}`, 'success');
+      cachedLeaveRecords = null;
+      setSelectedIds([]);
+      fetchRecords(true);
+    } else {
+      showToast('Failed to approve selected leave application(s).', 'error');
+    }
+    setShowBulkApproveModal(false);
+    setActionLoading(false);
+  };
+
+  const filteredRecords = leaveRecords.filter(rec => {
+    // 1. Search Query
+    if (searchQuery) {
+      const fullName = `${rec.surname || ''} ${rec.first_name || ''} ${rec.othernames || ''}`.toLowerCase();
+      const deptName = (rec.department || '').toLowerCase();
+      const q = searchQuery.toLowerCase();
+      if (!fullName.includes(q) && !deptName.includes(q)) {
+        return false;
+      }
+    }
+
+    // 2. Date applied filter (parse rec.created_at or rec.date_applied)
+    if (filterStartDate) {
+      const start = new Date(filterStartDate);
+      const applied = rec.created_at ? new Date(rec.created_at) : new Date(rec.date_applied);
+      start.setHours(0, 0, 0, 0);
+      applied.setHours(0, 0, 0, 0);
+      if (applied < start) return false;
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate);
+      const applied = rec.created_at ? new Date(rec.created_at) : new Date(rec.date_applied);
+      end.setHours(0, 0, 0, 0);
+      applied.setHours(0, 0, 0, 0);
+      if (applied > end) return false;
+    }
+
+    // 3. Status filter
+    if (filterStatus !== 'all') {
+      const isPending = rec.status !== 1 && rec.status !== 2 && rec.status !== 3 && rec.status !== 4;
+      const isApproved = rec.status === 1 || rec.status === 2;
+      const isRejected = rec.status === 3 || rec.status === 4;
+
+      if (filterStatus === 'pending' && !isPending) return false;
+      if (filterStatus === 'approved' && !isApproved) return false;
+      if (filterStatus === 'rejected' && !isRejected) return false;
+    }
+    return true;
+  });
+
+  const showCheckboxes = canHodAct || canAdminAct;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -462,21 +562,123 @@ export default function ApplyLeavePage() {
             <Clock size={18} style={{ marginRight: '0.5rem', flexShrink: 0 }} />
             Leave Records
           </span>
-          <button
-            type="button"
-            className={`${styles.cancelBtn} ${styles.noPrint}`}
-            onClick={() => window.print()}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', borderColor: 'var(--border)' }}
-          >
-            <Printer size={15} />
-            Print Leave Record
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                className={`${styles.cancelBtn} ${styles.noPrint}`}
+                onClick={() => setShowBulkApproveModal(true)}
+                disabled={actionLoading}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', background: '#10b981', borderColor: '#10b981', color: '#fff' }}
+              >
+                {actionLoading ? <Loader2 size={15} className={styles.spinner} style={{ color: '#fff' }} /> : <CheckCircle2 size={15} />}
+                Approve Selected ({selectedIds.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={`${styles.cancelBtn} ${styles.noPrint}`}
+              onClick={() => window.print()}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', borderColor: 'var(--border)' }}
+            >
+              <Printer size={15} />
+              Print Leave Record
+            </button>
+          </div>
         </h2>
+
+        {/* ── Filters Bar ── */}
+        <div className={`${styles.filterBar} ${styles.noPrint}`}>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Search:</span>
+            <input
+              type="text"
+              placeholder="Search staff, department..."
+              className={styles.filterInput}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>From:</span>
+            <input
+              type="date"
+              className={styles.filterInput}
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>To:</span>
+            <input
+              type="date"
+              className={styles.filterInput}
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Status:</span>
+            <select
+              className={styles.filterSelect}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery) && (
+            <button
+              type="button"
+              className={styles.cancelBtn}
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', height: 'fit-content' }}
+              onClick={() => {
+                setFilterStartDate('');
+                setFilterEndDate('');
+                setFilterStatus('all');
+                setSearchQuery('');
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
 
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead>
                   <tr>
+                    {showCheckboxes && (
+                      <th style={{ width: '40px' }} className={styles.noPrint}>
+                        <input
+                          type="checkbox"
+                          checked={
+                            filteredRecords.length > 0 &&
+                            filteredRecords.filter(getApprovalLevel).length > 0 &&
+                            filteredRecords.filter(getApprovalLevel).every(r => selectedIds.includes(r.id))
+                          }
+                          onChange={(e) => {
+                            const eligible = filteredRecords.filter(getApprovalLevel);
+                            if (e.target.checked) {
+                              setSelectedIds(prev => {
+                                const next = [...prev];
+                                eligible.forEach(r => {
+                                  if (!next.includes(r.id)) next.push(r.id);
+                                });
+                                return next;
+                              });
+                            } else {
+                              setSelectedIds(prev =>
+                                prev.filter(id => !eligible.some(r => r.id === id))
+                              );
+                            }
+                          }}
+                        />
+                      </th>
+                    )}
                     <th>S/N</th>
                     <th>Staff Name</th>
                     <th>Department</th>
@@ -484,22 +686,22 @@ export default function ApplyLeavePage() {
                     <th>Duration</th>
                     <th>Date Applied</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th className={styles.noPrint}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tableLoading ? (
                     <tr>
-                      <td colSpan={8} className={styles.emptyRow}>
+                      <td colSpan={showCheckboxes ? 9 : 8} className={styles.emptyRow}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                           <Loader2 size={16} className={styles.spinner} />
                           <span>Loading leave records…</span>
                         </div>
                       </td>
                     </tr>
-                  ) : leaveRecords.length === 0 ? (
+                  ) : filteredRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className={styles.emptyRow}>
+                      <td colSpan={showCheckboxes ? 9 : 8} className={styles.emptyRow}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '1.5rem 0' }}>
                           <Calendar size={32} strokeWidth={1.5} style={{ color: 'var(--secondary)' }} />
                           <span style={{ color: 'var(--secondary)' }}>No leave records found.</span>
@@ -507,10 +709,34 @@ export default function ApplyLeavePage() {
                       </td>
                     </tr>
                   ) : (
-                    leaveRecords.map((rec, i) => {
+                    filteredRecords.map((rec, i) => {
                       const badge = statusBadge(rec.status);
                       return (
                         <tr key={rec.id}>
+                          {showCheckboxes && (
+                            <td className={styles.noPrint}>
+                              {getApprovalLevel(rec) ? (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.includes(rec.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedIds(prev => [...prev, rec.id]);
+                                    } else {
+                                      setSelectedIds(prev => prev.filter(id => id !== rec.id));
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={false}
+                                  disabled
+                                  style={{ opacity: 0.3 }}
+                                />
+                              )}
+                            </td>
+                          )}
                           <td>{i + 1}</td>
                           <td className={styles.capitalize}>
                             {rec.surname} {rec.first_name} {rec.othernames}
@@ -697,7 +923,7 @@ export default function ApplyLeavePage() {
               </div>
               <h3 className={styles.modalTitle}>Confirm Action</h3>
               <p className={styles.confirmMsg}>
-                Are you sure you want to <strong>{confirmAction.type.includes('reject') ? 'reject' : 'approve'}</strong> this leave request?
+                Are you sure you want to <strong>{confirmAction.type.includes('reject') ? 'reject' : 'approve'}</strong> this leave request at <strong>{confirmAction.label.replace(' Approve', '').replace(' Reject', '')}</strong> level?
               </p>
               <div className={styles.confirmActions}>
                 <button className={styles.modalCloseBtn} onClick={closeConfirm} disabled={actionLoading}>
@@ -717,6 +943,57 @@ export default function ApplyLeavePage() {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* ── Bulk Approval Modal ── */}
+      <AnimatePresence>
+        {showBulkApproveModal && (() => {
+          const selectedLevels = Array.from(new Set(
+            selectedIds
+              .map(id => leaveRecords.find(r => r.id === id))
+              .filter(Boolean)
+              .map(getApprovalLevel)
+              .filter(Boolean)
+              .map(lvl => lvl.startsWith('hod') ? 'HOD' : 'HR')
+          )).join(', ');
+
+          return (
+            <div className={styles.modalOverlay} onClick={() => setShowBulkApproveModal(false)}>
+              <motion.div
+                className={`${styles.modalBox} ${styles.confirmBox}`}
+                initial={{ opacity: 0, scale: 0.9, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className={styles.confirmIcon} style={{ background: '#d1fae5', color: '#10b981' }}>
+                  <CheckCircle2 size={28} />
+                </div>
+                <h3 className={styles.modalTitle}>Confirm Bulk Approval</h3>
+                <p className={styles.confirmMsg}>
+                  Are you sure you want to approve the <strong>{selectedIds.length}</strong> selected leave application(s) at <strong>{selectedLevels || 'N/A'}</strong> level?
+                </p>
+                <div className={styles.confirmActions}>
+                  <button className={styles.modalCloseBtn} onClick={() => setShowBulkApproveModal(false)} disabled={actionLoading}>
+                    Cancel
+                  </button>
+                  <button
+                    className={styles.confirmActionBtn}
+                    style={{ background: '#10b981', color: '#fff', border: 'none' }}
+                    onClick={handleBulkApprove}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading
+                      ? <><Loader2 size={15} className={styles.btnSpinner} /> Approving…</>
+                      : <>Approve All</>
+                    }
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* ═══════════════ TOAST ═══════════════ */}

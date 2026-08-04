@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer } from 'lucide-react';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -42,6 +42,21 @@ function calculateLastDay(dateStr) {
   }
 }
 
+function formatResignationDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month}, ${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function ApplyResignationPage() {
   // Loading & Toast States
   const [loading, setLoading] = useState(false);
@@ -73,6 +88,8 @@ export default function ApplyResignationPage() {
   // Modal States
   const [confirmDelete, setConfirmDelete] = useState(null); // id of record to delete
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   const [detailRecord, setDetailRecord] = useState(null); // record for detailed view modal
   
   // Approval Modal State
@@ -83,6 +100,11 @@ export default function ApplyResignationPage() {
     action: '', // 'approve', 'reject'
     remarks: '',
   });
+
+  // Filter States
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   // Form Fields
   const [editId, setEditId] = useState(null);
@@ -163,13 +185,13 @@ export default function ApplyResignationPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [selectedStaff]);
 
-  // Determine if active user can select other staff members (Only Super Admin)
-  const canSelectStaff = userCtx.isSuperAdmin || 
+  // Determine if active user can select other staff members (Super Admin, HR Head, HOD)
+  const canSelectStaff = userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isHod || 
     (mounted && typeof window !== 'undefined' && (() => {
       try {
         const role = JSON.parse(localStorage.getItem('hrms_role'));
         const roleName = role?.name?.toLowerCase() || '';
-        return roleName === 'super admin' || roleName === 'super administrator';
+        return roleName === 'super admin' || roleName === 'super administrator' || roleName === 'admin' || roleName === 'admin staff' || roleName === 'hr head';
       } catch {
         return false;
       }
@@ -404,12 +426,47 @@ export default function ApplyResignationPage() {
     if (selectedStaff && String(r.staff_id) !== String(selectedStaff.id)) {
       return false;
     }
-    return (
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.staff_id && r.staff_id.toString().includes(searchQuery)) ||
-      r.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.department && r.department.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    
+    // 1. Search Query
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = r.name.toLowerCase().includes(q);
+      const staffIdMatch = r.staff_id && r.staff_id.toString().includes(q);
+      const reasonMatch = r.reason.toLowerCase().includes(q);
+      const deptMatch = r.department && r.department.toLowerCase().includes(q);
+      if (!nameMatch && !staffIdMatch && !reasonMatch && !deptMatch) {
+        return false;
+      }
+    }
+
+    // 2. Date filter (resignation_date)
+    if (filterStartDate) {
+      const start = new Date(filterStartDate);
+      const recordDate = new Date(r.resignation_date);
+      start.setHours(0, 0, 0, 0);
+      recordDate.setHours(0, 0, 0, 0);
+      if (recordDate < start) return false;
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate);
+      const recordDate = new Date(r.resignation_date);
+      end.setHours(0, 0, 0, 0);
+      recordDate.setHours(0, 0, 0, 0);
+      if (recordDate > end) return false;
+    }
+
+    // 3. Status filter
+    if (filterStatus !== 'all') {
+      const isPending = r.status === 0;
+      const isApproved = r.status === 1;
+      const isRejected = r.status === 2;
+
+      if (filterStatus === 'pending' && !isPending) return false;
+      if (filterStatus === 'approved' && !isApproved) return false;
+      if (filterStatus === 'rejected' && !isRejected) return false;
+    }
+
+    return true;
   });
 
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
@@ -432,6 +489,51 @@ export default function ApplyResignationPage() {
   const canRecommendHR = (row) => {
     if (row.status !== 0 || row.hod_status !== 1 || row.admin_status !== 0) return false;
     return canSelectStaff;
+  };
+
+  const isRowActionable = (row) => {
+    return canRecommendHOD(row) || canRecommendHR(row);
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return;
+    setActionLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    const headers = buildHeaders();
+
+    for (const id of selectedIds) {
+      const row = records.find(r => r.id === id);
+      if (!row) continue;
+
+      const level = canRecommendHOD(row) ? 'hod' : (canRecommendHR(row) ? 'hr' : null);
+      if (!level) {
+        failCount++;
+        continue;
+      }
+
+      try {
+        const actionUrl = `${API_BASE}/payroll/resignations/${level}-approve/${id}`;
+        const res = await axios.get(actionUrl, { headers });
+        if (res.data.status === 'success') {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      showToast(`Successfully approved ${successCount} resignation request(s).${failCount > 0 ? ` Failed: ${failCount}` : ''}`, 'success');
+      setSelectedIds([]);
+      fetchRecords(true);
+    } else {
+      showToast('Failed to approve selected resignation request(s).', 'error');
+    }
+    setShowBulkApproveModal(false);
+    setActionLoading(false);
   };
 
   // Helper for overall application status badge mapping
@@ -480,13 +582,13 @@ export default function ApplyResignationPage() {
       )}
 
       {/* Header */}
-      <div className={styles.header}>
+      <div className={`${styles.header} ${styles.noPrint}`}>
         <h1 className={styles.title}>Apply for Resignation</h1>
         <p className={styles.subtitle}>Submit staff resignation request for processing and tiered approvals.</p>
       </div>
 
       {/* Form Card */}
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.noPrint}`}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>
             {editId ? 'Modify Resignation Request' : 'New Resignation Request'}
@@ -616,13 +718,35 @@ export default function ApplyResignationPage() {
       </div>
 
       {/* Directory Records List */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
+      <div className={`${styles.card} ${styles.printCard}`}>
+        <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 className={styles.cardTitle}>Resignation Registry</h2>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.noPrint}`}
+                onClick={() => setShowBulkApproveModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', background: '#10b981' }}
+              >
+                <Check size={15} />
+                Approve Selected ({selectedIds.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={`${styles.btn} ${styles.btnSecondary} ${styles.noPrint}`}
+              onClick={() => window.print()}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', borderColor: 'var(--border)' }}
+            >
+              <Printer size={15} />
+              Print Resignation Registry
+            </button>
+          </div>
         </div>
 
         {/* Search tool */}
-        <div className={styles.searchBar}>
+        <div className={`${styles.searchBar} ${styles.noPrint}`}>
           <div className={styles.searchInputWrapper}>
             <Search className={styles.searchIcon} />
             <input
@@ -635,6 +759,50 @@ export default function ApplyResignationPage() {
                 setCurrentPage(1);
               }}
             />
+          </div>
+        </div>
+
+        {/* Filter controls */}
+        <div className={`${styles.filterBar} ${styles.noPrint}`}>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Date Resigned (From)</label>
+            <input
+              type="date"
+              className={styles.filterInput}
+              value={filterStartDate}
+              onChange={(e) => {
+                setFilterStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Date Resigned (To)</label>
+            <input
+              type="date"
+              className={styles.filterInput}
+              value={filterEndDate}
+              onChange={(e) => {
+                setFilterEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Status</label>
+            <select
+              className={styles.filterSelect}
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
           </div>
         </div>
 
@@ -655,13 +823,34 @@ export default function ApplyResignationPage() {
                <table className={styles.table}>
                 <thead>
                   <tr>
+                    {paginatedRecords.some(isRowActionable) && (
+                      <th className={styles.noPrint} style={{ width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          checked={
+                            paginatedRecords.filter(isRowActionable).length > 0 &&
+                            paginatedRecords.filter(isRowActionable).every(row => selectedIds.includes(row.id))
+                          }
+                          onChange={(e) => {
+                            const actionableRows = paginatedRecords.filter(isRowActionable);
+                            if (e.target.checked) {
+                              const newSelected = Array.from(new Set([...selectedIds, ...actionableRows.map(r => r.id)]));
+                              setSelectedIds(newSelected);
+                            } else {
+                              const newSelected = selectedIds.filter(id => !actionableRows.some(r => r.id === id));
+                              setSelectedIds(newSelected);
+                            }
+                          }}
+                        />
+                      </th>
+                    )}
                     <th>Staff Profile</th>
                     <th>Dept.</th>
                     <th>Resignation Date</th>
                     <th>Last Day</th>
                     <th>Status</th>
-                    <th>Approval Statuses</th>
-                    <th>Actions</th>
+                    <th className={styles.noPrint}>Approval Statuses</th>
+                    <th className={styles.noPrint}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -674,6 +863,23 @@ export default function ApplyResignationPage() {
 
                     return (
                       <tr key={row.id}>
+                        {paginatedRecords.some(isRowActionable) && (
+                          <td className={styles.noPrint}>
+                            {isRowActionable(row) && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(row.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedIds([...selectedIds, row.id]);
+                                  } else {
+                                    setSelectedIds(selectedIds.filter(id => id !== row.id));
+                                  }
+                                }}
+                              />
+                            )}
+                          </td>
+                        )}
                         <td>
                           <div className={styles.staffCell}>
                             <span className={styles.staffName}>{row.name}</span>
@@ -681,18 +887,18 @@ export default function ApplyResignationPage() {
                           </div>
                         </td>
                         <td>{row.department || '—'}</td>
-                        <td>{row.resignation_date}</td>
+                        <td>{formatResignationDate(row.resignation_date)}</td>
                         <td style={{ fontWeight: 500, color: 'var(--primary, #3b82f6)' }}>
-                          {calculateLastDay(row.resignation_date)}
+                          {formatResignationDate(calculateLastDay(row.resignation_date))}
                         </td>
                         <td>{getOverallBadge(row.status)}</td>
-                        <td>
+                        <td className={styles.noPrint}>
                           <div className={styles.tierBadgeContainer}>
                             {getTierBadge(row.hod_status, 'hod')}
                             {getTierBadge(row.admin_status, 'hr')}
                           </div>
                         </td>
-                        <td>
+                        <td className={styles.noPrint}>
                           <div className={styles.actionGroup}>
                             {/* View details */}
                             <button
@@ -781,7 +987,7 @@ export default function ApplyResignationPage() {
 
               {/* Client side Pagination controls */}
               {totalPages > 1 && (
-                <div className={styles.pagination}>
+                <div className={`${styles.pagination} ${styles.noPrint}`}>
                   <span className={styles.paginationText}>
                     Showing page {currentPage} of {totalPages} ({filteredRecords.length} records total)
                   </span>
@@ -881,12 +1087,12 @@ export default function ApplyResignationPage() {
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Resignation Date</span>
-                    <span className={styles.detailValue}>{detailRecord.resignation_date}</span>
+                    <span className={styles.detailValue}>{formatResignationDate(detailRecord.resignation_date)}</span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Last Day of Work</span>
                     <span className={styles.detailValue} style={{ color: 'var(--primary, #3b82f6)', fontWeight: 600 }}>
-                      {calculateLastDay(detailRecord.resignation_date)}
+                      {formatResignationDate(calculateLastDay(detailRecord.resignation_date))}
                     </span>
                   </div>
                   <div className={styles.detailItemFull}>
@@ -1001,6 +1207,56 @@ export default function ApplyResignationPage() {
           </div>
         </div>
       )}
+
+      {/* Bulk Approval Confirmation Modal */}
+      <AnimatePresence>
+        {showBulkApproveModal && (() => {
+          const selectedLevels = Array.from(new Set(
+            selectedIds
+              .map(id => records.find(r => r.id === id))
+              .filter(Boolean)
+              .map(row => canRecommendHOD(row) ? 'HOD' : (canRecommendHR(row) ? 'HR' : null))
+              .filter(Boolean)
+          )).join(', ');
+
+          return (
+            <div className={styles.modalOverlay} onClick={() => setShowBulkApproveModal(false)}>
+              <motion.div
+                className={`${styles.modalBox} ${styles.confirmBox}`}
+                initial={{ opacity: 0, scale: 0.9, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className={styles.confirmIcon} style={{ background: '#d1fae5', color: '#10b981' }}>
+                  <CheckCircle2 size={28} />
+                </div>
+                <h3 className={styles.modalTitle}>Confirm Bulk Approval</h3>
+                <p className={styles.confirmMsg}>
+                  Are you sure you want to approve the <strong>{selectedIds.length}</strong> selected resignation request(s) at <strong>{selectedLevels || 'N/A'}</strong> level?
+                </p>
+                <div className={styles.confirmActions}>
+                  <button className={styles.modalCloseBtn} onClick={() => setShowBulkApproveModal(false)} disabled={actionLoading}>
+                    Cancel
+                  </button>
+                  <button
+                    className={styles.confirmActionBtn}
+                    style={{ background: '#10b981', color: '#fff', border: 'none' }}
+                    onClick={handleBulkApprove}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading
+                      ? <><Loader2 size={15} className={styles.loadingSpinner} /> Approving…</>
+                      : <>Approve All</>
+                    }
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 }

@@ -368,6 +368,41 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
+.dateFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.dateInput {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.clearFiltersBtn {
+  background: none;
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.clearFiltersBtn:hover {
+  background: var(--background);
+  color: var(--text-primary);
+}
+
 /* Table styling */
 .tableContainer {
   overflow-x: auto;
@@ -827,10 +862,25 @@
   .formGroupFull {
     grid-column: span 1;
   }
+  .searchBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.printOnlyTable {
+  display: none !important;
 }
 
 /* ── Media Print Styles ── */
 @media print {
+  .printOnlyTable {
+    display: table !important;
+  }
+  @page {
+    size: portrait;
+    margin: 10mm;
+  }
   body * {
     visibility: hidden;
   }
@@ -842,12 +892,69 @@
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 100% !important;
     border: none !important;
     box-shadow: none !important;
     background: transparent !important;
     padding: 0 !important;
     margin: 0 !important;
+  }
+  .tableContainer {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+  .table {
+    width: 100% !important;
+    font-size: 10px !important;
+    border-collapse: collapse !important;
+  }
+  .table th,
+  .table td {
+    padding: 6px 4px !important;
+    border-bottom: 1px solid #ddd !important;
+    color: #000 !important;
+    background: transparent !important;
+    word-break: break-word !important;
+  }
+  .table th {
+    font-weight: 700 !important;
+    border-bottom: 2px solid #000 !important;
+  }
+  .tierBadgeContainer {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 3px !important;
+  }
+  .tierBadgeItem {
+    font-size: 9px !important;
+    gap: 2px !important;
+  }
+  .tierLabel {
+    font-weight: 600 !important;
+    color: #333 !important;
+  }
+  .badge {
+    padding: 1px 3px !important;
+    font-size: 9px !important;
+    border-radius: 3px !important;
+    border: 1px solid #ccc !important;
+    background: #f0f0f0 !important;
+    color: #000 !important;
+  }
+  .badgeApproved, .badgeHodApproved, .badgeHrApproved, .badgeAuditApproved, .badgeFinanceApproved {
+    background: #e6f4ea !important;
+    color: #137333 !important;
+    border-color: #a8dab5 !important;
+  }
+  .badgeRejected {
+    background: #fce8e6 !important;
+    color: #c5221f !important;
+    border-color: #fad2cf !important;
+  }
+  .badgePending {
+    background: #fef7e0 !important;
+    color: #b06000 !important;
+    border-color: #fde293 !important;
   }
   .noPrint {
     display: none !important;
