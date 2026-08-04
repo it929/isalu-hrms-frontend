@@ -81,6 +81,7 @@ export default function Navbar() {
                 onClick={() => {
                   setDropdownOpen(false);
                   logout();
+                  window.location.href = '/';
                 }} 
                 className={styles.dropdownItem}
                 style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
