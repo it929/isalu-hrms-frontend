@@ -376,27 +376,8 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* HR Menu - visible statically to HR Heads */}
-          {isHr && !loading && (
-            <div className={styles.groupContainer}>
-              {!isCollapsed && (
-                <div className={styles.groupHeader}>
-                  HR PANEL
-                </div>
-              )}
-              <ul className={styles.groupList}>
-                <li>
-                  <Link
-                    href="/dashboard/hr/delegation"
-                    className={`${styles.menuItem} ${pathname === '/dashboard/hr/delegation' ? styles.active : ''}`}
-                  >
-                    <span className={styles.icon}><ShieldCheck size={20} /></span>
-                    <span className={styles.text}>Role Delegation</span>
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          )}
+
+
 
           {/* Bottom items */}
           {bottomMenuItems.map((item) => {
