@@ -162,3 +162,16 @@ button, input, select, textarea {
   display: none !important; /* Chrome, Safari and Opera */
 }
 
+/* ── Global Media Print Rules ── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [class*="printCard"],
+  [class*="printCard"] *,
+  [class*="paperContainer"],
+  [class*="paperContainer"] * {
+    visibility: visible;
+  }
+}
+

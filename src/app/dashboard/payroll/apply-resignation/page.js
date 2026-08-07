@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer, Sparkles } from 'lucide-react';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -977,6 +977,19 @@ export default function ApplyResignationPage() {
                                 </button>
                               </div>
                             )}
+
+                            {/* Generate Resignation Acceptance Letter */}
+                            {(row.admin_status === 1 || row.status === 1) && (
+                              <button
+                                type="button"
+                                className={`${styles.iconBtn} ${styles.approveBtn}`}
+                                title="Generate Acceptance Letter (ISALU HOSPITAL)"
+                                style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', borderColor: '#10b981' }}
+                                onClick={() => window.open(`/dashboard/hr/document-generator?type=resignation_acceptance&staff_id=${row.staff_id}&resignation_id=${row.id}`, '_blank')}
+                              >
+                                <Sparkles size={16} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1149,7 +1162,18 @@ export default function ApplyResignationPage() {
                   )}
                 </div>
               </div>
-              <div className={styles.modalFooter}>
+              <div className={styles.modalFooter} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {(detailRecord.admin_status === 1 || detailRecord.status === 1) ? (
+                  <button
+                    type="button"
+                    className={styles.submitBtn}
+                    style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', padding: '0.4rem 0.85rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                    onClick={() => window.open(`/dashboard/hr/document-generator?type=resignation_acceptance&staff_id=${detailRecord.staff_id}&resignation_id=${detailRecord.id}`, '_blank')}
+                  >
+                    <Sparkles size={15} />
+                    Generate Acceptance Letter
+                  </button>
+                ) : <div />}
                 <button className={styles.modalCloseBtn} onClick={() => setDetailRecord(null)}>
                   Close
                 </button>

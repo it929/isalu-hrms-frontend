@@ -272,9 +272,9 @@
 }
 
 .badgeHrApproved {
-  background: rgba(37, 99, 235, 0.1);
-  color: #1e40af;
-  border: 1px solid rgba(37, 99, 235, 0.3);
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .badgeRejected {
@@ -671,9 +671,7 @@
     size: portrait;
     margin: 15mm 10mm;
   }
-  body * {
-    visibility: hidden;
-  }
+
   .printCard,
   .printCard * {
     visibility: visible;

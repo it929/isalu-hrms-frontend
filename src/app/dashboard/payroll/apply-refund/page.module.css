@@ -362,21 +362,21 @@
 }
 
 .badgeFinanceApproved {
-  background: rgba(139, 92, 246, 0.1);
-  color: #6d28d9;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .badgeHrApproved {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0369a1;
-  border: 1px solid rgba(14, 165, 233, 0.2);
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .badgeAuditApproved {
-  background: rgba(245, 158, 11, 0.1);
-  color: #b45309;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .actionGroup {
@@ -709,6 +709,50 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
+/* ── Filter Bar ── */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--surface-hover, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--secondary, #4b5563);
+  white-space: nowrap;
+}
+
+.filterInput,
+.filterSelect {
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #d1d5db);
+  background: var(--surface, #ffffff);
+  color: var(--text-primary, #111827);
+  font-size: 0.82rem;
+  outline: none;
+  font-family: inherit;
+  min-height: auto;
+}
+
+.filterInput:focus,
+.filterSelect:focus {
+  border-color: var(--primary, #3b82f6);
+}
+
 .loadingSpinner {
   animation: spin 1s linear infinite;
 }
@@ -716,4 +760,127 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ── Media Print Styles ── */
+@media print {
+  @page {
+    size: portrait;
+    margin: 10mm 8mm;
+  }
+
+  .printCard,
+  .printCard * {
+    visibility: visible;
+  }
+  .printCard {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .cardTitle {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #111 !important;
+    border-bottom: 2px solid #333 !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 12px !important;
+  }
+  .noPrint {
+    display: none !important;
+  }
+  /* Hide checkbox and action columns during print */
+  .table th:first-child,
+  .table td:first-child,
+  .table th:last-child,
+  .table td:last-child {
+    display: none !important;
+  }
+  .tableContainer {
+    border: 1px solid #d1d5db !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+  .table {
+    min-width: 100% !important;
+    width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+  }
+  .table th {
+    padding: 6px 8px !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    background-color: #f3f4f6 !important;
+    color: #111827 !important;
+    border-bottom: 1.5px solid #9ca3af !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+  }
+  .table td {
+    padding: 7px 8px !important;
+    font-size: 11px !important;
+    color: #1f2937 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    vertical-align: middle !important;
+  }
+  .staffName {
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    color: #111827 !important;
+  }
+  .staffFile {
+    font-size: 9.5px !important;
+    color: #6b7280 !important;
+  }
+  .tierBadgeContainer {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  .tierBadgeItem {
+    font-size: 9.5px !important;
+    gap: 2px !important;
+  }
+  .tierLabel {
+    font-size: 9px !important;
+    color: #4b5563 !important;
+  }
+  .badge {
+    font-size: 9px !important;
+    padding: 1px 5px !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+  }
+  .badgeHodApproved,
+  .badgeHrApproved,
+  .badgeAuditApproved,
+  .badgeFinanceApproved {
+    background: #ecfdf5 !important;
+    color: #065f46 !important;
+    border: 1px solid #a7f3d0 !important;
+  }
+  .badgePending {
+    background: #fffbeb !important;
+    color: #92400e !important;
+    border: 1px solid #fde68a !important;
+  }
+  .badgeRejected {
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+    border: 1px solid #fecaca !important;
+  }
+  .badgeApproved {
+    background: #d1fae5 !important;
+    color: #065f46 !important;
+    border: 1px solid #6ee7b7 !important;
+  }
 }

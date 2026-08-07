@@ -29,6 +29,7 @@ import {
   Lock,
   Layers,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import NairaSign from '../ui/NairaSign';
 import styles from './Sidebar.module.css';
@@ -86,6 +87,7 @@ export default function Sidebar() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isHod, setIsHod] = useState(false);
+  const [isActualHod, setIsActualHod] = useState(false);
   const [isHr, setIsHr] = useState(false);
   const [openDropdowns, setOpenDropdowns] = useState({});
   const [rolesOpen, setRolesOpen] = useState(pathname.startsWith('/dashboard/roles'));
@@ -106,6 +108,8 @@ export default function Sidebar() {
 
   const topMenuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Ask AI Data Analyst', path: '/dashboard/hr/ai-analyst', icon: <Sparkles size={20} style={{ color: '#3b82f6' }} /> },
+    { name: 'AI Document Generator', path: '/dashboard/hr/document-generator', icon: <Sparkles size={20} style={{ color: '#10b981' }} /> },
   ];
 
   const bottomMenuItems = [];
@@ -133,6 +137,7 @@ export default function Sidebar() {
           setSidebarData(parsed.sidebar || []);
           setIsAdmin(!!parsed.is_admin);
           setIsHod(!!parsed.is_hod);
+          setIsActualHod(!!parsed.is_actual_hod);
           setIsHr(!!parsed.is_hr);
           setLoading(false);
           hasCache = true;
@@ -160,12 +165,14 @@ export default function Sidebar() {
           setSidebarData(res.data.sidebar || []);
           setIsAdmin(!!res.data.is_admin);
           setIsHod(!!res.data.is_hod);
+          setIsActualHod(!!res.data.is_actual_hod);
           setIsHr(!!res.data.is_hr);
           if (cacheKey && typeof window !== 'undefined') {
             sessionStorage.setItem(cacheKey, JSON.stringify({
               sidebar: res.data.sidebar || [],
               is_admin: !!res.data.is_admin,
               is_hod: !!res.data.is_hod,
+              is_actual_hod: !!res.data.is_actual_hod,
               is_hr: !!res.data.is_hr
             }));
           }
@@ -354,8 +361,8 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* HOD Menu - visible statically to HODs */}
-          {isHod && !loading && (
+          {/* HOD Menu - visible only to actual HODs (not delegated staff) */}
+          {isActualHod && !loading && (
             <div className={styles.groupContainer}>
               {!isCollapsed && (
                 <div className={styles.groupHeader}>

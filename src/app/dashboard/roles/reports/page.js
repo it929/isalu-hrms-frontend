@@ -260,7 +260,7 @@ export default function ReportsDashboard() {
           render: (val, row) => {
             if (val == 3 || val == 4) return <span className={`${styles.badge} ${styles.badgeInactive}`}>Rejected</span>;
             if (val == 2) return <span className={`${styles.badge} ${styles.badgeActive}`}>Approved</span>;
-            if (val == 1) return <span className={styles.badge} style={{ background: '#3b82f6', color: '#fff' }}>HOD Approved</span>;
+            if (val == 1) return <span className={styles.badge} style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#065f46', border: '1px solid rgba(16, 185, 129, 0.3)' }}>HOD Approved</span>;
             return <span className={styles.badge} style={{ background: '#f59e0b', color: '#fff' }}>Pending</span>;
           }
         }

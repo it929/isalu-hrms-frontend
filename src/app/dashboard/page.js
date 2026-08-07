@@ -65,7 +65,7 @@ export default function DashboardHome() {
       .finally(() => {
         if (!hasCache) setLoading(false);
       });
-  }, [cachedStats]);
+  }, []);
 
   return (
     <div>
@@ -179,7 +179,7 @@ export default function DashboardHome() {
             </div>
           </div>
 
-          <div style={{ height: '320px', width: '100%' }}>
+          <div style={{ height: '320px', width: '100%', minWidth: 0, minHeight: 320 }}>
             {deptStats.length === 0 ? (
               <div style={{ color: 'var(--secondary)', fontSize: '0.95rem', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 No department statistics available.
