@@ -253,18 +253,106 @@
   margin-bottom: 0.75rem;
 }
 
+.printOnlyHeader {
+  display: none;
+}
+
 @media print {
-  .noPrint {
+  .noPrint, .noPrint * {
     display: none !important;
+    visibility: hidden !important;
   }
 
   .container {
-    padding: 0;
-    max-width: 100%;
+    visibility: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  .printOnlyHeader {
+    display: block !important;
+  }
+
+  .summaryCard {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    border-left: 4px solid #10b981 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    page-break-inside: avoid;
+  }
+
+  .summaryTitle {
+    color: #059669 !important;
+  }
+
+  .summaryText {
+    color: #000000 !important;
+  }
+
+  .metricsGrid {
+    page-break-inside: avoid;
+    margin-bottom: 1rem !important;
+  }
+
+  .metricCard {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  .metricLabel {
+    color: #475569 !important;
+  }
+
+  .metricValue {
+    color: #000000 !important;
+  }
+
+  .tableToolbar {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .toolbarTitle {
+    color: #000000 !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
   }
 
   .tableContainer {
-    border: none;
-    box-shadow: none;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .dataTable {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .dataTable th {
+    background: #f1f5f9 !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    padding: 0.5rem 0.75rem !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .dataTable td {
+    color: #000000 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 0.5rem 0.75rem !important;
   }
 }
+

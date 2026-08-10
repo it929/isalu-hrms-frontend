@@ -27,19 +27,12 @@ export default function AiAnalystPage() {
   const [resultData, setResultData] = useState(null);
   const [toast, setToast] = useState(null);
 
+  const [reportDateTime, setReportDateTime] = useState({ date: '', time: '' });
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
-
-  const samplePrompts = [
-    "Show staff count by department",
-    "List pending resignation applications",
-    "What is total basic salary budget by department?",
-    "Show staff resumption dates catalog",
-    "List employee bank details",
-    "Overview of recent leave applications",
-  ];
 
   const handleAsk = async (promptToAsk = null) => {
     const q = promptToAsk || query;
@@ -70,17 +63,22 @@ export default function AiAnalystPage() {
     }
   };
 
-  // Initial default query on load
+  // Initial default query and client timestamp on load
   useEffect(() => {
+    const now = new Date();
+    setReportDateTime({
+      date: now.toLocaleDateString('en-GB'),
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
     handleAsk("Show staff count by department");
   }, []);
 
   const handleDownloadCsv = () => {
     if (!resultData || !resultData.rows || resultData.rows.length === 0) return;
     
-    const headers = resultData.columns.map(c => c.label).join(',');
-    const rows = resultData.rows.map(r => 
-      resultData.columns.map(c => `"${String(r[c.key] ?? '').replace(/"/g, '""')}"`).join(',')
+    const headers = ["S/N", ...resultData.columns.map(c => c.label)].join(',');
+    const rows = resultData.rows.map((r, idx) => 
+      [idx + 1, ...resultData.columns.map(c => `"${String(r[c.key] ?? '').replace(/"/g, '""')}"`)].join(',')
     );
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
@@ -88,9 +86,18 @@ export default function AiAnalystPage() {
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", `ISALU_HR_AI_Export_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.appendChild(link);
+      link.click();
+      if (link.parentNode) {
+        link.parentNode.removeChild(link);
+      } else if (typeof link.remove === 'function') {
+        link.remove();
+      }
+    } else {
+      link.click();
+    }
 
     showToast('Exported to CSV successfully!');
   };
@@ -102,7 +109,7 @@ export default function AiAnalystPage() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} printCard paperContainer`}>
       {/* Toast Notification */}
       {toast && (
         <div style={{
@@ -122,6 +129,26 @@ export default function AiAnalystPage() {
         </div>
       )}
 
+      {/* Print-only Report Header */}
+      <div className={styles.printOnlyHeader}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #10b981', paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 'bold', color: '#111827', margin: 0 }}>
+              ISALU HOSPITAL — HR AI Data Analyst Report
+            </h2>
+            {resultData && resultData.query && (
+              <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: '0.35rem 0 0 0' }}>
+                Query: <em>"{resultData.query}"</em>
+              </p>
+            )}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'right' }}>
+            <div>Date: {reportDateTime.date}</div>
+            <div>Time: {reportDateTime.time}</div>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className={`${styles.header} ${styles.noPrint}`}>
         <h1 className={styles.title}>
@@ -129,17 +156,17 @@ export default function AiAnalystPage() {
           Ask ISALU HR AI — Intelligent Data Analyst
         </h1>
         <p className={styles.subtitle}>
-          Ask any question about staff, payroll, resignations, leaves, or departments in plain English to generate instant reports.
+          Ask natural language questions about your staff, salary budget, leave applications, resignations, and HR metrics.
         </p>
       </div>
 
-      {/* Search Input Box Card */}
+      {/* Search Bar Input */}
       <div className={`${styles.searchBoxCard} ${styles.noPrint}`}>
         <div className={styles.inputGroup}>
           <input
             type="text"
             className={styles.queryInput}
-            placeholder="e.g. How many staff are in Nursing and what is their total basic salary?"
+            placeholder="Ask AI anything about HR data (e.g. 'How many staff applied for IOU?', 'Staff in Nursing')..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAsk()}
@@ -148,29 +175,11 @@ export default function AiAnalystPage() {
             type="button"
             className={styles.askBtn}
             onClick={() => handleAsk()}
-            disabled={loading || !query.trim()}
+            disabled={loading}
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
             {loading ? 'Analyzing...' : 'Ask AI'}
           </button>
-        </div>
-
-        {/* Sample Prompt Pills */}
-        <div className={styles.samplePills}>
-          <span className={styles.pillLabel}>Try Asking:</span>
-          {samplePrompts.map((promptText, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className={styles.pill}
-              onClick={() => {
-                setQuery(promptText);
-                handleAsk(promptText);
-              }}
-            >
-              {promptText}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -228,6 +237,7 @@ export default function AiAnalystPage() {
               <table className={styles.dataTable}>
                 <thead>
                   <tr>
+                    <th style={{ width: '60px', textAlign: 'center' }}>S/N</th>
                     {resultData.columns.map((col) => (
                       <th key={col.key}>{col.label}</th>
                     ))}
@@ -236,6 +246,7 @@ export default function AiAnalystPage() {
                 <tbody>
                   {resultData.rows.map((row, rIdx) => (
                     <tr key={rIdx}>
+                      <td style={{ textAlign: 'center', fontWeight: 600, color: '#6b7280' }}>{rIdx + 1}</td>
                       {resultData.columns.map((col) => {
                         let val = row[col.key];
                         if (col.format === 'currency' && typeof val === 'number') {

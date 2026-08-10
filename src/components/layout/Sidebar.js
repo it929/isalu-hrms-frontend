@@ -108,8 +108,6 @@ export default function Sidebar() {
 
   const topMenuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Ask AI Data Analyst', path: '/dashboard/hr/ai-analyst', icon: <Sparkles size={20} style={{ color: '#3b82f6' }} /> },
-    { name: 'AI Document Generator', path: '/dashboard/hr/document-generator', icon: <Sparkles size={20} style={{ color: '#10b981' }} /> },
   ];
 
   const bottomMenuItems = [];
@@ -220,6 +218,12 @@ export default function Sidebar() {
     groupedModules[type].push(item);
   });
 
+  const hasAiAnalyst = isAdmin || sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.path?.includes('ai-analyst')));
+  const hasDocGen = isAdmin || sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.path?.includes('document-generator')));
+  const hasReports = isAdmin || sidebarData.some(m => m.moduleID === 56 || getSubmodulesList(m.submodules).some(s => s.path?.includes('dashboard/roles/reports')));
+  const hasRoleMgmt = isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || getSubmodulesList(m.submodules).some(s => s.id === 999));
+  const hasSecurityGroup = hasAiAnalyst || hasDocGen || hasReports || hasRoleMgmt;
+
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
       <nav className={styles.nav}>
@@ -295,8 +299,8 @@ export default function Sidebar() {
             ))
           )}
  
-          {/* Role Management Module with dropdown - visible statically to Admins or if delegated Assign User */}
-          {(isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || m.moduleID === 56 || getSubmodulesList(m.submodules).some(s => s.path?.includes('dashboard/roles/reports')))) && !loading && (
+          {/* SECURITY & ROLES section - renders AI Analyst, AI Document Generator, Role Management and Reports */}
+          {hasSecurityGroup && !loading && (
             <div className={styles.groupContainer}>
               {!isCollapsed && (
                 <div className={styles.groupHeader}>
@@ -304,49 +308,74 @@ export default function Sidebar() {
                 </div>
               )}
               <ul className={styles.groupList}>
-                <li>
-                  <button
-                    className={`${styles.menuItem} ${styles.menuItemBtn} ${(isRolesActive && pathname !== '/dashboard/roles/reports') ? styles.active : ''}`}
-                    onClick={() => setRolesOpen((prev) => !prev)}
-                    aria-expanded={rolesOpen}
-                  >
-                    <span className={styles.icon}><ShieldCheck size={20} /></span>
-                    <span className={styles.text}>Role Management</span>
-                    <span className={`${styles.chevron} ${rolesOpen ? styles.chevronOpen : ''}`}>
-                      <ChevronDown size={16} />
-                    </span>
-                  </button>
- 
-                  <div className={`${styles.subMenu} ${rolesOpen ? styles.subMenuOpen : ''}`}>
-                    <ul className={styles.subMenuList}>
-                      {rolesSubModules
-                        .filter((sub) => {
-                          if (isAdmin) return true;
-                          // If delegated, only show the Assign User (Assign Role) link
-                          if (sub.path === '/dashboard/roles/assign-user') {
-                            return sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.id === 999));
-                          }
-                          return false;
-                        })
-                        .map((sub) => {
-                          const isSubActive = pathname === sub.path;
-                          return (
-                            <li key={sub.path}>
-                              <Link
-                                href={sub.path}
-                                className={`${styles.subMenuItem} ${isSubActive ? styles.subMenuItemActive : ''}`}
-                              >
-                                <span className={styles.subIcon}>{sub.icon}</span>
-                                <span>{sub.name}</span>
-                              </Link>
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  </div>
-                </li>
+                {hasAiAnalyst && (
+                  <li>
+                    <Link
+                      href="/dashboard/hr/ai-analyst"
+                      className={`${styles.menuItem} ${pathname === '/dashboard/hr/ai-analyst' ? styles.active : ''}`}
+                    >
+                      <span className={styles.icon}><Sparkles size={20} style={{ color: '#3b82f6' }} /></span>
+                      <span className={styles.text}>Ask AI Data Analyst</span>
+                    </Link>
+                  </li>
+                )}
 
-                {(isAdmin || sidebarData.some(m => m.moduleID === 56 || m.submodules?.some(s => s.path?.includes('dashboard/roles/reports')))) && (
+                {hasDocGen && (
+                  <li>
+                    <Link
+                      href="/dashboard/hr/document-generator"
+                      className={`${styles.menuItem} ${pathname === '/dashboard/hr/document-generator' ? styles.active : ''}`}
+                    >
+                      <span className={styles.icon}><Sparkles size={20} style={{ color: '#10b981' }} /></span>
+                      <span className={styles.text}>AI Document Generator</span>
+                    </Link>
+                  </li>
+                )}
+
+                {hasRoleMgmt && (
+                  <li>
+                    <button
+                      className={`${styles.menuItem} ${styles.menuItemBtn} ${(isRolesActive && pathname !== '/dashboard/roles/reports') ? styles.active : ''}`}
+                      onClick={() => setRolesOpen((prev) => !prev)}
+                      aria-expanded={rolesOpen}
+                    >
+                      <span className={styles.icon}><ShieldCheck size={20} /></span>
+                      <span className={styles.text}>Role Management</span>
+                      <span className={`${styles.chevron} ${rolesOpen ? styles.chevronOpen : ''}`}>
+                        <ChevronDown size={16} />
+                      </span>
+                    </button>
+ 
+                    <div className={`${styles.subMenu} ${rolesOpen ? styles.subMenuOpen : ''}`}>
+                      <ul className={styles.subMenuList}>
+                        {rolesSubModules
+                          .filter((sub) => {
+                            if (isAdmin) return true;
+                            if (sub.path === '/dashboard/roles/assign-user') {
+                              return sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.id === 999));
+                            }
+                            return false;
+                          })
+                          .map((sub) => {
+                            const isSubActive = pathname === sub.path;
+                            return (
+                              <li key={sub.path}>
+                                <Link
+                                  href={sub.path}
+                                  className={`${styles.subMenuItem} ${isSubActive ? styles.subMenuItemActive : ''}`}
+                                >
+                                  <span className={styles.subIcon}>{sub.icon}</span>
+                                  <span>{sub.name}</span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    </div>
+                  </li>
+                )}
+
+                {hasReports && (
                   <li>
                     <Link
                       href="/dashboard/roles/reports"
