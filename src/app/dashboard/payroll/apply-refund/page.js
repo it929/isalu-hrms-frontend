@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
@@ -29,6 +29,25 @@ function fmt(n) {
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function formatDateDMY(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const str = String(dateStr).trim();
+    const ymdMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (ymdMatch) {
+      return `${ymdMatch[3]}/${ymdMatch[2]}/${ymdMatch[1]}`;
+    }
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return str;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function ApplyRefundPage() {
   // Loading & Toast States
   const [loading, setLoading] = useState(false);
@@ -40,6 +59,9 @@ export default function ApplyRefundPage() {
   const [staffList, setStaffList] = useState([]);
   const [records, setRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   // Dropdown Autocomplete Staff State
   const [dropdownSearch, setDropdownSearch] = useState('');
@@ -61,6 +83,8 @@ export default function ApplyRefundPage() {
   const [confirmDelete, setConfirmDelete] = useState(null); // id of record to delete
   const [actionLoading, setActionLoading] = useState(false);
   const [detailRecord, setDetailRecord] = useState(null); // record for detailed view modal
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   
   // Approval Modal State
   const [approvalModal, setApprovalModal] = useState({
@@ -406,15 +430,47 @@ export default function ApplyRefundPage() {
 
   // Filter and paginated records
   const filteredRecords = records.filter(r => {
-    if (selectedStaff && String(r.staff_id) !== String(selectedStaff.id)) {
-      return false;
+    // 1. Search Query
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = r.name ? String(r.name).toLowerCase().includes(q) : false;
+      const staffIdMatch = r.staff_id ? String(r.staff_id).toLowerCase().includes(q) : false;
+      const reasonMatch = r.reason ? String(r.reason).toLowerCase().includes(q) : false;
+      const deptMatch = r.department ? String(r.department).toLowerCase().includes(q) : false;
+      if (!nameMatch && !staffIdMatch && !reasonMatch && !deptMatch) {
+        return false;
+      }
     }
-    return (
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.staff_id && r.staff_id.toString().includes(searchQuery)) ||
-      r.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.department && r.department.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+
+    // 2. Date filter (parse r.refund_date or r.created_at)
+    if (filterStartDate) {
+      const start = new Date(filterStartDate);
+      const applied = r.refund_date ? new Date(r.refund_date) : (r.created_at ? new Date(r.created_at) : null);
+      if (applied) {
+        start.setHours(0, 0, 0, 0);
+        applied.setHours(0, 0, 0, 0);
+        if (applied < start) return false;
+      }
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate);
+      const applied = r.refund_date ? new Date(r.refund_date) : (r.created_at ? new Date(r.created_at) : null);
+      if (applied) {
+        end.setHours(0, 0, 0, 0);
+        applied.setHours(0, 0, 0, 0);
+        if (applied > end) return false;
+      }
+    }
+
+    // 3. Status filter (0 = Pending, 1 = Approved/Paid, 2 = Rejected)
+    if (filterStatus !== 'all') {
+      const statusNum = Number(r.status);
+      if (filterStatus === 'pending' && statusNum !== 0) return false;
+      if (filterStatus === 'approved' && statusNum !== 1) return false;
+      if (filterStatus === 'rejected' && statusNum !== 2) return false;
+    }
+
+    return true;
   });
 
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
@@ -429,6 +485,10 @@ export default function ApplyRefundPage() {
     if (canSelectStaff) return true;
     if (userCtx.isHod && userCtx.employee) {
       const empId = userCtx.employee.ID ?? userCtx.employee.id;
+      const empDeptId = userCtx.employee.departmentID ?? userCtx.employee.department_id;
+      if (empDeptId && row.departmentID) {
+        return String(row.departmentID) === String(empDeptId);
+      }
       return row.department === userCtx.employee.department || String(row.staff_id) === String(empId);
     }
     return false;
@@ -436,7 +496,7 @@ export default function ApplyRefundPage() {
 
   const canRecommendHR = (row) => {
     if (row.status !== 0 || row.hod_status !== 1 || row.admin_status !== 0) return false;
-    return canSelectStaff;
+    return canSelectStaff || userCtx.isAdminStaff;
   };
 
   const canApproveAudit = (row) => {
@@ -447,6 +507,64 @@ export default function ApplyRefundPage() {
   const canApproveFinance = (row) => {
     if (row.status !== 0 || row.audit_status !== 1 || row.finance_status !== 0) return false;
     return canSelectStaff || userCtx.isFinanceStaff;
+  };
+
+  const getApprovalLevel = (row) => {
+    if (canRecommendHOD(row)) return 'hod';
+    if (canRecommendHR(row)) return 'hr';
+    if (canApproveAudit(row)) return 'audit';
+    if (canApproveFinance(row)) return 'finance';
+    return null;
+  };
+
+  const eligibleRecords = filteredRecords.filter(r => getApprovalLevel(r) !== null);
+  const isAllEligibleSelected = eligibleRecords.length > 0 && eligibleRecords.every(r => selectedIds.includes(r.id));
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return;
+
+    setActionLoading(true);
+    const headers = buildHeaders();
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      const row = records.find(r => r.id === id);
+      if (!row) continue;
+
+      const level = getApprovalLevel(row);
+      if (!level) {
+        failCount++;
+        continue;
+      }
+
+      const actionUrl = `${API_BASE}/payroll/refunds/${level}-approve/${id}?remarks=${encodeURIComponent('Bulk approved')}`;
+      try {
+        const res = await axios.get(actionUrl, { headers });
+        if (res.data.status === 'success') {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      showToast(`Successfully approved ${successCount} refund application(s).${failCount > 0 ? ` Failed: ${failCount}` : ''}`);
+      if (typeof window !== 'undefined') {
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.startsWith('hrms_')) sessionStorage.removeItem(key);
+        });
+      }
+      setSelectedIds([]);
+      fetchRecords(true);
+    } else {
+      showToast('Failed to approve selected refund application(s).', 'error');
+    }
+    setShowBulkApproveModal(false);
+    setActionLoading(false);
   };
 
   // Helper for overall application status badge mapping
@@ -496,13 +614,13 @@ export default function ApplyRefundPage() {
       )}
 
       {/* Header */}
-      <div className={styles.header}>
+      <div className={`${styles.header} ${styles.noPrint}`}>
         <h1 className={styles.title}>Apply for Refund</h1>
         <p className={styles.subtitle}>Submit salary or expense refund applications for approval.</p>
       </div>
 
       {/* Form Card */}
-      <div className={styles.card}>
+      <div className={`${styles.card} ${styles.noPrint}`}>
         <div className={styles.cardHeader}>
           <h2 className={styles.cardTitle}>
             {editId ? 'Modify Refund Application' : 'New Refund Request'}
@@ -644,19 +762,42 @@ export default function ApplyRefundPage() {
       </div>
 
       {/* Directory Records List */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
+      <div className={`${styles.card} ${styles.printCard}`}>
+        <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 className={styles.cardTitle}>Refund Registry</h2>
+          <div className={styles.noPrint} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {selectedIds.length > 0 && (
+              <button
+                type="button"
+                className={styles.submitBtn}
+                style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', padding: '0.4rem 0.85rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                onClick={() => setShowBulkApproveModal(true)}
+                disabled={actionLoading}
+              >
+                {actionLoading ? <Loader2 className={styles.loadingSpinner} size={15} /> : <CheckCircle2 size={15} />}
+                Approve Selected ({selectedIds.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              onClick={() => window.print()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.85rem', fontSize: '0.82rem' }}
+            >
+              <Printer size={15} />
+              Print Refund Registry
+            </button>
+          </div>
         </div>
 
-        {/* Search tool */}
-        <div className={styles.searchBar}>
-          <div className={styles.searchInputWrapper}>
-            <Search className={styles.searchIcon} />
+        {/* ── Filters Bar ── */}
+        <div className={`${styles.filterBar} ${styles.noPrint}`}>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Search:</span>
             <input
               type="text"
-              placeholder="Search table by employee, reason..."
-              className={styles.searchInput}
+              placeholder="Search employee, ID, department..."
+              className={styles.filterInput}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -664,6 +805,62 @@ export default function ApplyRefundPage() {
               }}
             />
           </div>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>From:</span>
+            <input
+              type="date"
+              className={styles.filterInput}
+              value={filterStartDate}
+              onChange={(e) => {
+                setFilterStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>To:</span>
+            <input
+              type="date"
+              className={styles.filterInput}
+              value={filterEndDate}
+              onChange={(e) => {
+                setFilterEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Status:</span>
+            <select
+              className={styles.filterSelect}
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved / Paid</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery) && (
+            <button
+              type="button"
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', height: 'fit-content' }}
+              onClick={() => {
+                setFilterStartDate('');
+                setFilterEndDate('');
+                setFilterStatus('all');
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
 
         {/* List Table */}
@@ -683,6 +880,21 @@ export default function ApplyRefundPage() {
               <table className={styles.table}>
                 <thead>
                   <tr>
+                    <th style={{ width: '40px' }}>
+                      <input
+                        type="checkbox"
+                        checked={isAllEligibleSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const newIds = [...new Set([...selectedIds, ...eligibleRecords.map(r => r.id)])];
+                            setSelectedIds(newIds);
+                          } else {
+                            const eligibleSet = new Set(eligibleRecords.map(r => r.id));
+                            setSelectedIds(selectedIds.filter(id => !eligibleSet.has(id)));
+                          }
+                        }}
+                      />
+                    </th>
                     <th>Staff Profile</th>
                     <th>Dept.</th>
                     <th>Requested</th>
@@ -699,9 +911,27 @@ export default function ApplyRefundPage() {
                     const isOwnRow = empId && String(row.staff_id) === String(empId);
                     const canEditRow = rowPending && (canSelectStaff || isOwnRow);
                     const canDeleteRow = rowPending && (canSelectStaff || isOwnRow);
+                    const canApproveRowLevel = getApprovalLevel(row);
 
                     return (
                       <tr key={row.id}>
+                        <td>
+                          {canApproveRowLevel !== null ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(row.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedIds(prev => [...prev, row.id]);
+                                } else {
+                                  setSelectedIds(prev => prev.filter(id => id !== row.id));
+                                }
+                              }}
+                            />
+                          ) : (
+                            <input type="checkbox" disabled style={{ opacity: 0.3 }} />
+                          )}
+                        </td>
                         <td>
                           <div className={styles.staffCell}>
                             <span className={styles.staffName}>{row.name}</span>
@@ -710,7 +940,7 @@ export default function ApplyRefundPage() {
                         </td>
                         <td>{row.department || '—'}</td>
                         <td style={{ fontWeight: 600 }}>₦{fmt(row.amount)}</td>
-                        <td>{row.refund_date}</td>
+                        <td>{formatDateDMY(row.refund_date)}</td>
                         <td>{getOverallBadge(row.status)}</td>
                         <td>
                           <div className={styles.tierBadgeContainer}>
@@ -922,7 +1152,7 @@ export default function ApplyRefundPage() {
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Application Date</span>
-                    <span className={styles.detailValue}>{detailRecord.refund_date}</span>
+                    <span className={styles.detailValue}>{formatDateDMY(detailRecord.refund_date)}</span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Overall Status</span>
@@ -932,25 +1162,25 @@ export default function ApplyRefundPage() {
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>HOD Status Details</span>
                     <span className={styles.detailValue}>
-                      {detailRecord.hod_status === 1 ? `Approved by ${detailRecord.hod_name || 'HOD'} on ${detailRecord.hod_date || '—'}` : detailRecord.hod_status === 2 ? 'Rejected' : 'Pending'}
+                      {detailRecord.hod_status === 1 ? `Approved by ${detailRecord.hod_name || 'HOD'} on ${formatDateDMY(detailRecord.hod_date)}` : detailRecord.hod_status === 2 ? 'Rejected' : 'Pending'}
                     </span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>HR Status Details</span>
                     <span className={styles.detailValue}>
-                      {detailRecord.admin_status === 1 ? `Approved by ${detailRecord.admin_name || 'HR Admin'} on ${detailRecord.admin_date || '—'}` : detailRecord.admin_status === 2 ? 'Rejected' : 'Pending'}
+                      {detailRecord.admin_status === 1 ? `Approved by ${detailRecord.admin_name || 'HR Admin'} on ${formatDateDMY(detailRecord.admin_date)}` : detailRecord.admin_status === 2 ? 'Rejected' : 'Pending'}
                     </span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Audit Status Details</span>
                     <span className={styles.detailValue}>
-                      {detailRecord.audit_status === 1 ? `Approved by ${detailRecord.audit_name || 'Audit Staff'} on ${detailRecord.audit_date || '—'}` : detailRecord.audit_status === 2 ? 'Rejected' : 'Pending'}
+                      {detailRecord.audit_status === 1 ? `Approved by ${detailRecord.audit_name || 'Audit Staff'} on ${formatDateDMY(detailRecord.audit_date)}` : detailRecord.audit_status === 2 ? 'Rejected' : 'Pending'}
                     </span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Finance Status Details</span>
                     <span className={styles.detailValue}>
-                      {detailRecord.finance_status === 1 ? `Paid by ${detailRecord.finance_name || 'Finance Staff'} on ${detailRecord.finance_date || '—'}` : detailRecord.finance_status === 2 ? 'Rejected' : 'Pending'}
+                      {detailRecord.finance_status === 1 ? `Paid by ${detailRecord.finance_name || 'Finance Staff'} on ${formatDateDMY(detailRecord.finance_date)}` : detailRecord.finance_status === 2 ? 'Rejected' : 'Pending'}
                     </span>
                   </div>
 
@@ -1085,6 +1315,52 @@ export default function ApplyRefundPage() {
                     ? (approvalModal.level === 'Finance' ? 'Confirm Payment' : 'Confirm Approval') 
                     : 'Confirm Rejection'}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Approval Confirmation Modal */}
+      <AnimatePresence>
+        {showBulkApproveModal && (
+          <div className={styles.modalOverlay} onClick={() => setShowBulkApproveModal(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className={styles.modalBox}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.confirmBox}>
+                <div className={`${styles.confirmIcon} ${styles.confirmIconGreen}`}>
+                  <CheckCircle2 size={32} />
+                </div>
+                <h3 className={styles.cardTitle} style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
+                  Bulk Approve Refund Requests
+                </h3>
+                <p className={styles.confirmMsg}>
+                  Are you sure you want to approve <strong>{selectedIds.length}</strong> selected refund application(s) at your assigned authorization level?
+                </p>
+
+                <div className={styles.confirmActions}>
+                  <button
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={() => setShowBulkApproveModal(false)}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className={`${styles.confirmActionBtn} ${styles.successBtn}`}
+                    onClick={handleBulkApprove}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? <Loader2 className={styles.loadingSpinner} size={16} /> : null}
+                    {actionLoading ? 'Processing Bulk Approvals...' : `Approve ${selectedIds.length} Application(s)`}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

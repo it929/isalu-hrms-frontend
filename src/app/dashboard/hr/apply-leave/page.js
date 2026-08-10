@@ -52,6 +52,21 @@ function statusBadge(status) {
   }
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const clean = String(dateStr).split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const mIdx = parseInt(month, 10) - 1;
+    if (mIdx >= 0 && mIdx < 12) {
+      return `${parseInt(day, 10).toString().padStart(2, '0')} ${months[mIdx]}, ${year}`;
+    }
+  }
+  return dateStr;
+}
+
 // ── In-Memory Client Cache ───────────────────────────────────────────────────
 // These persist across client-side page navigations inside the Next.js single-page-app
 let cachedPageData = null;
@@ -683,6 +698,8 @@ export default function ApplyLeavePage() {
                     <th>Staff Name</th>
                     <th>Department</th>
                     <th>Leave Type</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
                     <th>Duration</th>
                     <th>Date Applied</th>
                     <th>Status</th>
@@ -692,7 +709,7 @@ export default function ApplyLeavePage() {
                 <tbody>
                   {tableLoading ? (
                     <tr>
-                      <td colSpan={showCheckboxes ? 9 : 8} className={styles.emptyRow}>
+                      <td colSpan={showCheckboxes ? 11 : 10} className={styles.emptyRow}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                           <Loader2 size={16} className={styles.spinner} />
                           <span>Loading leave records…</span>
@@ -701,7 +718,7 @@ export default function ApplyLeavePage() {
                     </tr>
                   ) : filteredRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={showCheckboxes ? 9 : 8} className={styles.emptyRow}>
+                      <td colSpan={showCheckboxes ? 11 : 10} className={styles.emptyRow}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '1.5rem 0' }}>
                           <Calendar size={32} strokeWidth={1.5} style={{ color: 'var(--secondary)' }} />
                           <span style={{ color: 'var(--secondary)' }}>No leave records found.</span>
@@ -743,6 +760,8 @@ export default function ApplyLeavePage() {
                           </td>
                           <td>{rec.department}</td>
                           <td>{rec.leaveType}</td>
+                          <td>{formatDate(rec.start_date)}</td>
+                          <td>{formatDate(rec.end_date)}</td>
                           <td>{rec.duration_days} day{rec.duration_days !== 1 ? 's' : ''}</td>
                           <td>{rec.date_applied}</td>
                           <td>
@@ -863,11 +882,11 @@ export default function ApplyLeavePage() {
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Start Date</span>
-                    <span className={styles.detailValue}>{viewRecord.start_date}</span>
+                    <span className={styles.detailValue}>{formatDate(viewRecord.start_date)}</span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>End Date</span>
-                    <span className={styles.detailValue}>{viewRecord.end_date}</span>
+                    <span className={styles.detailValue}>{formatDate(viewRecord.end_date)}</span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Duration</span>

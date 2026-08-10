@@ -29,6 +29,7 @@ import {
   Lock,
   Layers,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import NairaSign from '../ui/NairaSign';
 import styles from './Sidebar.module.css';
@@ -86,6 +87,7 @@ export default function Sidebar() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isHod, setIsHod] = useState(false);
+  const [isActualHod, setIsActualHod] = useState(false);
   const [isHr, setIsHr] = useState(false);
   const [openDropdowns, setOpenDropdowns] = useState({});
   const [rolesOpen, setRolesOpen] = useState(pathname.startsWith('/dashboard/roles'));
@@ -133,6 +135,7 @@ export default function Sidebar() {
           setSidebarData(parsed.sidebar || []);
           setIsAdmin(!!parsed.is_admin);
           setIsHod(!!parsed.is_hod);
+          setIsActualHod(!!parsed.is_actual_hod);
           setIsHr(!!parsed.is_hr);
           setLoading(false);
           hasCache = true;
@@ -160,12 +163,14 @@ export default function Sidebar() {
           setSidebarData(res.data.sidebar || []);
           setIsAdmin(!!res.data.is_admin);
           setIsHod(!!res.data.is_hod);
+          setIsActualHod(!!res.data.is_actual_hod);
           setIsHr(!!res.data.is_hr);
           if (cacheKey && typeof window !== 'undefined') {
             sessionStorage.setItem(cacheKey, JSON.stringify({
               sidebar: res.data.sidebar || [],
               is_admin: !!res.data.is_admin,
               is_hod: !!res.data.is_hod,
+              is_actual_hod: !!res.data.is_actual_hod,
               is_hr: !!res.data.is_hr
             }));
           }
@@ -212,6 +217,12 @@ export default function Sidebar() {
     }
     groupedModules[type].push(item);
   });
+
+  const hasAiAnalyst = isAdmin || sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.path?.includes('ai-analyst')));
+  const hasDocGen = isAdmin || sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.path?.includes('document-generator')));
+  const hasReports = isAdmin || sidebarData.some(m => m.moduleID === 56 || getSubmodulesList(m.submodules).some(s => s.path?.includes('dashboard/roles/reports')));
+  const hasRoleMgmt = isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || getSubmodulesList(m.submodules).some(s => s.id === 999));
+  const hasSecurityGroup = hasAiAnalyst || hasDocGen || hasReports || hasRoleMgmt;
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
@@ -288,8 +299,8 @@ export default function Sidebar() {
             ))
           )}
  
-          {/* Role Management Module with dropdown - visible statically to Admins or if delegated Assign User */}
-          {(isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || m.moduleID === 56 || getSubmodulesList(m.submodules).some(s => s.path?.includes('dashboard/roles/reports')))) && !loading && (
+          {/* SECURITY & ROLES section - renders AI Analyst, AI Document Generator, Role Management and Reports */}
+          {hasSecurityGroup && !loading && (
             <div className={styles.groupContainer}>
               {!isCollapsed && (
                 <div className={styles.groupHeader}>
@@ -297,49 +308,74 @@ export default function Sidebar() {
                 </div>
               )}
               <ul className={styles.groupList}>
-                <li>
-                  <button
-                    className={`${styles.menuItem} ${styles.menuItemBtn} ${(isRolesActive && pathname !== '/dashboard/roles/reports') ? styles.active : ''}`}
-                    onClick={() => setRolesOpen((prev) => !prev)}
-                    aria-expanded={rolesOpen}
-                  >
-                    <span className={styles.icon}><ShieldCheck size={20} /></span>
-                    <span className={styles.text}>Role Management</span>
-                    <span className={`${styles.chevron} ${rolesOpen ? styles.chevronOpen : ''}`}>
-                      <ChevronDown size={16} />
-                    </span>
-                  </button>
- 
-                  <div className={`${styles.subMenu} ${rolesOpen ? styles.subMenuOpen : ''}`}>
-                    <ul className={styles.subMenuList}>
-                      {rolesSubModules
-                        .filter((sub) => {
-                          if (isAdmin) return true;
-                          // If delegated, only show the Assign User (Assign Role) link
-                          if (sub.path === '/dashboard/roles/assign-user') {
-                            return sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.id === 999));
-                          }
-                          return false;
-                        })
-                        .map((sub) => {
-                          const isSubActive = pathname === sub.path;
-                          return (
-                            <li key={sub.path}>
-                              <Link
-                                href={sub.path}
-                                className={`${styles.subMenuItem} ${isSubActive ? styles.subMenuItemActive : ''}`}
-                              >
-                                <span className={styles.subIcon}>{sub.icon}</span>
-                                <span>{sub.name}</span>
-                              </Link>
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  </div>
-                </li>
+                {hasAiAnalyst && (
+                  <li>
+                    <Link
+                      href="/dashboard/hr/ai-analyst"
+                      className={`${styles.menuItem} ${pathname === '/dashboard/hr/ai-analyst' ? styles.active : ''}`}
+                    >
+                      <span className={styles.icon}><Sparkles size={20} style={{ color: '#3b82f6' }} /></span>
+                      <span className={styles.text}>Ask AI Data Analyst</span>
+                    </Link>
+                  </li>
+                )}
 
-                {(isAdmin || sidebarData.some(m => m.moduleID === 56 || m.submodules?.some(s => s.path?.includes('dashboard/roles/reports')))) && (
+                {hasDocGen && (
+                  <li>
+                    <Link
+                      href="/dashboard/hr/document-generator"
+                      className={`${styles.menuItem} ${pathname === '/dashboard/hr/document-generator' ? styles.active : ''}`}
+                    >
+                      <span className={styles.icon}><Sparkles size={20} style={{ color: '#10b981' }} /></span>
+                      <span className={styles.text}>AI Document Generator</span>
+                    </Link>
+                  </li>
+                )}
+
+                {hasRoleMgmt && (
+                  <li>
+                    <button
+                      className={`${styles.menuItem} ${styles.menuItemBtn} ${(isRolesActive && pathname !== '/dashboard/roles/reports') ? styles.active : ''}`}
+                      onClick={() => setRolesOpen((prev) => !prev)}
+                      aria-expanded={rolesOpen}
+                    >
+                      <span className={styles.icon}><ShieldCheck size={20} /></span>
+                      <span className={styles.text}>Role Management</span>
+                      <span className={`${styles.chevron} ${rolesOpen ? styles.chevronOpen : ''}`}>
+                        <ChevronDown size={16} />
+                      </span>
+                    </button>
+ 
+                    <div className={`${styles.subMenu} ${rolesOpen ? styles.subMenuOpen : ''}`}>
+                      <ul className={styles.subMenuList}>
+                        {rolesSubModules
+                          .filter((sub) => {
+                            if (isAdmin) return true;
+                            if (sub.path === '/dashboard/roles/assign-user') {
+                              return sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.id === 999));
+                            }
+                            return false;
+                          })
+                          .map((sub) => {
+                            const isSubActive = pathname === sub.path;
+                            return (
+                              <li key={sub.path}>
+                                <Link
+                                  href={sub.path}
+                                  className={`${styles.subMenuItem} ${isSubActive ? styles.subMenuItemActive : ''}`}
+                                >
+                                  <span className={styles.subIcon}>{sub.icon}</span>
+                                  <span>{sub.name}</span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    </div>
+                  </li>
+                )}
+
+                {hasReports && (
                   <li>
                     <Link
                       href="/dashboard/roles/reports"
@@ -354,8 +390,8 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* HOD Menu - visible statically to HODs */}
-          {isHod && !loading && (
+          {/* HOD Menu - visible only to actual HODs (not delegated staff) */}
+          {isActualHod && !loading && (
             <div className={styles.groupContainer}>
               {!isCollapsed && (
                 <div className={styles.groupHeader}>

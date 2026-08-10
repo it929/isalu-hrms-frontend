@@ -508,21 +508,21 @@
 }
 
 .badgeFinanceApproved {
-  background: rgba(139, 92, 246, 0.1);
-  color: #6d28d9;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .badgeHrApproved {
-  background: rgba(14, 165, 233, 0.1);
-  color: #0369a1;
-  border: 1px solid rgba(14, 165, 233, 0.2);
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .badgeAuditApproved {
-  background: rgba(245, 158, 11, 0.1);
-  color: #b45309;
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .actionGroup {
@@ -881,9 +881,7 @@
     size: portrait;
     margin: 10mm;
   }
-  body * {
-    visibility: hidden;
-  }
+
   .printCard,
   .printCard * {
     visibility: visible;
