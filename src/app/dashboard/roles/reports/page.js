@@ -961,7 +961,7 @@ export default function ReportsDashboard() {
   const currentCategoryCatalog = reportsCatalog.filter(r => r.categoryId === activeCategory);
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} printCard paperContainer`}>
       {/* Toast Alert */}
       <AnimatePresence>
         {toast && (
@@ -1084,7 +1084,37 @@ export default function ReportsDashboard() {
                       className={styles.searchInput}
                       placeholder="Search name, ID, dept..."
                       value={profileSearchQuery}
-                      onChange={(e) => setProfileSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileSearchQuery(val);
+                        const q = val.toLowerCase().trim();
+                        if (q) {
+                          const filtered = staffList.filter(s => 
+                            (s.name && s.name.toLowerCase().includes(q)) || 
+                            (s.id && String(s.id).toLowerCase().includes(q)) || 
+                            (s.department && s.department.toLowerCase().includes(q)) ||
+                            (s.fileNo && String(s.fileNo).toLowerCase().includes(q))
+                          );
+                          if (filtered.length > 0) {
+                            const exactMatch = filtered.find(s => 
+                              String(s.id).toLowerCase() === q || 
+                              (s.fileNo && String(s.fileNo).toLowerCase() === q) ||
+                              (s.name && s.name.toLowerCase() === q)
+                            );
+                            const targetStaff = exactMatch || filtered[0];
+                            if (targetStaff && targetStaff.id !== selectedStaffId) {
+                              setSelectedStaffId(targetStaff.id);
+                              handleLoadEmployeeProfile(targetStaff.id);
+                            }
+                          } else {
+                            setSelectedStaffId('');
+                            setProfileData(null);
+                          }
+                        } else {
+                          setSelectedStaffId('');
+                          setProfileData(null);
+                        }
+                      }}
                       style={{ padding: '0.4rem', border: '1px solid var(--border)', borderRadius: '4px', maxWidth: '200px' }}
                     />
                     <select
@@ -1179,7 +1209,7 @@ export default function ReportsDashboard() {
                             <span className={styles.fieldLabel}>Email Address</span>
                             <span className={styles.fieldValue}>{profileData.staffFullDetails?.email || '—'}</span>
                           </div>
-                          <div className={styles.profileField}>
+                          <div className={styles.profileField} style={{ gridColumn: 'span 2' }}>
                             <span className={styles.fieldLabel}>Contact Address</span>
                             <span className={styles.fieldValue}>{profileData.staffFullDetails?.home_address || '—'}</span>
                           </div>
@@ -1360,7 +1390,37 @@ export default function ReportsDashboard() {
                       className={styles.searchInput}
                       placeholder="Search name, ID, dept..."
                       value={leaveSearchQuery}
-                      onChange={(e) => setLeaveSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLeaveSearchQuery(val);
+                        const q = val.toLowerCase().trim();
+                        if (q) {
+                          const filtered = staffList.filter(s => 
+                            (s.name && s.name.toLowerCase().includes(q)) || 
+                            (s.id && String(s.id).toLowerCase().includes(q)) || 
+                            (s.department && s.department.toLowerCase().includes(q)) ||
+                            (s.fileNo && String(s.fileNo).toLowerCase().includes(q))
+                          );
+                          if (filtered.length > 0) {
+                            const exactMatch = filtered.find(s => 
+                              String(s.id).toLowerCase() === q || 
+                              (s.fileNo && String(s.fileNo).toLowerCase() === q) ||
+                              (s.name && s.name.toLowerCase() === q)
+                            );
+                            const targetStaff = exactMatch || filtered[0];
+                            if (targetStaff && targetStaff.id !== selectedStaffId) {
+                              setSelectedStaffId(targetStaff.id);
+                              handleLoadLeaveBalance(targetStaff.id);
+                            }
+                          } else {
+                            setSelectedStaffId('');
+                            setLeaveBalanceStaff(null);
+                          }
+                        } else {
+                          setSelectedStaffId('');
+                          setLeaveBalanceStaff(null);
+                        }
+                      }}
                       style={{ padding: '0.4rem', border: '1px solid var(--border)', borderRadius: '4px', maxWidth: '200px' }}
                     />
                     <select

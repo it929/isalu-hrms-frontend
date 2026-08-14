@@ -390,13 +390,21 @@
 
 /* ─── Print Styles ─── */
 @media print {
-  /* Hide navbar, sidebar, controls card and action buttons */
-  :global(header), :global(aside), .controlsCard, .actions, :global(.navbar), :global(.sidebar) {
-    display: none !important;
+  .container,
+  .container * {
+    visibility: visible !important;
   }
-  
-  /* Reset all potential ancestor scroll/flex boundaries to normal block layout */
-  :global(html), :global(body), :global(#__next), :global([class*="layout"]), :global([class*="mainContainer"]), :global(main), :global([class*="pageWrapper"]) {
+
+  .container header,
+  .container aside,
+  .controlsCard,
+  .actions {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Reset container properties for clean printable layout */
+  .container {
     display: block !important;
     height: auto !important;
     min-height: auto !important;
@@ -406,15 +414,7 @@
     margin: 0 !important;
     background: #fff !important;
     width: 100% !important;
-  }
-
-  /* Reset container properties for clean printable layout */
-  .container {
-    padding: 0 !important;
-    margin: 0 !important;
     max-width: 100% !important;
-    width: 100% !important;
-    background: transparent !important;
   }
 
   .payslipWrapper {
