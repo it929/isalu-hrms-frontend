@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
   Users,
@@ -16,6 +15,8 @@ import {
   Landmark,
   ShieldCheck,
   ShieldAlert,
+  Check,
+  X,
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -48,10 +49,10 @@ export default function RetentionActivationPage() {
   // Data States
   const [staffRecords, setStaffRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  // Record limit state (replaces pagination)
+  const [recordsLimit, setRecordsLimit] = useState('10');
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -144,6 +145,40 @@ export default function RetentionActivationPage() {
     }
   };
 
+  // Handle Bulk Toggle Retention Status
+  const handleBulkToggleRetention = async (targetStatus) => {
+    if (selectedIds.length === 0 || saving) return;
+
+    setSaving(true);
+    // Optimistic UI update
+    const originalRecords = [...staffRecords];
+    setStaffRecords(prev =>
+      prev.map(r => selectedIds.includes(r.id) ? { ...r, reten_act: targetStatus } : r)
+    );
+
+    const headers = buildHeaders();
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/retention-activation/bulk-toggle`, {
+        staff_ids: selectedIds,
+        reten_act: targetStatus
+      }, { headers });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || `Successfully ${targetStatus === 1 ? 'activated' : 'deactivated'} retention for ${selectedIds.length} staff.`);
+        setSelectedIds([]);
+        fetchData(true); // silent refresh
+      } else {
+        setStaffRecords(originalRecords); // rollback
+        showToast(res.data.message || 'Bulk update failed.', 'error');
+      }
+    } catch (err) {
+      setStaffRecords(originalRecords); // rollback
+      showToast(err.response?.data?.message || 'Server error during bulk update.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Drag and drop event handlers
   const handleDrag = (e) => {
     e.preventDefault();
@@ -220,26 +255,26 @@ export default function RetentionActivationPage() {
   const handleDownloadTemplate = () => {
     const headers = [
       'staffId',
-      'gross_salary',
-      'num_reten_months',
-      'reten_act'
+      'first_salary',
+      'total_deducted',
+      'balance_to_be_deducted'
     ];
     const sampleRow = [
       '1',
-      '250000.00',
-      '0',
-      '1'
+      '200000.00',
+      '20000.00',
+      '180000.00'
     ];
-    const csvContent = "data:text/csv;charset=utf-8," 
+    const csvContent = "data:text/csv;charset=utf-8,"
       + [headers.join(','), sampleRow.join(',')].join('\n');
-    
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "retention_activation_template.csv");
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     showToast('Downloaded Excel template CSV!');
   };
 
@@ -255,19 +290,15 @@ export default function RetentionActivationPage() {
   const totalPersonnel = staffRecords.length;
   const activeRetentionCount = staffRecords.filter(r => r.reten_act === 1).length;
   const inactiveRetentionCount = totalPersonnel - activeRetentionCount;
+  const totalRetentionDeducted = staffRecords.reduce((acc, r) => acc + (parseFloat(r.total_retention_deducted) || 0), 0);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedRecords = filteredRecords.slice(startIndex, startIndex + itemsPerPage);
+  // Record limit calculation
+  const displayedRecords = recordsLimit === 'all'
+    ? filteredRecords
+    : filteredRecords.slice(0, parseInt(recordsLimit, 10));
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className={styles.container}
-    >
+    <div className={styles.container}>
       {/* Toast Feedback */}
       {toast && (
         <div className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
@@ -290,10 +321,7 @@ export default function RetentionActivationPage() {
       <div className={styles.tabs}>
         <button
           className={`${styles.tabBtn} ${activeTab === 'manual' ? styles.activeTabBtn : ''}`}
-          onClick={() => {
-            setActiveTab('manual');
-            setCurrentPage(1);
-          }}
+          onClick={() => setActiveTab('manual')}
         >
           <Users size={16} />
           Manual Retention Setup
@@ -338,36 +366,132 @@ export default function RetentionActivationPage() {
             <div className={styles.statValue}>{inactiveRetentionCount.toLocaleString()}</div>
           </div>
         </div>
+
+        <div className={styles.statCard}>
+          <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>
+            <Landmark size={22} color="#fff" />
+          </div>
+          <div className={styles.statInfo}>
+            <div className={styles.statLabel}>Total Deducted (₦)</div>
+            <div className={styles.statValue}>
+              ₦{totalRetentionDeducted.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Tab Panels */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'manual' ? (
-          <motion.div
-            key="manual"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            transition={{ duration: 0.2 }}
-            className={styles.tableCard}
-          >
+      {activeTab === 'manual' ? (
+        <div className={styles.tableCard}>
             <div className={styles.tableHeader}>
-              <h2 className={styles.tableTitle}>
-                <FileText size={18} />
-                Personnel Retention Registry
-              </h2>
-              <div className={styles.tableSearch}>
-                <Search size={16} className={styles.tableSearchIcon} />
-                <input
-                  type="text"
-                  placeholder="Search by staff name, ID or file no..."
-                  className={styles.tableSearchInput}
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <h2 className={styles.tableTitle}>
+                  <FileText size={18} />
+                  Personnel Retention Registry
+                </h2>
+                {selectedIds.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkToggleRetention(1)}
+                      disabled={saving}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.4rem 0.85rem',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        background: '#10b981',
+                        color: '#fff',
+                        cursor: 'pointer',
+                      }}
+                      title="Activate retention for all selected staff"
+                    >
+                      <Check size={14} />
+                      Bulk Activate ({selectedIds.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkToggleRetention(0)}
+                      disabled={saving}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.4rem 0.85rem',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        background: '#fee2e2',
+                        color: '#b91c1c',
+                        cursor: 'pointer',
+                      }}
+                      title="Deactivate retention for all selected staff"
+                    >
+                      <X size={14} />
+                      Bulk Deactivate ({selectedIds.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds([])}
+                      disabled={saving}
+                      style={{
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        border: '1px solid var(--border, #e2e8f0)',
+                        background: 'transparent',
+                        color: 'var(--text-secondary, #64748b)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div className={styles.tableSearch}>
+                  <Search size={16} className={styles.tableSearchIcon} />
+                  <input
+                    type="text"
+                    placeholder="Search by staff name, ID or file no..."
+                    className={styles.tableSearchInput}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', color: 'var(--text-secondary, #64748b)' }}>
+                  <span style={{ fontWeight: 500 }}>Show:</span>
+                  <select
+                    value={recordsLimit}
+                    onChange={(e) => setRecordsLimit(e.target.value)}
+                    style={{
+                      padding: '0.4rem 0.5rem',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border, #e2e8f0)',
+                      background: 'var(--bg-primary, #fff)',
+                      color: 'var(--text-primary, #1e293b)',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="10">10 records</option>
+                    <option value="20">20 records</option>
+                    <option value="30">30 records</option>
+                    <option value="40">40 records</option>
+                    <option value="50">50 records</option>
+                    <option value="100">100 records</option>
+                    <option value="all">All Records</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -377,88 +501,149 @@ export default function RetentionActivationPage() {
                   <Loader2 size={40} className={styles.spinner} />
                   <span>Fetching personnel records...</span>
                 </div>
-              ) : paginatedRecords.length > 0 ? (
+              ) : displayedRecords.length > 0 ? (
                 <>
                   <table className={styles.table}>
-                     <thead>
-                       <tr>
-                         <th>Staff ID</th>
-                         <th>Staff Name</th>
-                         <th>Salary (₦)</th>
-                         <th>Retention Status</th>
-                         <th>Action</th>
-                       </tr>
-                     </thead>
-                     <tbody>
-                       {paginatedRecords.map((row) => (
-                         <tr key={row.id}>
-                           <td className={styles.tdPrimary}>#{row.id}</td>
-                           <td style={{ fontWeight: 600 }}>{row.name}</td>
-                           <td>
-                             {row.basic_salary > 0 
-                               ? `₦${row.basic_salary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                               : '₦0.00'
-                             }
-                           </td>
-                           <td>
-                             {row.reten_act === 1 ? (
-                               <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
-                             ) : (
-                               <span className={`${styles.badge} ${styles.badgeInactive}`}>Inactive</span>
-                             )}
-                           </td>
-                           <td>
-                             {row.reten_act === 1 ? (
-                               <button
-                                 type="button"
-                                 className={`${styles.actionBtn} ${styles.btnDeactivate}`}
-                                 onClick={() => handleToggleRetention(row.id, 1)}
-                                 disabled={saving}
-                               >
-                                 Deactivate
-                               </button>
-                             ) : (
-                               <button
-                                 type="button"
-                                 className={`${styles.actionBtn} ${styles.btnActivate}`}
-                                 onClick={() => handleToggleRetention(row.id, 0)}
-                                 disabled={saving}
-                               >
-                                 Activate
-                               </button>
-                             )}
-                           </td>
-                         </tr>
-                       ))}
-                     </tbody>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '40px', textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                            checked={
+                              displayedRecords.length > 0 &&
+                              displayedRecords.every(r => selectedIds.includes(r.id))
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedIds(prev => {
+                                  const next = [...prev];
+                                  displayedRecords.forEach(r => {
+                                    if (!next.includes(r.id)) next.push(r.id);
+                                  });
+                                  return next;
+                                });
+                              } else {
+                                setSelectedIds(prev =>
+                                  prev.filter(id => !displayedRecords.some(r => r.id === id))
+                                );
+                              }
+                            }}
+                            title="Select all on this view"
+                          />
+                        </th>
+                        <th>Staff ID</th>
+                        <th>Staff Name</th>
+                        <th>Salary (₦)</th>
+                        <th>Retention Status</th>
+                        <th>Total Deducted (₦)</th>
+                        <th>Remaining Months</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedRecords.map((row) => (
+                        <tr key={row.id}>
+                          <td style={{ width: '40px', textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                              checked={selectedIds.includes(row.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedIds(prev => [...prev, row.id]);
+                                } else {
+                                  setSelectedIds(prev => prev.filter(id => id !== row.id));
+                                }
+                              }}
+                            />
+                          </td>
+                          <td className={styles.tdPrimary}>{row.id}</td>
+                          <td style={{ fontWeight: 600 }}>{row.name}</td>
+                          <td>
+                            {row.basic_salary > 0
+                              ? `₦${row.basic_salary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : '₦0.00'
+                            }
+                          </td>
+                          <td>
+                            {row.reten_act === 1 ? (
+                              <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
+                            ) : (
+                              <span className={`${styles.badge} ${styles.badgeInactive}`}>Inactive</span>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: (row.total_retention_deducted > 0) ? 'var(--text-primary)' : 'var(--text-secondary, #64748b)' }}>
+                              {row.total_retention_deducted > 0
+                                ? `₦${Number(row.total_retention_deducted).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : '₦0.00'
+                              }
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #64748b)' }}>
+                              {row.num_rente_months || 0} of 20 mos
+                            </div>
+                          </td>
+                          <td>
+                            {row.reten_act === 1 ? (
+                              <div>
+                                <span style={{ fontWeight: 600, color: row.remaining_months === 0 ? '#10b981' : 'var(--text-primary)' }}>
+                                  {row.remaining_months !== undefined ? `${row.remaining_months} mos` : '—'}
+                                </span>
+                                {row.remaining_months > 0 && row.monthly_retention > 0 && (
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #64748b)', display: 'block' }}>
+                                    (₦{(row.remaining_months * row.monthly_retention).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} left)
+                                  </span>
+                                )}
+                                {row.remaining_months === 0 && (
+                                  <span style={{ fontSize: '0.72rem', color: '#10b981', display: 'block', fontWeight: 600 }}>
+                                    Completed (20/20)
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #94a3b8)' }}>
+                                Not Active
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            {row.reten_act === 1 ? (
+                              <button
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.btnDeactivate}`}
+                                onClick={() => handleToggleRetention(row.id, 1)}
+                                disabled={saving}
+                              >
+                                Deactivate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.btnActivate}`}
+                                onClick={() => handleToggleRetention(row.id, 0)}
+                                disabled={saving}
+                              >
+                                Activate
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
 
-                  {/* Client Pagination */}
-                  {totalPages > 1 && (
-                    <div className={styles.pagination}>
-                      <span className={styles.paginationText}>
-                        Showing {startIndex + 1} to {Math.min(filteredRecords.length, startIndex + itemsPerPage)} of {filteredRecords.length} records
+                  {/* Record Summary Footer */}
+                  <div className={styles.pagination} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className={styles.paginationText} style={{ fontWeight: 500 }}>
+                      Showing {displayedRecords.length} of {filteredRecords.length} records
+                    </span>
+                    {recordsLimit !== 'all' && filteredRecords.length > displayedRecords.length && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #64748b)' }}>
+                        (Select "All" or a larger limit in <strong>Show</strong> to view remaining)
                       </span>
-                      <div className={styles.paginationButtons}>
-                        <button
-                          className={styles.btnSecondary}
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                          disabled={currentPage === 1}
-                          onClick={() => setCurrentPage(prev => prev - 1)}
-                        >
-                          Prev
-                        </button>
-                        <button
-                          className={styles.btnSecondary}
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                          disabled={currentPage === totalPages}
-                          onClick={() => setCurrentPage(prev => prev + 1)}
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </>
               ) : (
                 <div className={styles.emptyState}>
@@ -468,16 +653,9 @@ export default function RetentionActivationPage() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
-            key="bulk"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
-            className={styles.formCard}
-          >
+          <div className={styles.formCard}>
             <h2 className={styles.cardTitle}>Spreadsheet Retention Import</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', marginTop: '-0.75rem' }}>
               Upload an Excel file (.xlsx, .xls) or CSV template listing Staff IDs to activate retention for multiple staff members simultaneously.
@@ -525,7 +703,7 @@ export default function RetentionActivationPage() {
                 Download CSV Column Template
               </button>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Required columns: <strong>staffId, gross_salary, num_reten_months, reten_act</strong>
+                Required columns: <strong>staffId, first_salary, total_deducted, balance_to_be_deducted</strong> (use <code>-</code> or <code>0</code> in balance if retention is completed)
               </span>
             </div>
 
@@ -543,9 +721,8 @@ export default function RetentionActivationPage() {
                 </ul>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

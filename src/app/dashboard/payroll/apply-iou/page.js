@@ -110,9 +110,8 @@ export default function ApplyIouPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // Client-side pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  // Record limit state (replaces pagination)
+  const [recordsLimit, setRecordsLimit] = useState('10');
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -656,9 +655,9 @@ export default function ApplyIouPage() {
     );
   });
 
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedRecords = filteredRecords.slice(startIndex, startIndex + itemsPerPage);
+  const displayedRecords = recordsLimit === 'all'
+    ? filteredRecords
+    : filteredRecords.slice(0, parseInt(recordsLimit, 10));
 
   const isFormDisabled = !canSelectStaff && selectedStaff && String(selectedStaff.id) !== String(userCtx.employee?.ID ?? userCtx.employee?.id);
 
@@ -1029,10 +1028,7 @@ export default function ApplyIouPage() {
               placeholder="Search table by employee, department, reason..."
               className={styles.searchInput}
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <div className={styles.dateFilterGroup}>
@@ -1041,10 +1037,7 @@ export default function ApplyIouPage() {
               type="date"
               className={styles.dateInput}
               value={filterStartDate}
-              onChange={(e) => {
-                setFilterStartDate(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setFilterStartDate(e.target.value)}
             />
           </div>
           <div className={styles.dateFilterGroup}>
@@ -1053,10 +1046,7 @@ export default function ApplyIouPage() {
               type="date"
               className={styles.dateInput}
               value={filterEndDate}
-              onChange={(e) => {
-                setFilterEndDate(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setFilterEndDate(e.target.value)}
             />
           </div>
           <div className={styles.dateFilterGroup}>
@@ -1065,10 +1055,7 @@ export default function ApplyIouPage() {
               className={styles.dateInput}
               style={{ minHeight: 'auto', padding: '0.4rem 0.5rem', cursor: 'pointer' }}
               value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
@@ -1076,7 +1063,24 @@ export default function ApplyIouPage() {
               <option value="rejected">Rejected</option>
             </select>
           </div>
-          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery) && (
+          <div className={styles.dateFilterGroup}>
+            <span>Show Records:</span>
+            <select
+              className={styles.dateInput}
+              style={{ minHeight: 'auto', padding: '0.4rem 0.5rem', cursor: 'pointer', fontWeight: 600 }}
+              value={recordsLimit}
+              onChange={(e) => setRecordsLimit(e.target.value)}
+            >
+              <option value="10">10 records</option>
+              <option value="20">20 records</option>
+              <option value="30">30 records</option>
+              <option value="40">40 records</option>
+              <option value="50">50 records</option>
+              <option value="100">100 records</option>
+              <option value="all">All Records</option>
+            </select>
+          </div>
+          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery || recordsLimit !== '10') && (
             <button
               type="button"
               className={styles.clearFiltersBtn}
@@ -1085,7 +1089,7 @@ export default function ApplyIouPage() {
                 setFilterEndDate('');
                 setFilterStatus('all');
                 setSearchQuery('');
-                setCurrentPage(1);
+                setRecordsLimit('10');
               }}
             >
               Clear
@@ -1100,14 +1104,14 @@ export default function ApplyIouPage() {
               <Loader2 className={styles.loadingSpinner} size={28} />
               <p style={{ marginTop: '0.75rem' }}>Synchronizing payroll IOU records...</p>
             </div>
-          ) : paginatedRecords.length === 0 ? (
+          ) : displayedRecords.length === 0 ? (
             <div className={styles.emptyState}>
               <FileText className={styles.emptyIcon} size={32} />
               <p>No matching IOU application records found.</p>
             </div>
           ) : (
             <>
-              {/* Screen Table (Paginated, Hidden on print) */}
+              {/* Screen Table (Hidden on print) */}
               <table className={`${styles.table} ${styles.noPrint}`}>
                 <thead>
                   <tr>
@@ -1135,12 +1139,13 @@ export default function ApplyIouPage() {
                             );
                           }
                         }}
+                        title="Select All Pending My Approval"
                       />
                     </th>
                     <th>Staff Profile</th>
                     <th>Dept.</th>
                     <th>Requested</th>
-                    <th>Limit Check</th>
+                    <th>Salary %</th>
                     <th>App Date</th>
                     <th>Status</th>
                     <th>Approval Statuses</th>
@@ -1148,12 +1153,12 @@ export default function ApplyIouPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedRecords.map((row) => {
+                  {displayedRecords.map((row) => {
                     const rowPending = row.status === 0;
                     const empId = userCtx.employee ? (userCtx.employee.ID ?? userCtx.employee.id) : null;
                     const isOwnRow = empId && String(row.staff_id) === String(empId);
-                    const canEditRow = rowPending && (canSelectStaff || isOwnRow);
-                    const canDeleteRow = rowPending && (canSelectStaff || isOwnRow);
+                    const canEditRow = rowPending && Number(row.hod_status) !== 1 && (canSelectStaff || isOwnRow);
+                    const canDeleteRow = rowPending && Number(row.hod_status) !== 1 && (canSelectStaff || isOwnRow);
 
                     return (
                       <tr key={row.id}>
@@ -1191,9 +1196,39 @@ export default function ApplyIouPage() {
                         <td>{row.department || '—'}</td>
                         <td style={{ fontWeight: 600 }}>₦{fmt(row.amount)}</td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span>{row.percentage_of_salary}</span>
-                            <Percent size={12} className="text-secondary" />
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span 
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                padding: '3px 10px',
+                                borderRadius: '12px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                backgroundColor: (row.total_month_percentage || row.percentage_of_salary) > 50 
+                                  ? 'rgba(239, 68, 68, 0.15)' 
+                                  : (row.total_month_percentage || row.percentage_of_salary) > 40 
+                                    ? 'rgba(245, 158, 11, 0.15)' 
+                                    : 'rgba(16, 185, 129, 0.15)',
+                                color: (row.total_month_percentage || row.percentage_of_salary) > 50 
+                                  ? '#dc2626' 
+                                  : (row.total_month_percentage || row.percentage_of_salary) > 40 
+                                    ? '#d97706' 
+                                    : '#059669',
+                                border: (row.total_month_percentage || row.percentage_of_salary) > 50 
+                                  ? '1px solid rgba(239, 68, 68, 0.3)' 
+                                  : (row.total_month_percentage || row.percentage_of_salary) > 40 
+                                    ? '1px solid rgba(245, 158, 11, 0.3)' 
+                                    : '1px solid rgba(16, 185, 129, 0.3)',
+                              }}
+                              title={`Requested: ${row.percentage_of_salary || 0}% of Monthly Salary`}
+                            >
+                              <span>{row.percentage_of_salary || 0}%</span>
+                              <span style={{ fontSize: '0.72rem', opacity: 0.85, marginLeft: '3px' }} title={`Total Applied in Month: ${row.total_month_percentage}% (₦${fmt(row.total_collected_month)})`}>
+                                (Total: {row.total_month_percentage}%)
+                              </span>
+                            </span>
                           </div>
                         </td>
                         <td>{formatIouDate(row.iou_date)}</td>
@@ -1342,7 +1377,7 @@ export default function ApplyIouPage() {
                     <th>Staff Profile</th>
                     <th>Dept.</th>
                     <th>Requested</th>
-                    <th>Limit Check</th>
+                    <th>Salary %</th>
                     <th>App Date</th>
                     <th>Status</th>
                     <th>Approval Statuses</th>
@@ -1360,10 +1395,10 @@ export default function ApplyIouPage() {
                       <td>{row.department || '—'}</td>
                       <td style={{ fontWeight: 600 }}>₦{fmt(row.amount)}</td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <span>{row.percentage_of_salary}</span>
-                          <Percent size={12} className="text-secondary" />
-                        </div>
+                        <span style={{ fontWeight: 600 }}>{row.percentage_of_salary || 0}%</span>
+                        <span style={{ fontSize: '0.75rem', color: '#475569', marginLeft: '4px' }}>
+                          (Total: {row.total_month_percentage}%)
+                        </span>
                       </td>
                       <td>{formatIouDate(row.iou_date)}</td>
                       <td>{getOverallBadge(row.status)}</td>
@@ -1380,39 +1415,24 @@ export default function ApplyIouPage() {
                 </tbody>
               </table>
 
-              {/* Client Pagination */}
-              {totalPages > 1 && (
-                <div className={styles.pagination}>
-                  <span className={styles.paginationText}>
-                    Showing {startIndex + 1} to {Math.min(filteredRecords.length, startIndex + itemsPerPage)} of {filteredRecords.length} records
+              {/* Record Summary Footer */}
+              <div className={styles.pagination} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className={styles.paginationText} style={{ fontWeight: 500 }}>
+                  Showing {displayedRecords.length} of {filteredRecords.length} records
+                </span>
+                {recordsLimit !== 'all' && filteredRecords.length > displayedRecords.length && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #64748b)' }}>
+                    (Select "All" or a larger limit in <strong>Show Records</strong> to view remaining)
                   </span>
-                  <div className={styles.paginationButtons}>
-                    <button
-                      className={`${styles.btn} ${styles.btnSecondary}`}
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(prev => prev - 1)}
-                    >
-                      Prev
-                    </button>
-                    <button
-                      className={`${styles.btn} ${styles.btnSecondary}`}
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage(prev => prev + 1)}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </div>
       </div>
 
       {/* Details View Modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {detailRecord && (
           <div className={styles.modalOverlay} onClick={() => setDetailRecord(null)}>
             <motion.div
@@ -1450,7 +1470,12 @@ export default function ApplyIouPage() {
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Salary % Percentage</span>
-                    <span className={styles.detailValue}>{detailRecord.percentage_of_salary}% of Monthly Gross Salary</span>
+                    <span className={styles.detailValue}>
+                      {detailRecord.percentage_of_salary || 0}% of Salary
+                      <span style={{ display: 'block', color: '#059669', fontWeight: 600, fontSize: '0.8rem', marginTop: '2px' }}>
+                        Total Applied in Month: {detailRecord.total_month_percentage}% (₦{fmt(detailRecord.total_collected_month)})
+                      </span>
+                    </span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Application Date</span>
@@ -1513,7 +1538,7 @@ export default function ApplyIouPage() {
       </AnimatePresence>
 
       {/* Confirmation Deletion Modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {confirmDelete && (
           <div className={styles.modalOverlay} onClick={() => setConfirmDelete(null)}>
             <motion.div
@@ -1558,7 +1583,7 @@ export default function ApplyIouPage() {
       </AnimatePresence>
 
       {/* Approval/Rejection Dialog Modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {approvalModal.show && (
           <div className={styles.modalOverlay} onClick={() => setApprovalModal({ show: false, recordId: null, level: '', action: '', remarks: '' })}>
             <motion.div
@@ -1624,7 +1649,7 @@ export default function ApplyIouPage() {
       </AnimatePresence>
 
       {/* Confirmation Bulk Approval Modal */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {showBulkApproveModal && (() => {
           const selectedLevels = Array.from(new Set(
             selectedIds

@@ -789,11 +789,9 @@ export default function MedicalLoanDeductionSetupPage() {
                     Download Template
                   </a>
                 </div>
-                <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <li>Column 1: **Staff ID**</li>
-                  <li>Column 2: **Loan Amount**</li>
-                  <li>Column 3: **Duration Months**</li>
-                  <li>Column 4: **Start Month** (format: `YYYY-MM`)</li>
+                <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <li>Column 1: <strong>Staff ID</strong> (or File Number)</li>
+                  <li>Column 2: <strong>Loan Amount</strong> (Monthly deduction & duration are automatically calculated from fixed deduction tiers)</li>
                 </ul>
               </div>
             </div>

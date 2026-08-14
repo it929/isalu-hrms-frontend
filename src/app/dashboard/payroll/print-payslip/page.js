@@ -198,7 +198,7 @@ export default function PrintPayslip() {
   );
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={styles.container}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`${styles.container} printCard paperContainer`}>
       <div className={styles.controlsCard}>
         <h2 className={styles.controlsTitle}>
           <FileText size={22} color="var(--primary)" />

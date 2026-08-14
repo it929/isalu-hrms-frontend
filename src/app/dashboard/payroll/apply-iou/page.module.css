@@ -109,6 +109,61 @@
   position: relative;
 }
 
+/* Table Container */
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.tableContainer::-webkit-scrollbar {
+  display: none;
+}
+
+/* Main registry table */
+.table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+}
+
+.table thead tr {
+  background: var(--surface-alt, #f8fafc);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.table th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.table tbody tr:hover {
+  background: var(--surface-hover, rgba(99, 102, 241, 0.04));
+}
+
+/* Hide on print */
+.noPrint {
+  display: table;
+}
+
 /* Form Layout: 2 Columns per row */
 .formGrid {
   display: grid;
