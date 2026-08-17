@@ -352,15 +352,12 @@ export default function SalaryBreakdownPage() {
         responseType: 'blob'
       });
 
-      const contentType = res.headers['content-type'] || '';
-      const isCsv = contentType.includes('text/csv');
-      const ext = isCsv ? 'csv' : 'xlsx';
       const monthName = MONTHS.find(m => m.id === selectedMonth)?.name || selectedMonth;
       const safeName = (staff?.name || 'Staff').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const filename = `Payroll_${safeName}_${monthName}_${selectedYear}.${ext}`;
+      const filename = `Payroll_${safeName}_${monthName}_${selectedYear}.xlsx`;
 
       const blob = new Blob([res.data], { 
-        type: isCsv ? 'text/csv;charset=utf-8;' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
       });
       
       const url = window.URL.createObjectURL(blob);
@@ -377,7 +374,7 @@ export default function SalaryBreakdownPage() {
         } catch { /* ignore */ }
       }, 150);
 
-      showToast(`Staff Payroll Spreadsheet (.${ext}) downloaded successfully!`, 'success');
+      showToast('Staff Payroll Spreadsheet (.xlsx) downloaded successfully!', 'success');
     } catch (err) {
       let errMsg = 'Failed to export staff spreadsheet.';
       if (err.response?.data instanceof Blob) {
@@ -409,14 +406,11 @@ export default function SalaryBreakdownPage() {
         responseType: 'blob'
       });
 
-      const contentType = res.headers['content-type'] || '';
-      const isCsv = contentType.includes('text/csv');
-      const ext = isCsv ? 'csv' : 'xlsx';
       const monthName = MONTHS.find(m => m.id === selectedMonth)?.name || selectedMonth;
-      const filename = `Payroll_${monthName}_${selectedYear}.${ext}`;
+      const filename = `Payroll_${monthName}_${selectedYear}.xlsx`;
       
       const blob = new Blob([res.data], { 
-        type: isCsv ? 'text/csv;charset=utf-8;' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
       });
       
       const url = window.URL.createObjectURL(blob);
@@ -433,7 +427,7 @@ export default function SalaryBreakdownPage() {
         } catch { /* ignore */ }
       }, 150);
 
-      showToast(`All Staff Payroll Spreadsheet (.${ext}) downloaded successfully!`, 'success');
+      showToast('All Staff Payroll Spreadsheet (.xlsx) downloaded successfully!', 'success');
     } catch (err) {
       let errMsg = 'Failed to export payroll spreadsheet.';
       if (err.response?.data instanceof Blob) {
