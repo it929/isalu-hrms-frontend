@@ -80,7 +80,11 @@ export default function LoanDeductionSetupPage() {
 
   // Client-side pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState('10');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -477,11 +481,15 @@ export default function LoanDeductionSetupPage() {
       String(s.staffId).includes(searchQuery);
   });
 
-  const totalPages = Math.ceil(filteredSetups.length / itemsPerPage);
-  const paginatedSetups = filteredSetups.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredSetups.length / parseInt(itemsPerPage, 10)) || 1;
+  const paginatedSetups = itemsPerPage === 'all'
+    ? filteredSetups
+    : filteredSetups.slice(
+        (currentPage - 1) * parseInt(itemsPerPage, 10),
+        currentPage * parseInt(itemsPerPage, 10)
+      );
 
   const getIsConfiguratorFromLocalStorage = () => {
     if (typeof window === 'undefined') return false;
@@ -792,8 +800,26 @@ export default function LoanDeductionSetupPage() {
       <div className={styles.card} style={{ marginTop: '32px' }}>
         <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <h2 className={styles.cardTitle}>Deduction Setup Configurations</h2>
-          <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '320px' }}>
-            <div style={{ position: 'relative', width: '100%' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
+            <div style={{ position: 'relative', minWidth: '240px' }}>
               <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input
                 type="text"
@@ -891,29 +917,76 @@ export default function LoanDeductionSetupPage() {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                Showing Page {currentPage} of {totalPages}
+          {filteredSetups.length > 0 && (
+            <div className={styles.pagination}>
+              <span className={styles.paginationText}>
+                Showing {filteredSetups.length === 0 ? 0 : (itemsPerPage === 'all' ? 1 : (currentPage - 1) * parseInt(itemsPerPage, 10) + 1)} to {itemsPerPage === 'all' ? filteredSetups.length : Math.min(currentPage * parseInt(itemsPerPage, 10), filteredSetups.length)} of {filteredSetups.length} entries {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
               </span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  style={{ padding: '0.4rem 0.8rem' }}
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
-                >
-                  Previous
-                </button>
-                <button
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  style={{ padding: '0.4rem 0.8rem' }}
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
-                >
-                  Next
-                </button>
-              </div>
+              {itemsPerPage !== 'all' && totalPages > 1 && (
+                <div className={styles.paginationButtons}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(1)}
+                  >
+                    First
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
+                  >
+                    Prev
+                  </button>
+
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        className={`${styles.btn} ${currentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
+                        style={{ minWidth: '30px', padding: '0.375rem 0.5rem', fontSize: '0.75rem' }}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
+                  >
+                    Next
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                  >
+                    Last
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -51,8 +51,13 @@ export default function RetentionActivationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // Record limit state (replaces pagination)
-  const [recordsLimit, setRecordsLimit] = useState('10');
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState('10');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -292,10 +297,16 @@ export default function RetentionActivationPage() {
   const inactiveRetentionCount = totalPersonnel - activeRetentionCount;
   const totalRetentionDeducted = staffRecords.reduce((acc, r) => acc + (parseFloat(r.total_retention_deducted) || 0), 0);
 
-  // Record limit calculation
-  const displayedRecords = recordsLimit === 'all'
+  // Pagination calculation
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredRecords.length / parseInt(itemsPerPage, 10)) || 1;
+  const paginatedRecords = itemsPerPage === 'all'
     ? filteredRecords
-    : filteredRecords.slice(0, parseInt(recordsLimit, 10));
+    : filteredRecords.slice(
+        (currentPage - 1) * parseInt(itemsPerPage, 10),
+        currentPage * parseInt(itemsPerPage, 10)
+      );
 
   return (
     <div className={styles.container}>
@@ -469,8 +480,11 @@ export default function RetentionActivationPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', color: 'var(--text-secondary, #64748b)' }}>
                   <span style={{ fontWeight: 500 }}>Show:</span>
                   <select
-                    value={recordsLimit}
-                    onChange={(e) => setRecordsLimit(e.target.value)}
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     style={{
                       padding: '0.4rem 0.5rem',
                       borderRadius: '6px',
@@ -501,7 +515,7 @@ export default function RetentionActivationPage() {
                   <Loader2 size={40} className={styles.spinner} />
                   <span>Fetching personnel records...</span>
                 </div>
-              ) : displayedRecords.length > 0 ? (
+              ) : paginatedRecords.length > 0 ? (
                 <>
                   <table className={styles.table}>
                     <thead>
@@ -511,40 +525,38 @@ export default function RetentionActivationPage() {
                             type="checkbox"
                             style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                             checked={
-                              displayedRecords.length > 0 &&
-                              displayedRecords.every(r => selectedIds.includes(r.id))
+                              paginatedRecords.length > 0 &&
+                              paginatedRecords.every(r => selectedIds.includes(r.id))
                             }
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setSelectedIds(prev => {
                                   const next = [...prev];
-                                  displayedRecords.forEach(r => {
+                                  paginatedRecords.forEach(r => {
                                     if (!next.includes(r.id)) next.push(r.id);
                                   });
                                   return next;
                                 });
                               } else {
-                                setSelectedIds(prev =>
-                                  prev.filter(id => !displayedRecords.some(r => r.id === id))
-                                );
+                                const pageIds = paginatedRecords.map(r => r.id);
+                                setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
                               }
                             }}
-                            title="Select all on this view"
                           />
                         </th>
                         <th>Staff ID</th>
                         <th>Staff Name</th>
-                        <th>Salary (₦)</th>
-                        <th>Retention Status</th>
+                        <th>Basic Salary (₦)</th>
+                        <th>Status</th>
                         <th>Total Deducted (₦)</th>
                         <th>Remaining Months</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {displayedRecords.map((row) => (
+                      {paginatedRecords.map((row) => (
                         <tr key={row.id}>
-                          <td style={{ width: '40px', textAlign: 'center' }}>
+                          <td style={{ textAlign: 'center' }}>
                             <input
                               type="checkbox"
                               style={{ cursor: 'pointer', width: '16px', height: '16px' }}
@@ -633,15 +645,71 @@ export default function RetentionActivationPage() {
                     </tbody>
                   </table>
 
-                  {/* Record Summary Footer */}
-                  <div className={styles.pagination} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className={styles.paginationText} style={{ fontWeight: 500 }}>
-                      Showing {displayedRecords.length} of {filteredRecords.length} records
+                  {/* Pagination Footer */}
+                  <div className={styles.pagination}>
+                    <span className={styles.paginationText}>
+                      Showing {filteredRecords.length === 0 ? 0 : (itemsPerPage === 'all' ? 1 : (currentPage - 1) * parseInt(itemsPerPage, 10) + 1)} to {itemsPerPage === 'all' ? filteredRecords.length : Math.min(currentPage * parseInt(itemsPerPage, 10), filteredRecords.length)} of {filteredRecords.length} records {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
                     </span>
-                    {recordsLimit !== 'all' && filteredRecords.length > displayedRecords.length && (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #64748b)' }}>
-                        (Select "All" or a larger limit in <strong>Show</strong> to view remaining)
-                      </span>
+                    {itemsPerPage !== 'all' && totalPages > 1 && (
+                      <div className={styles.paginationButtons}>
+                        <button
+                          type="button"
+                          className={`${styles.btn} ${styles.btnSecondary}`}
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(1)}
+                        >
+                          First
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.btn} ${styles.btnSecondary}`}
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
+                        >
+                          Prev
+                        </button>
+
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              className={`${styles.btn} ${currentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
+                              style={{ minWidth: '28px' }}
+                              onClick={() => setCurrentPage(pageNum)}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+
+                        <button
+                          type="button"
+                          className={`${styles.btn} ${styles.btnSecondary}`}
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
+                        >
+                          Next
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.btn} ${styles.btnSecondary}`}
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(totalPages)}
+                        >
+                          Last
+                        </button>
+                      </div>
                     )}
                   </div>
                 </>

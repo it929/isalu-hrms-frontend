@@ -51,7 +51,7 @@ export default function PensionActivationPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState('10');
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -245,9 +245,13 @@ export default function PensionActivationPage() {
   const inactivePensionCount = totalPersonnel - activePensionCount;
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedRecords = filteredRecords.slice(startIndex, startIndex + itemsPerPage);
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredRecords.length / parseInt(itemsPerPage, 10)) || 1;
+  const startIndex = (currentPage - 1) * parseInt(itemsPerPage, 10);
+  const paginatedRecords = itemsPerPage === 'all'
+    ? filteredRecords
+    : filteredRecords.slice(startIndex, startIndex + parseInt(itemsPerPage, 10));
 
   return (
     <motion.div
@@ -344,18 +348,38 @@ export default function PensionActivationPage() {
                 <FileText size={18} />
                 Personnel Pension Registry
               </h2>
-              <div className={styles.tableSearch}>
-                <Search size={16} className={styles.tableSearchIcon} />
-                <input
-                  type="text"
-                  placeholder="Search by staff name, ID or file no..."
-                  className={styles.tableSearchInput}
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
+              <div className={styles.tableControls}>
+                <div className={styles.tableSearch}>
+                  <Search size={16} className={styles.tableSearchIcon} />
+                  <input
+                    type="text"
+                    placeholder="Search by staff name, ID or file no..."
+                    className={styles.tableSearchInput}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </div>
+                <div className={styles.perPageGroup}>
+                  <span className={styles.perPageLabel}>Show:</span>
+                  <select
+                    className={styles.perPageSelect}
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="10">10 records</option>
+                    <option value="20">20 records</option>
+                    <option value="30">30 records</option>
+                    <option value="50">50 records</option>
+                    <option value="100">100 records</option>
+                    <option value="all">All Records</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -422,31 +446,76 @@ export default function PensionActivationPage() {
                   </table>
 
                   {/* Client Pagination */}
-                  {totalPages > 1 && (
-                    <div className={styles.pagination}>
-                      <span className={styles.paginationText}>
-                        Showing {startIndex + 1} to {Math.min(filteredRecords.length, startIndex + itemsPerPage)} of {filteredRecords.length} records
-                      </span>
+                  <div className={styles.pagination}>
+                    <span className={styles.paginationText}>
+                      Showing {filteredRecords.length === 0 ? 0 : startIndex + 1} to {itemsPerPage === 'all' ? filteredRecords.length : Math.min(filteredRecords.length, startIndex + parseInt(itemsPerPage, 10))} of {filteredRecords.length} records {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
+                    </span>
+                    {itemsPerPage !== 'all' && totalPages > 1 && (
                       <div className={styles.paginationButtons}>
                         <button
+                          type="button"
                           className={styles.btnSecondary}
                           style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
                           disabled={currentPage === 1}
-                          onClick={() => setCurrentPage(prev => prev - 1)}
+                          onClick={() => setCurrentPage(1)}
+                        >
+                          First
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.btnSecondary}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         >
                           Prev
                         </button>
+
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              className={currentPage === pageNum ? styles.btnActivate : styles.btnSecondary}
+                              style={{ minWidth: '32px', padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                              onClick={() => setCurrentPage(pageNum)}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+
                         <button
+                          type="button"
                           className={styles.btnSecondary}
                           style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
                           disabled={currentPage === totalPages}
-                          onClick={() => setCurrentPage(prev => prev + 1)}
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         >
                           Next
                         </button>
+                        <button
+                          type="button"
+                          className={styles.btnSecondary}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(totalPages)}
+                        >
+                          Last
+                        </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </>
               ) : (
                 <div className={styles.emptyState}>

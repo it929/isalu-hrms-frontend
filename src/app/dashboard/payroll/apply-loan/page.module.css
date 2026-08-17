@@ -373,21 +373,80 @@
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border);
   display: flex;
-  gap: 1rem;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .searchInputWrapper {
   position: relative;
   flex: 1;
+  min-width: 240px;
   display: flex;
   align-items: center;
 }
 
+.perPageGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.perPageLabel {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.perPageSelect {
+  height: 38px;
+  padding: 0 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.perPageSelect:focus {
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
 /* Table styling */
 .tableContainer {
-  overflow-x: auto;
+  overflow-x: auto !important;
   width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+  padding-bottom: 4px;
+}
+
+.tableContainer::-webkit-scrollbar {
+  height: 8px;
+  display: block !important;
+}
+
+.tableContainer::-webkit-scrollbar-track {
+  background: var(--background);
+  border-radius: 9999px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+
+.tableContainer::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
 }
 
 .table {

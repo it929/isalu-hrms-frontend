@@ -110,8 +110,9 @@ export default function ApplyIouPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // Record limit state (replaces pagination)
-  const [recordsLimit, setRecordsLimit] = useState('10');
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState('10');
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -655,9 +656,13 @@ export default function ApplyIouPage() {
     );
   });
 
-  const displayedRecords = recordsLimit === 'all'
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredRecords.length / parseInt(itemsPerPage, 10)) || 1;
+
+  const displayedRecords = itemsPerPage === 'all'
     ? filteredRecords
-    : filteredRecords.slice(0, parseInt(recordsLimit, 10));
+    : filteredRecords.slice((currentPage - 1) * parseInt(itemsPerPage, 10), currentPage * parseInt(itemsPerPage, 10));
 
   const isFormDisabled = !canSelectStaff && selectedStaff && String(selectedStaff.id) !== String(userCtx.employee?.ID ?? userCtx.employee?.id);
 
@@ -1064,23 +1069,25 @@ export default function ApplyIouPage() {
             </select>
           </div>
           <div className={styles.dateFilterGroup}>
-            <span>Show Records:</span>
+            <span>Per Page:</span>
             <select
               className={styles.dateInput}
               style={{ minHeight: 'auto', padding: '0.4rem 0.5rem', cursor: 'pointer', fontWeight: 600 }}
-              value={recordsLimit}
-              onChange={(e) => setRecordsLimit(e.target.value)}
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(e.target.value);
+                setCurrentPage(1);
+              }}
             >
-              <option value="10">10 records</option>
-              <option value="20">20 records</option>
-              <option value="30">30 records</option>
-              <option value="40">40 records</option>
-              <option value="50">50 records</option>
-              <option value="100">100 records</option>
+              <option value="10">10 per page</option>
+              <option value="20">20 per page</option>
+              <option value="30">30 per page</option>
+              <option value="50">50 per page</option>
+              <option value="100">100 per page</option>
               <option value="all">All Records</option>
             </select>
           </div>
-          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery || recordsLimit !== '10') && (
+          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery || itemsPerPage !== '10') && (
             <button
               type="button"
               className={styles.clearFiltersBtn}
@@ -1089,7 +1096,8 @@ export default function ApplyIouPage() {
                 setFilterEndDate('');
                 setFilterStatus('all');
                 setSearchQuery('');
-                setRecordsLimit('10');
+                setItemsPerPage('10');
+                setCurrentPage(1);
               }}
             >
               Clear
@@ -1415,15 +1423,76 @@ export default function ApplyIouPage() {
                 </tbody>
               </table>
 
-              {/* Record Summary Footer */}
-              <div className={styles.pagination} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* Pagination Controls */}
+              <div className={`${styles.pagination} ${styles.noPrint}`}>
                 <span className={styles.paginationText} style={{ fontWeight: 500 }}>
-                  Showing {displayedRecords.length} of {filteredRecords.length} records
+                  Showing {filteredRecords.length === 0 ? 0 : (itemsPerPage === 'all' ? 1 : (currentPage - 1) * parseInt(itemsPerPage, 10) + 1)} to {itemsPerPage === 'all' ? filteredRecords.length : Math.min(currentPage * parseInt(itemsPerPage, 10), filteredRecords.length)} of {filteredRecords.length} records {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
                 </span>
-                {recordsLimit !== 'all' && filteredRecords.length > displayedRecords.length && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #64748b)' }}>
-                    (Select "All" or a larger limit in <strong>Show Records</strong> to view remaining)
-                  </span>
+                
+                {itemsPerPage !== 'all' && totalPages > 1 && (
+                  <div className={styles.paginationButtons}>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary}`}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                    >
+                      First
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary}`}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Prev
+                    </button>
+
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          className={`${styles.btn} ${currentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
+                          style={{ minWidth: '32px', padding: '0.35rem 0.5rem', fontSize: '0.78rem' }}
+                          onClick={() => setCurrentPage(pageNum)}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary}`}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary}`}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Last
+                    </button>
+                  </div>
                 )}
               </div>
             </>

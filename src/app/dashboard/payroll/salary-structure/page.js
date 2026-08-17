@@ -44,6 +44,10 @@ export default function SalaryStructurePage() {
   const [structures, setStructures] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState('10');
+
   // Dropdown Autocomplete Staff State
   const [dropdownSearch, setDropdownSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -53,6 +57,30 @@ export default function SalaryStructurePage() {
   // Form Fields
   const [grossSalary, setGrossSalary] = useState('');
   const [structureType, setStructureType] = useState('current'); // 'first' | 'current'
+
+  // Helper: Format numbers with thousand-separator commas
+  const formatNumberWithCommas = (val) => {
+    if (val === null || val === undefined || val === '') return '';
+    const strVal = String(val).replace(/,/g, '');
+    const parts = strVal.split('.');
+    const integerPart = parts[0].replace(/\D/g, '');
+    if (!integerPart && parts.length === 1) return '';
+    
+    const formattedInteger = integerPart ? Number(integerPart).toLocaleString('en-US') : '0';
+    if (parts.length > 1) {
+      const decimalPart = parts[1].replace(/\D/g, '').slice(0, 2);
+      return `${formattedInteger}.${decimalPart}`;
+    }
+    return formattedInteger;
+  };
+
+  // Helper: Parse comma formatted string to numeric float
+  const parseCleanNumber = (val) => {
+    if (!val && val !== 0) return 0;
+    const clean = String(val).replace(/,/g, '');
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   // Effect to autofill form when selected staff changes or structureType switches to 'current'
   useEffect(() => {
@@ -65,7 +93,7 @@ export default function SalaryStructurePage() {
           parseFloat(existing.medical_allowance || 0) +
           parseFloat(existing.utility_allowance || 0) +
           parseFloat(existing.meal_allowance || 0);
-        setGrossSalary(sumGross.toString());
+        setGrossSalary(formatNumberWithCommas(sumGross.toFixed(2)));
       }
     }
   }, [structureType, selectedStaff, structures]);
@@ -173,7 +201,7 @@ export default function SalaryStructurePage() {
         parseFloat(existing.medical_allowance || 0) +
         parseFloat(existing.utility_allowance || 0) +
         parseFloat(existing.meal_allowance || 0);
-      setGrossSalary(sumGross.toString());
+      setGrossSalary(formatNumberWithCommas(sumGross.toFixed(2)));
       showToast(`Loaded existing structure for ${staff.name}. Saving will overwrite it.`);
     } else {
       // Clear values if no existing
@@ -203,7 +231,7 @@ export default function SalaryStructurePage() {
     try {
       const payload = {
         staffId: selectedStaff.id,
-        gross_salary: grossSalary || 0,
+        gross_salary: parseCleanNumber(grossSalary),
         structure_type: structureType,
       };
 
@@ -323,7 +351,7 @@ export default function SalaryStructurePage() {
     link.setAttribute("download", "salary_structures_template.csv");
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     showToast('Downloaded template file!');
   };
 
@@ -350,11 +378,24 @@ export default function SalaryStructurePage() {
     showToast(`Loaded ${row.name}'s structure for editing.`);
   };
 
+  // Reset to page 1 on filter or per-page change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
+
   // Filtered structures list
   const filteredStructures = structures.filter(s =>
     s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(s.staffId).includes(searchQuery)
   );
+
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredStructures.length / parseInt(itemsPerPage, 10)) || 1;
+
+  const displayedStructures = itemsPerPage === 'all'
+    ? filteredStructures
+    : filteredStructures.slice((currentPage - 1) * parseInt(itemsPerPage, 10), currentPage * parseInt(itemsPerPage, 10));
 
   return (
     <motion.div
@@ -506,13 +547,26 @@ export default function SalaryStructurePage() {
                   <label className={styles.formLabel} htmlFor="gross-salary">Gross Salary (₦) *</label>
                   <input
                     id="gross-salary"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="e.g. 1,000,000"
                     className={styles.formInput}
                     value={grossSalary}
-                    onChange={(e) => setGrossSalary(e.target.value)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setGrossSalary('');
+                        return;
+                      }
+                      if (raw.endsWith('.')) {
+                        const clean = raw.slice(0, -1).replace(/,/g, '');
+                        if (/^\d+$/.test(clean)) {
+                          setGrossSalary(Number(clean).toLocaleString('en-US') + '.');
+                          return;
+                        }
+                      }
+                      setGrossSalary(formatNumberWithCommas(raw));
+                    }}
                     required
                   />
                 </div>
@@ -625,15 +679,35 @@ export default function SalaryStructurePage() {
             <FileText size={18} />
             Salary Assignment Schedule
           </h2>
-          <div className={styles.tableSearch}>
-            <Search size={16} className={styles.tableSearchIcon} />
-            <input
-              type="text"
-              placeholder="Search by staff name or ID..."
-              className={styles.tableSearchInput}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className={styles.tableControls}>
+            <div className={styles.tableSearch}>
+              <Search size={16} className={styles.tableSearchIcon} />
+              <input
+                type="text"
+                placeholder="Search by staff name or ID..."
+                className={styles.tableSearchInput}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -661,7 +735,7 @@ export default function SalaryStructurePage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredStructures.map((row) => (
+                {displayedStructures.map((row) => (
                   <tr key={row.id}>
                     <td className={styles.tdPrimary}>{row.staffId}</td>
                     <td>{row.name}</td>
@@ -699,6 +773,76 @@ export default function SalaryStructurePage() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && filteredStructures.length > 0 && (
+          <div className={styles.pagination}>
+            <span className={styles.paginationText}>
+              Showing {filteredStructures.length === 0 ? 0 : (itemsPerPage === 'all' ? 1 : (currentPage - 1) * parseInt(itemsPerPage, 10) + 1)} to {itemsPerPage === 'all' ? filteredStructures.length : Math.min(currentPage * parseInt(itemsPerPage, 10), filteredStructures.length)} of {filteredStructures.length} structures {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
+            </span>
+
+            {itemsPerPage !== 'all' && totalPages > 1 && (
+              <div className={styles.paginationButtons}>
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  First
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Prev
+                </button>
+
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      className={`${styles.pageBtn} ${currentPage === pageNum ? styles.activePageBtn : ''}`}
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  Last
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Toast Feedback */}
