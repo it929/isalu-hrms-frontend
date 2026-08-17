@@ -8,6 +8,18 @@ import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
+const RESIGNATION_REASONS = [
+  'Low Salary / Better Compensation Offer',
+  'Better Career Opportunity',
+  'Relocation / Distance',
+  'Further Studies / Education',
+  'Personal & Family Reasons',
+  'Health / Medical Reasons',
+  'Work-Life Balance',
+  'Career Growth / Change',
+  'Retirement / Personal Exit'
+];
+
 function getUserId() {
   if (typeof window === 'undefined') return null;
   try {
@@ -116,7 +128,11 @@ export default function ApplyResignationPage() {
 
   // Client-side pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState('10');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStartDate, filterEndDate, filterStatus, itemsPerPage]);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -269,7 +285,7 @@ export default function ApplyResignationPage() {
       return;
     }
     if (!reason.trim()) {
-      showToast('Please provide a reason for resignation.', 'error');
+      showToast('Please select a compulsory Reason for Resignation option.', 'error');
       return;
     }
 
@@ -469,9 +485,15 @@ export default function ApplyResignationPage() {
     return true;
   });
 
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedRecords = filteredRecords.slice(startIndex, startIndex + itemsPerPage);
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredRecords.length / parseInt(itemsPerPage, 10)) || 1;
+  const paginatedRecords = itemsPerPage === 'all'
+    ? filteredRecords
+    : filteredRecords.slice(
+        (currentPage - 1) * parseInt(itemsPerPage, 10),
+        currentPage * parseInt(itemsPerPage, 10)
+      );
 
   const isFormDisabled = !canSelectStaff && selectedStaff && String(selectedStaff.id) !== String(userCtx.employee?.ID ?? userCtx.employee?.id);
 
@@ -655,29 +677,66 @@ export default function ApplyResignationPage() {
                   <Calendar className={styles.inputIcon} size={16} />
                   <input
                     type="date"
-                    className={`${styles.input} ${styles.inputWithIcon}`}
+                    className={`${styles.input} ${styles.inputWithIcon} ${styles.disabledInput}`}
                     value={resignationDate}
                     onChange={(e) => setResignationDate(e.target.value)}
-                    disabled={isFormDisabled}
+                    disabled={true}
+                    readOnly
                   />
                 </div>
                 {resignationDate && (
                   <span className={styles.helperText}>
-                    Notice Period: 30 Days | Last Day: <strong>{calculateLastDay(resignationDate)}</strong>
+                    Auto-selected application date | Notice Period: 30 Days | Last Day: <strong>{calculateLastDay(resignationDate)}</strong>
                   </span>
                 )}
               </div>
 
-              {/* Reason Description */}
+              {/* Reason Category (Compulsory & Non-Editable) */}
+              {/* Reason for Resignation (Compulsory Options -> Appends into non-editable textarea) */}
               <div className={`${styles.formGroup} ${styles.formGroupFull}`}>
-                <label className={styles.label}>Reason for Resignation *</label>
+                <div className={styles.labelRowWithChips}>
+                  <label className={styles.label}>
+                    Reason for Resignation * <span style={{ color: '#ef4444', fontSize: '0.78rem', fontWeight: 600 }}>(Compulsory Option)</span>
+                  </label>
+                  <span className={styles.chipHint}>Click option(s) to select/append:</span>
+                </div>
+
+                <div className={styles.reasonChipsContainer}>
+                  {RESIGNATION_REASONS.map((preset) => {
+                    const isSelected = reason.toLowerCase().includes(preset.toLowerCase());
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        className={`${styles.reasonChip} ${isSelected ? styles.reasonChipActive : ''}`}
+                        onClick={() => {
+                          setReason((prev) => {
+                            const trimmed = prev.trim();
+                            if (!trimmed) return preset;
+                            if (trimmed.toLowerCase().includes(preset.toLowerCase())) {
+                              // Toggle off if clicked again
+                              const parts = trimmed.split(', ').filter(p => p.toLowerCase() !== preset.toLowerCase());
+                              return parts.join(', ');
+                            }
+                            return `${trimmed}, ${preset}`;
+                          });
+                        }}
+                        disabled={isFormDisabled}
+                      >
+                        {isSelected ? <Check size={13} /> : '+'} {preset}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <textarea
-                  className={styles.input}
+                  className={`${styles.input} ${styles.disabledInput}`}
                   rows={3}
-                  placeholder="Provide details or reasons for this resignation request..."
+                  placeholder="Click the compulsory reason option(s) above to populate this field..."
                   value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  disabled={isFormDisabled}
+                  readOnly
+                  disabled={true}
+                  style={{ fontWeight: 600, color: '#0f172a', resize: 'none' }}
                 />
               </div>
 
@@ -802,6 +861,24 @@ export default function ApplyResignationPage() {
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Show</label>
+            <select
+              className={styles.filterSelect}
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="10">10 records</option>
+              <option value="20">20 records</option>
+              <option value="30">30 records</option>
+              <option value="50">50 records</option>
+              <option value="100">100 records</option>
+              <option value="all">All Records</option>
             </select>
           </div>
         </div>
@@ -999,29 +1076,76 @@ export default function ApplyResignationPage() {
               </table>
 
               {/* Client side Pagination controls */}
-              {totalPages > 1 && (
+              {filteredRecords.length > 0 && (
                 <div className={`${styles.pagination} ${styles.noPrint}`}>
                   <span className={styles.paginationText}>
-                    Showing page {currentPage} of {totalPages} ({filteredRecords.length} records total)
+                    Showing {filteredRecords.length === 0 ? 0 : (itemsPerPage === 'all' ? 1 : (currentPage - 1) * parseInt(itemsPerPage, 10) + 1)} to {itemsPerPage === 'all' ? filteredRecords.length : Math.min(currentPage * parseInt(itemsPerPage, 10), filteredRecords.length)} of {filteredRecords.length} records {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
                   </span>
-                  <div className={styles.paginationButtons}>
-                    <button
-                      className={`${styles.btn} ${styles.btnSecondary}`}
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                    >
-                      Prev
-                    </button>
-                    <button
-                      className={`${styles.btn} ${styles.btnSecondary}`}
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </button>
-                  </div>
+                  {itemsPerPage !== 'all' && totalPages > 1 && (
+                    <div className={styles.paginationButtons}>
+                      <button
+                        type="button"
+                        className={`${styles.btn} ${styles.btnSecondary}`}
+                        style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(1)}
+                      >
+                        First
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.btn} ${styles.btnSecondary}`}
+                        style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
+                      >
+                        Prev
+                      </button>
+
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            className={`${styles.btn} ${currentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
+                            style={{ minWidth: '30px', padding: '0.375rem 0.5rem', fontSize: '0.75rem' }}
+                            onClick={() => setCurrentPage(pageNum)}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        className={`${styles.btn} ${styles.btnSecondary}`}
+                        style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
+                      >
+                        Next
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.btn} ${styles.btnSecondary}`}
+                        style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(totalPages)}
+                      >
+                        Last
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -1030,47 +1154,73 @@ export default function ApplyResignationPage() {
       </div>
 
       {/* Confirmation Dialog Modal */}
-      {confirmDelete && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox} style={{ maxWidth: '400px' }}>
-            <div className={styles.confirmBox}>
-              <div className={`${styles.confirmIcon} ${styles.confirmIconRed}`}>
-                <Trash2 size={32} />
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div
+            key="confirmDeleteOverlay"
+            className={styles.modalOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setConfirmDelete(null)}
+          >
+            <motion.div
+              key="confirmDeleteBox"
+              className={styles.modalBox}
+              style={{ maxWidth: '400px' }}
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.confirmBox}>
+                <div className={`${styles.confirmIcon} ${styles.confirmIconRed}`}>
+                  <Trash2 size={32} />
+                </div>
+                <h3 className={styles.cardTitle} style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>
+                  Delete Request?
+                </h3>
+                <p className={styles.confirmMsg}>
+                  Are you sure you want to delete this pending resignation request? This action is permanent and cannot be undone.
+                </p>
+                <div className={styles.confirmActions}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={() => setConfirmDelete(null)}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.confirmActionBtn} ${styles.dangerBtn}`}
+                    onClick={handleDeleteConfirm}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? <Loader2 className={styles.loadingSpinner} size={16} /> : 'Delete'}
+                  </button>
+                </div>
               </div>
-              <h3 className={styles.cardTitle} style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>
-                Delete Request?
-              </h3>
-              <p className={styles.confirmMsg}>
-                Are you sure you want to delete this pending resignation request? This action is permanent and cannot be undone.
-              </p>
-              <div className={styles.confirmActions}>
-                <button
-                  type="button"
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => setConfirmDelete(null)}
-                  disabled={actionLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.confirmActionBtn} ${styles.dangerBtn}`}
-                  onClick={handleDeleteConfirm}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? <Loader2 className={styles.loadingSpinner} size={16} /> : 'Delete'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Detailed Request View Modal */}
       <AnimatePresence>
         {detailRecord && (
-          <div className={styles.modalOverlay} onClick={() => setDetailRecord(null)}>
+          <motion.div
+            key="detailModalOverlay"
+            className={styles.modalOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setDetailRecord(null)}
+          >
             <motion.div
+              key="detailModalBox"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -1179,58 +1329,76 @@ export default function ApplyResignationPage() {
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Approval Recommendation / Remarks Modal */}
-      {approvalModal.show && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox} style={{ maxWidth: '440px' }}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>
-                {approvalModal.action === 'approve' ? 'Approve' : 'Reject'} Resignation Request ({approvalModal.level})
-              </h3>
-              <button className={styles.modalClose} onClick={() => setApprovalModal({ show: false, recordId: null, level: '', action: '', remarks: '' })}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Please specify any additional remarks or notes for this action.
-              </p>
-              <textarea
-                className={styles.modalTextarea}
-                placeholder="Enter remarks..."
-                value={approvalModal.remarks}
-                onChange={(e) => setApprovalModal({ ...approvalModal, remarks: e.target.value })}
-              />
-            </div>
-            <div className={styles.modalFooter} style={{ gap: '0.5rem' }}>
-              <button
-                type="button"
-                className={styles.modalCloseBtn}
-                onClick={() => setApprovalModal({ show: false, recordId: null, level: '', action: '', remarks: '' })}
-                disabled={actionLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={`${styles.confirmActionBtn} ${approvalModal.action === 'approve' ? styles.successBtn : styles.dangerBtn}`}
-                onClick={handleApprovalSubmit}
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <Loader2 className={styles.loadingSpinner} size={16} />
-                ) : (
-                  approvalModal.action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {approvalModal.show && (
+          <motion.div
+            key="approvalModalOverlay"
+            className={styles.modalOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setApprovalModal({ show: false, recordId: null, level: '', action: '', remarks: '' })}
+          >
+            <motion.div
+              key="approvalModalBox"
+              className={styles.modalBox}
+              style={{ maxWidth: '440px' }}
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <h3 className={styles.modalTitle}>
+                  {approvalModal.action === 'approve' ? 'Approve' : 'Reject'} Resignation Request ({approvalModal.level})
+                </h3>
+                <button className={styles.modalClose} onClick={() => setApprovalModal({ show: false, recordId: null, level: '', action: '', remarks: '' })}>
+                  <X size={18} />
+                </button>
+              </div>
+              <div className={styles.modalBody}>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Please specify any additional remarks or notes for this action.
+                </p>
+                <textarea
+                  className={styles.modalTextarea}
+                  placeholder="Enter remarks..."
+                  value={approvalModal.remarks}
+                  onChange={(e) => setApprovalModal({ ...approvalModal, remarks: e.target.value })}
+                />
+              </div>
+              <div className={styles.modalFooter} style={{ gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className={styles.modalCloseBtn}
+                  onClick={() => setApprovalModal({ show: false, recordId: null, level: '', action: '', remarks: '' })}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.confirmActionBtn} ${approvalModal.action === 'approve' ? styles.successBtn : styles.dangerBtn}`}
+                  onClick={handleApprovalSubmit}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <Loader2 className={styles.loadingSpinner} size={16} />
+                  ) : (
+                    approvalModal.action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bulk Approval Confirmation Modal */}
       <AnimatePresence>
@@ -1244,8 +1412,16 @@ export default function ApplyResignationPage() {
           )).join(', ');
 
           return (
-            <div className={styles.modalOverlay} onClick={() => setShowBulkApproveModal(false)}>
+            <motion.div
+              key="bulkApproveOverlay"
+              className={styles.modalOverlay}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBulkApproveModal(false)}
+            >
               <motion.div
+                key="bulkApproveBox"
                 className={`${styles.modalBox} ${styles.confirmBox}`}
                 initial={{ opacity: 0, scale: 0.9, y: -20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1277,7 +1453,7 @@ export default function ApplyResignationPage() {
                   </button>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           );
         })()}
       </AnimatePresence>

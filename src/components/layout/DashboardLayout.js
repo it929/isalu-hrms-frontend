@@ -13,7 +13,7 @@ function LayoutContent({ children }) {
       <Navbar />
       <div className={styles.mainContainer}>
         <Sidebar />
-        <main className={`${styles.content} hide-scrollbar`}>
+        <main className={styles.content}>
           <div className={styles.pageWrapper}>
             {children}
           </div>

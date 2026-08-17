@@ -104,7 +104,7 @@ export default function PayrollPage() {
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
   const [lastPage, setLastPage] = useState(1);
-  const perPage = 50;
+  const [perPage,  setPerPage]  = useState(-1);
 
   // UI state
   const [loading,    setLoading]    = useState(false);
@@ -287,6 +287,33 @@ export default function PayrollPage() {
       setLoading(false);
     }
   }, [month, year, divisionID, bankID, perPage, showToast]);
+
+  const handlePerPageChange = (newPerPage) => {
+    const val = parseInt(newPerPage, 10);
+    setPerPage(val);
+    if (searched && month && year) {
+      setLoading(true);
+      axios.get(`${API_BASE}/payroll`, {
+        headers: buildHeaders(),
+        params: { month, year, divisionID, bankID, page: 1, perPage: val },
+      }).then(res => {
+        if (res.data.status === 'success') {
+          setData(res.data.data);
+          setSummary(res.data.summary);
+          setTotal(res.data.total);
+          setPage(res.data.page);
+          setLastPage(res.data.lastPage);
+          if (res.data.userCtx) {
+            setUserCtx(res.data.userCtx);
+          }
+        }
+      }).catch(() => {
+        showToast('Failed to reload payroll data.', 'error');
+      }).finally(() => {
+        setLoading(false);
+      });
+    }
+  };
 
   const handleAuditCheck = async (staffId, isChecked) => {
     try {
@@ -627,6 +654,25 @@ export default function PayrollPage() {
               </select>
             </div>
 
+            {/* Records to Show */}
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel} htmlFor="pr-per-page">Records to Show</label>
+              <select
+                id="pr-per-page"
+                className={styles.formSelect}
+                value={perPage}
+                onChange={e => handlePerPageChange(e.target.value)}
+              >
+                <option value={-1}>All Records</option>
+                <option value={10}>10 Records</option>
+                <option value={20}>20 Records</option>
+                <option value={30}>30 Records</option>
+                <option value={40}>40 Records</option>
+                <option value={50}>50 Records</option>
+                <option value={100}>100 Records</option>
+              </select>
+            </div>
+
             {/* Actions */}
             <div className={styles.filterActions}>
               <button
@@ -725,8 +771,23 @@ export default function PayrollPage() {
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <span className={styles.tableMeta}>
-                  {total.toLocaleString()} staff · Page {page}/{lastPage}
+                  Showing {data.length} of {total.toLocaleString()} staff
                 </span>
+                <select
+                  className={styles.formSelect}
+                  value={perPage}
+                  onChange={e => handlePerPageChange(e.target.value)}
+                  style={{ width: 'auto', padding: '0.35rem 0.65rem', fontSize: '0.8rem', height: '32px' }}
+                  title="Records to show"
+                >
+                  <option value={-1}>Show All</option>
+                  <option value={10}>Show 10</option>
+                  <option value={20}>Show 20</option>
+                  <option value={30}>Show 30</option>
+                  <option value={40}>Show 40</option>
+                  <option value={50}>Show 50</option>
+                  <option value={100}>Show 100</option>
+                </select>
                 <button
                   id="pr-export-btn"
                   type="button"
@@ -966,57 +1027,41 @@ export default function PayrollPage() {
                );
              })()}
 
-            {/* Pagination */}
-            {lastPage > 1 && (
-              <div className={styles.pagination}>
-                <span className={styles.paginationInfo}>
-                  Showing {((page - 1) * perPage) + 1}–{Math.min(page * perPage, total)} of {total.toLocaleString()} records
-                </span>
-                <div className={styles.paginationControls}>
-                  <button
-                    id="pr-prev-btn"
-                    className={styles.pageBtn}
-                    disabled={page <= 1 || loading}
-                    onClick={() => handlePageChange(page - 1)}
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
+            {/* Records Footer */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '1rem',
+              padding: '0.75rem 0.5rem',
+              borderTop: '1px solid var(--border-color, #e2e8f0)',
+              color: 'var(--text-secondary, #64748b)',
+              fontSize: '0.875rem',
+              flexWrap: 'wrap',
+              gap: '0.75rem'
+            }}>
+              <span>
+                Showing <strong>{data.length}</strong> of <strong>{total.toLocaleString()}</strong> records
+              </span>
 
-                  {/* Page number pills */}
-                  {Array.from({ length: Math.min(7, lastPage) }, (_, i) => {
-                    let pg;
-                    if (lastPage <= 7) {
-                      pg = i + 1;
-                    } else if (page <= 4) {
-                      pg = i + 1;
-                    } else if (page >= lastPage - 3) {
-                      pg = lastPage - 6 + i;
-                    } else {
-                      pg = page - 3 + i;
-                    }
-                    return (
-                      <button
-                        key={pg}
-                        className={`${styles.pageBtn} ${pg === page ? styles.pageBtnActive : ''}`}
-                        disabled={loading}
-                        onClick={() => handlePageChange(pg)}
-                      >
-                        {pg}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    id="pr-next-btn"
-                    className={styles.pageBtn}
-                    disabled={page >= lastPage || loading}
-                    onClick={() => handlePageChange(page + 1)}
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.82rem' }}>Records to show:</span>
+                <select
+                  className={styles.formSelect}
+                  value={perPage}
+                  onChange={e => handlePerPageChange(e.target.value)}
+                  style={{ width: 'auto', padding: '0.3rem 0.6rem', fontSize: '0.82rem', height: '30px' }}
+                >
+                  <option value={-1}>All Records</option>
+                  <option value={10}>10 Records</option>
+                  <option value={20}>20 Records</option>
+                  <option value={30}>30 Records</option>
+                  <option value={40}>40 Records</option>
+                  <option value={50}>50 Records</option>
+                  <option value={100}>100 Records</option>
+                </select>
               </div>
-            )}
+            </div>
           </motion.div>
         ) : (
           /* Initial "idle" state before any search */

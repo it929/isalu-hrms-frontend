@@ -299,6 +299,19 @@ export default function Sidebar() {
             ))
           )}
  
+          {/* Salary Breakdown Item - Placed directly at the top/above Security & Roles section */}
+          {!loading && (
+            <li>
+              <Link
+                href="/dashboard/payroll/salary-breakdown"
+                className={`${styles.menuItem} ${pathname === '/dashboard/payroll/salary-breakdown' ? styles.active : ''}`}
+              >
+                <span className={styles.icon}><NairaSign size={20} /></span>
+                <span className={styles.text}>Salary Breakdown</span>
+              </Link>
+            </li>
+          )}
+
           {/* SECURITY & ROLES section - renders AI Analyst, AI Document Generator, Role Management and Reports */}
           {hasSecurityGroup && !loading && (
             <div className={styles.groupContainer}>

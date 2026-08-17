@@ -170,8 +170,16 @@ button, input, select, textarea {
   [class*="printCard"],
   [class*="printCard"] *,
   [class*="paperContainer"],
-  [class*="paperContainer"] * {
-    visibility: visible;
+  [class*="paperContainer"] *,
+  [class*="printableArea"],
+  [class*="printableArea"] *,
+  [class*="sheetPaper"],
+  [class*="sheetPaper"] *,
+  [class*="modalContent"],
+  [class*="modalContent"] *,
+  [class*="payslipWrapper"],
+  [class*="payslipWrapper"] * {
+    visibility: visible !important;
   }
 }
 

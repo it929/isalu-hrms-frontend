@@ -40,6 +40,10 @@ export default function PayerIdPage() {
   
   // Search and Filter
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState('10');
   
   // Form State
   const [selectedStaff, setSelectedStaff] = useState(null);
@@ -87,6 +91,11 @@ export default function PayerIdPage() {
     fetchData();
   }, []);
 
+  // Reset to page 1 on filter or per-page change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, itemsPerPage]);
+
   // Filter records for bottom display list
   const filteredRecords = records.filter(r => {
     const term = searchTerm.toLowerCase();
@@ -96,6 +105,14 @@ export default function PayerIdPage() {
       r.payer_id?.toLowerCase().includes(term)
     );
   });
+
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredRecords.length / parseInt(itemsPerPage, 10)) || 1;
+
+  const displayedRecords = itemsPerPage === 'all'
+    ? filteredRecords
+    : filteredRecords.slice((currentPage - 1) * parseInt(itemsPerPage, 10), currentPage * parseInt(itemsPerPage, 10));
 
   // Filter staff list for autocomplete dropdown (only show staff that matches search input)
   const autocompleteList = records.filter(r => {
@@ -239,7 +256,7 @@ export default function PayerIdPage() {
     link.setAttribute("download", "payer_id_template.csv");
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
   };
 
   return (
@@ -451,15 +468,35 @@ export default function PayerIdPage() {
           <h3 className={styles.tableTitle}>
             Staff Registry with Payer IDs
           </h3>
-          <div className={styles.tableSearch}>
-            <Search size={16} className={styles.tableSearchIcon} />
-            <input 
-              type="text" 
-              className={styles.tableSearchInput}
-              placeholder="Search by Name, Staff ID, Payer ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className={styles.tableControls}>
+            <div className={styles.tableSearch}>
+              <Search size={16} className={styles.tableSearchIcon} />
+              <input 
+                type="text" 
+                className={styles.tableSearchInput}
+                placeholder="Search by Name, Staff ID, Payer ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -480,7 +517,7 @@ export default function PayerIdPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecords.map(row => (
+                {displayedRecords.map(row => (
                   <tr key={row.staffId}>
                     <td className={styles.tdPrimary}>{row.staffId}</td>
                     <td>{row.name}</td>
@@ -519,6 +556,76 @@ export default function PayerIdPage() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && filteredRecords.length > 0 && (
+          <div className={styles.pagination}>
+            <span className={styles.paginationText}>
+              Showing {filteredRecords.length === 0 ? 0 : (itemsPerPage === 'all' ? 1 : (currentPage - 1) * parseInt(itemsPerPage, 10) + 1)} to {itemsPerPage === 'all' ? filteredRecords.length : Math.min(currentPage * parseInt(itemsPerPage, 10), filteredRecords.length)} of {filteredRecords.length} records {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
+            </span>
+
+            {itemsPerPage !== 'all' && totalPages > 1 && (
+              <div className={styles.paginationButtons}>
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  First
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  Prev
+                </button>
+
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      className={`${styles.pageBtn} ${currentPage === pageNum ? styles.activePageBtn : ''}`}
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.pageBtn} ${styles.pageNavBtn}`}
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  Last
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Toast Feedbacks */}
