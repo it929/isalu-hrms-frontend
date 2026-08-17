@@ -354,10 +354,10 @@ export default function SalaryBreakdownPage() {
 
       const monthName = MONTHS.find(m => m.id === selectedMonth)?.name || selectedMonth;
       const safeName = (staff?.name || 'Staff').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const filename = `Payroll_${safeName}_${monthName}_${selectedYear}.xlsx`;
+      const filename = `Payroll_${safeName}_${monthName}_${selectedYear}.csv`;
 
       const blob = new Blob([res.data], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        type: 'text/csv;charset=utf-8;' 
       });
       
       const url = window.URL.createObjectURL(blob);
@@ -374,7 +374,7 @@ export default function SalaryBreakdownPage() {
         } catch { /* ignore */ }
       }, 150);
 
-      showToast('Staff Payroll Spreadsheet (.xlsx) downloaded successfully!', 'success');
+      showToast('Staff Payroll Spreadsheet (.csv) downloaded successfully!', 'success');
     } catch (err) {
       let errMsg = 'Failed to export staff spreadsheet.';
       if (err.response?.data instanceof Blob) {
@@ -407,10 +407,10 @@ export default function SalaryBreakdownPage() {
       });
 
       const monthName = MONTHS.find(m => m.id === selectedMonth)?.name || selectedMonth;
-      const filename = `Payroll_${monthName}_${selectedYear}.xlsx`;
+      const filename = `Payroll_${monthName}_${selectedYear}.csv`;
       
       const blob = new Blob([res.data], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        type: 'text/csv;charset=utf-8;' 
       });
       
       const url = window.URL.createObjectURL(blob);
@@ -427,7 +427,7 @@ export default function SalaryBreakdownPage() {
         } catch { /* ignore */ }
       }, 150);
 
-      showToast('All Staff Payroll Spreadsheet (.xlsx) downloaded successfully!', 'success');
+      showToast('All Staff Payroll Spreadsheet (.csv) downloaded successfully!', 'success');
     } catch (err) {
       let errMsg = 'Failed to export payroll spreadsheet.';
       if (err.response?.data instanceof Blob) {
@@ -1437,7 +1437,7 @@ export default function SalaryBreakdownPage() {
                 disabled={exportingStaffExcel}
               >
                 {exportingStaffExcel ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
-                {exportingStaffExcel ? 'Generating...' : 'Download Spreadsheet (.xlsx)'}
+                {exportingStaffExcel ? 'Generating...' : 'Download Spreadsheet (.csv)'}
               </button>
               <button 
                 type="button" 
@@ -1535,7 +1535,7 @@ export default function SalaryBreakdownPage() {
                     disabled={exportingExcel || loadingAllStaff}
                   >
                     {exportingExcel ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
-                    {exportingExcel ? 'Exporting...' : 'Export to Excel (.xlsx)'}
+                    {exportingExcel ? 'Exporting...' : 'Download Spreadsheet (.csv)'}
                   </button>
 
                   <button
