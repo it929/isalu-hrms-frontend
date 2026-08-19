@@ -464,6 +464,25 @@ export default function CoopLoanDeductionSetupPage() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const headers = buildHeaders();
+      const response = await axios.get(`${API_BASE}/payroll/coop-loan-deduction-setups/template`, {
+        headers,
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'coop_loan_setup_import_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (err) {
+      showToast('Failed to download template file.', 'error');
+    }
+  };
+
   const filteredStaff = dropdownSearch.trim() === ''
     ? staffList
     : staffList.filter(s =>
@@ -778,10 +797,13 @@ export default function CoopLoanDeductionSetupPage() {
               <div style={{ marginTop: '1.25rem', fontSize: '0.825rem', color: '#64748b', lineHeight: '1.4' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                   <p style={{ fontWeight: 600, margin: 0 }}>Spreadsheet Formatting Guideline:</p>
-                  <a
-                    href={`${API_BASE}/payroll/coop-loan-deduction-setups/template`}
-                    download="coop_loan_setup_import_template.csv"
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
                     style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
                       color: 'var(--primary, #6366f1)',
                       textDecoration: 'underline',
                       cursor: 'pointer',
@@ -790,14 +812,13 @@ export default function CoopLoanDeductionSetupPage() {
                     }}
                   >
                     Download Template
-                  </a>
+                  </button>
                 </div>
                 <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <li>Column 1: **Staff ID**</li>
-                  <li>Column 2: **Loan Amount**</li>
-                  <li>Column 3: **Interest Rate (%)**</li>
-                  <li>Column 4: **Duration Months**</li>
-                  <li>Column 5: **Start Month (YYYY-MM)**</li>
+                  <li>Column 1: <strong>Staff ID</strong></li>
+                  <li>Column 2: <strong>Amount Deduct Monthly</strong></li>
+                  <li>Column 3: <strong>Balance</strong></li>
+                  <li>Column 4: <strong>Start Month (YYYY-MM)</strong> (Optional)</li>
                 </ul>
               </div>
             </div>
