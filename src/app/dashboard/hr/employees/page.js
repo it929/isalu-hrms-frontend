@@ -594,6 +594,14 @@ export default function EmployeeRecords() {
 
   const staffId = activeStaffProfile?.staffFullDetails?.staffID || activeStaffProfile?.staffFullDetails?.ID;
 
+  const userType = String(user?.user_type || '').toLowerCase();
+  const roleName = String(activeRole?.rolename || activeRole?.name || activeRole?.role_name || user?.role_name || user?.rolename || user?.role || '').toLowerCase();
+  const roleId = Number(activeRole?.roleID || activeRole?.roleid || activeRole?.id || 0);
+
+  const isSuperOrAdmin = userType === 'technical' || userType === 'super admin' || userType === 'super administrator' || userType === 'admin' || userType === 'administrator' || roleName.includes('super admin') || roleName.includes('technical') || roleName.includes('admin') || roleId === 1;
+  const isHrOrHrHead = roleName.includes('hr') || roleName.includes('human resource') || roleName.includes('hr head') || userType.includes('hr') || roleId === 48;
+  const canManageStaff = isSuperOrAdmin || isHrOrHrHead;
+
   const filtered = staffList.filter(s => {
     const q = search.toLowerCase();
     if (!q) return true;
@@ -615,7 +623,7 @@ export default function EmployeeRecords() {
           <h1 className={styles.pageTitle}>Employee Records</h1>
           <p className={styles.pageSubtitle}>View and manage all administrative staff in the system.</p>
         </div>
-        {((user?.user_type?.toLowerCase() === 'technical' || user?.user_type?.toLowerCase() === 'super admin') || activeRole?.rolename?.toLowerCase()?.includes('hr')) && (
+        {canManageStaff && (
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <Link href="/dashboard/hr/employees/education-status" className={styles.addBtn} style={{ background: '#7c3aed' }}>
               <FileText size={18} />
@@ -720,7 +728,7 @@ export default function EmployeeRecords() {
                 <tr>
                   <td colSpan={7} className={styles.emptyRow}>
                     {search ? 'No results match your search.' : (
-                      ((user?.user_type?.toLowerCase() === 'technical' || user?.user_type?.toLowerCase() === 'super admin') || activeRole?.rolename?.toLowerCase()?.includes('hr'))
+                      canManageStaff
                         ? 'No staff records found. Click "Add New Staff" to get started.'
                         : 'No staff records found.'
                     )}

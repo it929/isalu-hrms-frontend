@@ -462,7 +462,14 @@ export default function SalaryBreakdownPage() {
       'BANK NAME', 'ACCOUNT NO.', 'PAYER ID'
     ];
 
-    const rows = allStaffData.data.map(r => [
+    const sortedData = [...allStaffData.data].sort((a, b) => {
+      const deptA = (a.department || '').toLowerCase();
+      const deptB = (b.department || '').toLowerCase();
+      if (deptA !== deptB) return deptA.localeCompare(deptB);
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    const rows = sortedData.map(r => [
       `"${r.id}"`,
       `"${r.name}"`,
       `"${r.department}"`,

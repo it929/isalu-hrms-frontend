@@ -64,9 +64,15 @@ export default function AddNewStaff() {
 
   useEffect(() => {
     if (user && activeRole) {
-      const isSuperAdmin = user?.user_type?.toLowerCase() === 'technical' || user?.user_type?.toLowerCase() === 'super admin';
-      const isHr = activeRole?.rolename?.toLowerCase()?.includes('hr');
-      if (!isSuperAdmin && !isHr) {
+      const userType = String(user?.user_type || '').toLowerCase();
+      const roleName = String(activeRole?.rolename || activeRole?.name || activeRole?.role_name || user?.role_name || user?.rolename || user?.role || '').toLowerCase();
+      const roleId = Number(activeRole?.roleID || activeRole?.roleid || activeRole?.id || 0);
+
+      const isSuperOrAdmin = userType === 'technical' || userType === 'super admin' || userType === 'super administrator' || userType === 'admin' || userType === 'administrator' || roleName.includes('super admin') || roleName.includes('technical') || roleName.includes('admin') || roleId === 1;
+      const isHrOrHrHead = roleName.includes('hr') || roleName.includes('human resource') || roleName.includes('hr head') || userType.includes('hr') || roleId === 48;
+      const canAccess = isSuperOrAdmin || isHrOrHrHead;
+
+      if (!canAccess) {
         router.push('/dashboard');
       }
     }
