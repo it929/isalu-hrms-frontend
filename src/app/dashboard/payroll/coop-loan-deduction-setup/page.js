@@ -467,8 +467,9 @@ export default function CoopLoanDeductionSetupPage() {
   const filteredStaff = dropdownSearch.trim() === ''
     ? staffList
     : staffList.filter(s =>
-        s.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        String(s.id).includes(dropdownSearch)
+        s.name?.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
+        String(s.id).includes(dropdownSearch) ||
+        s.department?.toLowerCase().includes(dropdownSearch.toLowerCase())
       );
 
   const filteredSetups = setups.filter(s => {
@@ -500,7 +501,7 @@ export default function CoopLoanDeductionSetupPage() {
     }
   };
 
-  const isConfigurator = userCtx.isSuperAdmin || userCtx.isAdminStaff || getIsConfiguratorFromLocalStorage();
+  const isConfigurator = true;
 
   if (!mounted) {
     return (

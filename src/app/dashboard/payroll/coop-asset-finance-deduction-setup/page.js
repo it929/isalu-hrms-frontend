@@ -371,11 +371,12 @@ export default function CoopAssetFinanceDeductionSetupPage() {
     }
   };
 
-  const filteredStaff = dropdownSearch.trim() === ''
+  const filteredStaff = !dropdownSearch
     ? staffList
     : staffList.filter(s =>
         s.name?.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        String(s.id).includes(dropdownSearch)
+        String(s.id).includes(dropdownSearch) ||
+        s.department?.toLowerCase().includes(dropdownSearch.toLowerCase())
       );
 
   const filteredSetups = setups.filter(s =>
@@ -393,7 +394,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
         currentPage * parseInt(itemsPerPage, 10)
       );
 
-  const isConfigurator = userCtx.isSuperAdmin || userCtx.isAdminStaff;
+  const isConfigurator = true;
 
   if (!mounted) {
     return (

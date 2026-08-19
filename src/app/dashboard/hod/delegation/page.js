@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, AlertCircle, CheckCircle2, UserCheck, Shield, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, UserCheck, Shield, Calendar, ToggleLeft, ToggleRight, Building2, User } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -21,15 +21,49 @@ function buildHeaders() {
   return uid ? { 'X-User-Id': uid } : {};
 }
 
-const STATIC_APPROVAL_OPTIONS = [
-  { id: 'approve_leave', label: 'Leave & LOA Approvals' },
-  { id: 'approve_iou', label: 'IOU Approvals' },
-  { id: 'approve_refund', label: 'Refund Approvals' },
-  { id: 'approve_resignation', label: 'Resignation Approvals' },
-  { id: 'approve_loan', label: 'Loan Approvals' },
+const HR_APPROVAL_OPTIONS = [
+  { id: 'hr_approve_leave', label: 'HR Leave & LOA Approvals' },
+  { id: 'hr_approve_loan', label: 'HR Loan & Coop Loan Approvals' },
+  { id: 'hr_approve_iou', label: 'HR IOU / Salary Advance Approvals' },
+  { id: 'hr_approve_refund', label: 'HR Refund Approvals' },
+  { id: 'hr_approve_resignation', label: 'HR Resignation Approvals' },
+  { id: 'hr_approve_appraisal', label: 'HR Staff Appraisal Approvals' },
+];
+
+const FINANCE_APPROVAL_OPTIONS = [
+  { id: 'finance_approve_iou', label: 'Finance IOU / Salary Advance Approvals' },
+  { id: 'finance_approve_loan', label: 'Finance Loan & Coop Loan Approvals' },
+  { id: 'finance_approve_refund', label: 'Finance Refund Approvals' },
+  { id: 'finance_approve_payroll', label: 'Finance Payroll Authorization & Disbursement' },
+  { id: 'finance_approve_resignation', label: 'Finance Resignation Approvals' },
+];
+
+const AUDIT_APPROVAL_OPTIONS = [
+  { id: 'audit_approve_iou', label: 'Audit IOU / Salary Advance Approvals' },
+  { id: 'audit_approve_loan', label: 'Audit Loan & Coop Loan Approvals' },
+  { id: 'audit_approve_refund', label: 'Audit Refund Approvals' },
+  { id: 'audit_approve_payroll', label: 'Audit Payroll Verification & Audits' },
+  { id: 'audit_approve_resignation', label: 'Audit Resignation Approvals' },
+];
+
+const HOD_APPROVAL_OPTIONS = [
+  { id: 'approve_leave', label: 'HOD Leave & LOA Approvals' },
+  { id: 'approve_iou', label: 'HOD IOU Approvals' },
+  { id: 'approve_refund', label: 'HOD Refund Approvals' },
+  { id: 'approve_resignation', label: 'HOD Resignation Approvals' },
+  { id: 'approve_loan', label: 'HOD Loan Approvals' },
 ];
 
 export default function HODRoleDelegation() {
+  const [roleInfo, setRoleInfo] = useState({
+    isHrHead: false,
+    isFinanceHead: false,
+    isAuditHead: false,
+    isHod: false,
+    isSuperAdmin: false,
+    departmentName: '',
+  });
+
   const [staff, setStaff] = useState([]);
   const [delegations, setDelegations] = useState([]);
   const [assignedSubmodules, setAssignedSubmodules] = useState([]);
@@ -56,6 +90,14 @@ export default function HODRoleDelegation() {
         setStaff(res.data.staff || []);
         setDelegations(res.data.delegations || []);
         setAssignedSubmodules(res.data.assignedSubmodules || []);
+        setRoleInfo({
+          isHrHead: !!res.data.isHrHead,
+          isFinanceHead: !!res.data.isFinanceHead,
+          isAuditHead: !!res.data.isAuditHead,
+          isHod: !!res.data.isHod,
+          isSuperAdmin: !!res.data.isSuperAdmin,
+          departmentName: res.data.departmentName || '',
+        });
       } else {
         showToast('Failed to load delegation data.', 'error');
       }
@@ -78,13 +120,54 @@ export default function HODRoleDelegation() {
     );
   };
 
-  const handleToggleAllPermissions = () => {
-    const allIds = [
-      ...STATIC_APPROVAL_OPTIONS.map(p => p.id),
-      ...assignedSubmodules.map(s => s.submoduleID)
-    ];
+  // Get active approval options based on user role
+  const getActiveApprovalSections = () => {
+    const sections = [];
 
-    if (selectedPermissions.length === allIds.length) {
+    if (roleInfo.isHrHead || roleInfo.isSuperAdmin) {
+      sections.push({
+        title: 'HR HEAD Approval Roles',
+        badge: 'HR Executive Authority',
+        options: HR_APPROVAL_OPTIONS
+      });
+    }
+
+    if (roleInfo.isFinanceHead || roleInfo.isSuperAdmin) {
+      sections.push({
+        title: 'FINANCE HEAD Approval Roles',
+        badge: 'Finance Executive Authority',
+        options: FINANCE_APPROVAL_OPTIONS
+      });
+    }
+
+    if (roleInfo.isAuditHead || roleInfo.isSuperAdmin) {
+      sections.push({
+        title: 'AUDIT HEAD Approval Roles',
+        badge: 'Audit & Compliance Authority',
+        options: AUDIT_APPROVAL_OPTIONS
+      });
+    }
+
+    // If HOD or Head of a department or Super Admin, always show HOD Approval Roles
+    if (roleInfo.isHod || roleInfo.isHrHead || roleInfo.isFinanceHead || roleInfo.isAuditHead || roleInfo.isSuperAdmin) {
+      sections.push({
+        title: 'HOD Approval Roles',
+        badge: 'Department HOD Authority',
+        options: HOD_APPROVAL_OPTIONS
+      });
+    }
+
+    return sections;
+  };
+
+  const activeApprovalSections = getActiveApprovalSections();
+
+  const handleToggleAllPermissions = () => {
+    const allSectionOptionIds = activeApprovalSections.flatMap(s => s.options.map(o => o.id));
+    const allSubmoduleIds = assignedSubmodules.map(s => s.submoduleID);
+    const allIds = [...allSectionOptionIds, ...allSubmoduleIds];
+
+    if (selectedPermissions.length === allIds.length && allIds.length > 0) {
       setSelectedPermissions([]);
     } else {
       setSelectedPermissions(allIds);
@@ -149,12 +232,18 @@ export default function HODRoleDelegation() {
   };
 
   const getPermissionLabel = (permId) => {
-    const staticOpt = STATIC_APPROVAL_OPTIONS.find(a => a.id === permId);
-    if (staticOpt) return staticOpt.label;
+    const allOpts = [
+      ...HR_APPROVAL_OPTIONS,
+      ...FINANCE_APPROVAL_OPTIONS,
+      ...AUDIT_APPROVAL_OPTIONS,
+      ...HOD_APPROVAL_OPTIONS,
+    ];
+    const opt = allOpts.find(a => a.id === permId);
+    if (opt) return opt.label;
 
     const id = parseInt(permId);
     const sub = assignedSubmodules.find(s => s.submoduleID === id);
-    return sub ? `${sub.modulename} > ${sub.submodulename}` : `Submodule ${permId}`;
+    return sub ? `${sub.modulename} > ${sub.submodulename}` : `Submodule #${permId}`;
   };
 
   // Group other submodules by module name
@@ -165,20 +254,52 @@ export default function HODRoleDelegation() {
     return acc;
   }, {});
 
+  const getHeadshipTitle = () => {
+    if (roleInfo.isSuperAdmin) return 'Super Administrator';
+    const titles = [];
+    if (roleInfo.isHrHead) titles.push('HR Head');
+    if (roleInfo.isFinanceHead) titles.push('Finance Head');
+    if (roleInfo.isAuditHead) titles.push('Audit Head');
+    if (roleInfo.isHod) titles.push('HOD');
+    return titles.length > 0 ? titles.join(' & ') : 'Department Head';
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       {/* Page Header */}
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ color: 'var(--primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Shield size={28} />
-          Role Delegation
-        </h1>
-        <p style={{ color: 'var(--secondary)' }}>
-          Temporarily or permanently delegate parts of your HOD authority to trusted staff members in your department.
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ color: 'var(--primary)', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <Shield size={28} />
+              Role Delegation
+            </h1>
+            <p style={{ color: 'var(--secondary)', fontSize: '0.95rem' }}>
+              Temporarily or permanently delegate your authority to trusted staff members in your department.
+            </p>
+          </div>
+          {(roleInfo.departmentName || getHeadshipTitle()) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'var(--card-bg, #ffffff)',
+              border: '1px solid var(--border)',
+              padding: '0.5rem 1rem',
+              borderRadius: '8px',
+              fontSize: '0.85rem'
+            }}>
+              <Building2 size={16} style={{ color: 'var(--primary)' }} />
+              <div>
+                <strong style={{ color: 'var(--foreground)' }}>{roleInfo.departmentName || 'Administration'}</strong>
+                <span style={{ color: 'var(--secondary)', marginLeft: '0.4rem' }}>({getHeadshipTitle()})</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem', alignItems: 'start' }}>
         {/* Delegation Form */}
         <div className="premium-card">
           <h3 style={{ marginBottom: '1.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -190,7 +311,9 @@ export default function HODRoleDelegation() {
               
               {/* Select Staff */}
               <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Select Delegate Staff</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                  Select Delegate Staff {roleInfo.departmentName ? `(${roleInfo.departmentName})` : ''}
+                </label>
                 <select
                   value={selectedStaff}
                   onChange={(e) => setSelectedStaff(e.target.value)}
@@ -204,10 +327,10 @@ export default function HODRoleDelegation() {
                   }}
                   required
                 >
-                  <option value="">-- Select Department Staff --</option>
+                  <option value="">-- Select Staff from Your Department --</option>
                   {staff.map((s) => (
                     <option key={s.ID} value={s.ID}>
-                      {s.surname} {s.first_name} {s.othernames || ''}
+                      {s.staffId || s.ID ? `[ID: ${s.staffId || s.ID}] ` : ''}{s.surname} {s.first_name} {s.othernames || ''}
                     </option>
                   ))}
                 </select>
@@ -222,52 +345,86 @@ export default function HODRoleDelegation() {
                     onClick={handleToggleAllPermissions}
                     style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    {selectedPermissions.length === (STATIC_APPROVAL_OPTIONS.length + assignedSubmodules.length) ? 'Clear All' : 'Select All'}
+                    Select / Clear All
                   </button>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--border)', padding: '1rem', borderRadius: 'var(--radius)', background: 'rgba(0,0,0,0.02)', maxHeight: '380px', overflowY: 'auto' }}>
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.25rem',
+                  border: '1px solid var(--border)',
+                  padding: '1rem',
+                  borderRadius: 'var(--radius)',
+                  background: 'rgba(0,0,0,0.02)',
+                  maxHeight: '400px',
+                  overflowY: 'auto'
+                }}>
                   
-                  {/* HOD Approval Authority */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      HOD Approval Roles
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '0.5rem' }}>
-                      {STATIC_APPROVAL_OPTIONS.map((opt) => (
-                        <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedPermissions.includes(opt.id)}
-                            onChange={() => handlePermissionChange(opt.id)}
-                            style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
-                          />
-                          <span>{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Assigned Module Permissions */}
-                  {Object.keys(groupedSubmodules).map((moduleName) => (
-                    <div key={moduleName} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        {moduleName}
+                  {/* Dynamic Head Approval Role Sections */}
+                  {activeApprovalSections.map((section, sIdx) => (
+                    <div key={sIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      <div style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold',
+                        color: 'var(--primary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderBottom: '1px solid var(--border)',
+                        paddingBottom: '0.35rem'
+                      }}>
+                        <span>{section.title}</span>
+                        <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)' }}>
+                          {section.badge}
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '0.5rem' }}>
-                        {groupedSubmodules[moduleName].map((sub) => (
-                          <label key={sub.submoduleID} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', paddingLeft: '0.5rem' }}>
+                        {section.options.map((opt) => (
+                          <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.9rem' }}>
                             <input
                               type="checkbox"
-                              checked={selectedPermissions.includes(sub.submoduleID)}
-                              onChange={() => handlePermissionChange(sub.submoduleID)}
+                              checked={selectedPermissions.includes(opt.id)}
+                              onChange={() => handlePermissionChange(opt.id)}
                               style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
                             />
-                            <span>{sub.submodulename}</span>
+                            <span style={{ fontWeight: '500' }}>{opt.label}</span>
                           </label>
                         ))}
                       </div>
                     </div>
                   ))}
+
+                  {/* Assigned System Modules & Submodules */}
+                  {Object.keys(groupedSubmodules).length > 0 && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                        System Module Permissions
+                      </div>
+                      {Object.keys(groupedSubmodules).map((moduleName) => (
+                        <div key={moduleName} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--foreground)' }}>
+                            {moduleName}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '0.5rem' }}>
+                            {groupedSubmodules[moduleName].map((sub) => (
+                              <label key={sub.submoduleID} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPermissions.includes(sub.submoduleID)}
+                                  onChange={() => handlePermissionChange(sub.submoduleID)}
+                                  style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                                />
+                                <span>{sub.submodulename}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                 </div>
               </div>
@@ -365,7 +522,13 @@ export default function HODRoleDelegation() {
                 </thead>
                 <tbody>
                   {delegations.map((del) => {
-                    const decodedPermissions = JSON.parse(del.permissions) || [];
+                    let decodedPermissions = [];
+                    try {
+                      decodedPermissions = typeof del.permissions === 'string' ? JSON.parse(del.permissions) : (del.permissions || []);
+                    } catch {
+                      decodedPermissions = [];
+                    }
+
                     const isDateActive = () => {
                       if (del.status !== 'active') return false;
                       const today = new Date().toISOString().split('T')[0];
@@ -378,14 +541,17 @@ export default function HODRoleDelegation() {
                     return (
                       <tr key={del.id} style={{ borderBottom: '1px solid var(--border)', fontSize: '0.9rem' }}>
                         <td style={{ padding: '1rem 0.75rem', fontWeight: '500' }}>
-                          {del.surname} {del.first_name}
+                          <div>{del.surname} {del.first_name} {del.othernames || ''}</div>
+                          {(del.staffId || del.delegate_staff_id) && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Staff ID: #{del.staffId || del.delegate_staff_id}</div>
+                          )}
                         </td>
                         <td style={{ padding: '1rem 0.75rem' }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                            {decodedPermissions.map(p => (
-                              <span key={p} style={{
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                            {decodedPermissions.map((p, pIdx) => (
+                              <span key={pIdx} style={{
                                 fontSize: '0.75rem',
-                                padding: '0.15rem 0.4rem',
+                                padding: '0.2rem 0.5rem',
                                 borderRadius: '4px',
                                 background: 'rgba(99, 102, 241, 0.1)',
                                 color: 'var(--primary)',
@@ -396,7 +562,7 @@ export default function HODRoleDelegation() {
                             ))}
                           </div>
                         </td>
-                        <td style={{ padding: '1rem 0.75rem', color: 'var(--secondary)', fontSize: '0.8rem' }}>
+                        <td style={{ padding: '1rem 0.75rem', color: 'var(--secondary)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                           {del.start_date || 'No Start'} → {del.end_date || 'No End'}
                         </td>
                         <td style={{ padding: '1rem 0.75rem' }}>

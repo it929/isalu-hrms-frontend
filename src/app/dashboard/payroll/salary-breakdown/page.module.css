@@ -601,21 +601,21 @@
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 0.5rem;
-  padding: 1.5rem 1.75rem;
+  padding: 1.15rem 1.35rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #0f172a;
 }
 
 .companyHeader {
   text-align: center;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.85rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.6rem;
   border-bottom: 2px solid #0f172a;
 }
 
 .companyHeader h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: 0.06em;
@@ -623,47 +623,47 @@
 }
 
 .sheetSubtitle {
-  font-size: 0.8rem;
+  font-size: 0.775rem;
   font-weight: 700;
   color: #475569;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-top: 0.25rem;
+  margin-top: 0.2rem;
 }
 
 .sheetPeriodMeta {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem;
-  font-size: 0.775rem;
+  gap: 1.25rem;
+  font-size: 0.735rem;
   color: #64748b;
-  margin-top: 0.45rem;
+  margin-top: 0.35rem;
 }
 
 .sheetStaffBox {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.45rem 1.5rem;
+  gap: 0.35rem 1.25rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 0.4rem;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1.15rem;
-  font-size: 0.825rem;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.775rem;
 }
 
 .sheetField {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.15rem 0;
+  padding: 0.1rem 0;
 }
 
 .sheetFieldLabel {
   color: #64748b;
   font-weight: 500;
-  font-size: 0.775rem;
+  font-size: 0.735rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -671,14 +671,14 @@
 .sheetFieldValue {
   font-weight: 700;
   color: #0f172a;
-  font-size: 0.825rem;
+  font-size: 0.785rem;
 }
 
 .sheetGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1.15rem;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
 }
 
 .sheetSection {
@@ -690,9 +690,9 @@
 
 .sheetSectionHeader {
   background: #f1f5f9;
-  padding: 0.45rem 0.75rem;
+  padding: 0.35rem 0.65rem;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #1e293b;
   border-bottom: 1px solid #cbd5e1;
   display: flex;
@@ -704,8 +704,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.32rem 0.75rem;
-  font-size: 0.775rem;
+  padding: 0.22rem 0.65rem;
+  font-size: 0.735rem;
   color: #334155;
   border-bottom: 1px solid #f1f5f9;
   font-variant-numeric: tabular-nums;
@@ -719,44 +719,44 @@
 .sheetRowTotal {
   background: #f8fafc;
   font-weight: 700;
-  font-size: 0.825rem;
+  font-size: 0.785rem;
   border-top: 1px solid #94a3b8;
-  padding: 0.5rem 0.75rem;
+  padding: 0.4rem 0.65rem;
   color: #0f172a;
 }
 
 .sheetRowTotal span:last-child {
   font-weight: 800;
-  font-size: 0.875rem;
+  font-size: 0.825rem;
 }
 
 .netPayBanner {
   background: #047857;
   color: #ffffff;
   border-radius: 0.4rem;
-  padding: 0.85rem 1.25rem;
+  padding: 0.65rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.15rem;
+  margin-bottom: 0.85rem;
   page-break-inside: avoid;
 }
 
 .netPayBanner h3 {
-  margin: 0 0 0.15rem 0;
-  font-size: 0.825rem;
+  margin: 0 0 0.1rem 0;
+  font-size: 0.775rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .netPayBanner span {
-  font-size: 0.725rem;
+  font-size: 0.685rem;
   opacity: 0.9;
 }
 
 .netPayBanner .netAmount {
-  font-size: 1.45rem;
+  font-size: 1.3rem;
   font-weight: 800;
   color: #ffffff;
   font-variant-numeric: tabular-nums;
@@ -927,11 +927,11 @@
   bottom: 0;
 }
 
-/* Print styles optimized for crisp, professional portrait printing */
+/* Print styles optimized for crisp, professional portrait printing to fit on ONE A4 page */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 10mm;
+    margin: 5mm 8mm;
   }
 
   .container,
@@ -965,26 +965,26 @@
     max-width: 100% !important;
     width: 100% !important;
     position: static !important;
-    font-size: 9pt !important;
-    line-height: 1.35 !important;
+    font-size: 7.5pt !important;
+    line-height: 1.25 !important;
   }
 
   .header {
-    margin-bottom: 8px !important;
-    padding-bottom: 6px !important;
-    border-bottom: 2px solid #0f172a !important;
+    margin-bottom: 5px !important;
+    padding-bottom: 4px !important;
+    border-bottom: 1.5px solid #0f172a !important;
   }
 
   .title {
-    font-size: 15pt !important;
+    font-size: 13pt !important;
     font-weight: 800 !important;
     color: #0f172a !important;
     letter-spacing: -0.01em !important;
-    margin-bottom: 2px !important;
+    margin-bottom: 1px !important;
   }
 
   .subtitle {
-    font-size: 8.5pt !important;
+    font-size: 7.5pt !important;
     color: #334155 !important;
     margin: 0 !important;
   }
@@ -1036,45 +1036,46 @@
   }
 
   .companyHeader {
-    margin-bottom: 8px !important;
-    padding-bottom: 6px !important;
-    border-bottom: 2px solid #0f172a !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 3px !important;
+    border-bottom: 1.5px solid #0f172a !important;
     text-align: center !important;
   }
 
   .companyHeader h2 {
-    font-size: 15pt !important;
+    font-size: 12.5pt !important;
     font-weight: 800 !important;
     color: #0f172a !important;
     letter-spacing: 0.5px !important;
     text-transform: uppercase !important;
-    margin-bottom: 2px !important;
+    margin-bottom: 1px !important;
   }
 
   .sheetSubtitle {
-    font-size: 9.5pt !important;
+    font-size: 7.8pt !important;
     font-weight: 700 !important;
     color: #1e293b !important;
     letter-spacing: 0.25px !important;
   }
 
   .sheetPeriodMeta {
-    font-size: 8.5pt !important;
+    font-size: 6.8pt !important;
     font-weight: 500 !important;
     color: #475569 !important;
-    margin-top: 3px !important;
+    margin-top: 2px !important;
+    gap: 10px !important;
   }
 
   .sheetStaffBox {
     background: #f8fafc !important;
     border: 1px solid #cbd5e1 !important;
-    border-radius: 4px !important;
-    padding: 6px 10px !important;
-    margin-bottom: 8px !important;
-    font-size: 8.5pt !important;
+    border-radius: 3px !important;
+    padding: 3px 6px !important;
+    margin-bottom: 5px !important;
+    font-size: 7pt !important;
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
-    gap: 4px 12px !important;
+    gap: 2px 8px !important;
   }
 
   .sheetField {
@@ -1084,14 +1085,14 @@
   }
 
   .sheetFieldLabel {
-    font-size: 8pt !important;
+    font-size: 6.5pt !important;
     font-weight: 600 !important;
     color: #475569 !important;
     white-space: nowrap !important;
   }
 
   .sheetFieldValue {
-    font-size: 8.5pt !important;
+    font-size: 7pt !important;
     font-weight: 700 !important;
     color: #0f172a !important;
   }
@@ -1102,8 +1103,8 @@
     flex-direction: row !important;
     align-items: flex-start !important;
     justify-content: space-between !important;
-    gap: 10px !important;
-    margin-bottom: 8px !important;
+    gap: 6px !important;
+    margin-bottom: 5px !important;
     width: 100% !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
@@ -1112,12 +1113,12 @@
   .sheetSection,
   .sectionCard {
     flex: 1 1 0px !important;
-    width: 49% !important;
+    width: 49.5% !important;
     max-width: 49.5% !important;
     min-width: 0 !important;
     box-sizing: border-box !important;
     border: 1px solid #cbd5e1 !important;
-    border-radius: 4px !important;
+    border-radius: 3px !important;
     overflow: hidden !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
@@ -1127,8 +1128,8 @@
     display: flex !important;
     flex-direction: row !important;
     justify-content: space-between !important;
-    gap: 8px !important;
-    margin-bottom: 8px !important;
+    gap: 6px !important;
+    margin-bottom: 5px !important;
     width: 100% !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
@@ -1139,49 +1140,49 @@
     width: 32% !important;
     max-width: 32.5% !important;
     box-sizing: border-box !important;
-    padding: 6px 10px !important;
+    padding: 4px 6px !important;
     border: 1px solid #cbd5e1 !important;
-    border-radius: 4px !important;
+    border-radius: 3px !important;
     background: #ffffff !important;
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    gap: 6px !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
   .metricIcon {
-    width: 26px !important;
-    height: 26px !important;
-    min-width: 26px !important;
-    padding: 4px !important;
-    border-radius: 4px !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    padding: 3px !important;
+    border-radius: 3px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
   }
 
   .metricIcon svg {
-    width: 16px !important;
-    height: 16px !important;
+    width: 13px !important;
+    height: 13px !important;
   }
 
   .metricLabel {
-    font-size: 7.5pt !important;
+    font-size: 6.5pt !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.4px !important;
+    letter-spacing: 0.3px !important;
     margin-bottom: 1px !important;
     color: #475569 !important;
     white-space: nowrap !important;
   }
 
   .metricValue {
-    font-size: 11pt !important;
+    font-size: 9.5pt !important;
     font-weight: 800 !important;
     font-variant-numeric: tabular-nums !important;
     white-space: nowrap !important;
-    line-height: 1.2 !important;
+    line-height: 1.15 !important;
   }
 
   .metricValueGross {
@@ -1200,11 +1201,11 @@
   .sectionCardHeader {
     background: #f1f5f9 !important;
     color: #0f172a !important;
-    font-size: 8.5pt !important;
+    font-size: 7pt !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-    padding: 4px 8px !important;
+    letter-spacing: 0.4px !important;
+    padding: 2px 5px !important;
     border-bottom: 1px solid #cbd5e1 !important;
     display: flex !important;
     justify-content: space-between !important;
@@ -1216,10 +1217,12 @@
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
-    padding: 3.5px 8px !important;
-    font-size: 8.5pt !important;
+    padding: 1.6px 5px !important;
+    font-size: 6.7pt !important;
     color: #0f172a !important;
-    border-bottom: 1px solid #f1f5f9 !important;
+    border-bottom: 0.5px solid #f1f5f9 !important;
+    line-height: 1.15 !important;
+    min-height: auto !important;
   }
 
   .sheetRow span:first-child,
@@ -1236,19 +1239,20 @@
   }
 
   .itemSubtext {
-    font-size: 7.5pt !important;
+    font-size: 5.8pt !important;
     color: #64748b !important;
     display: block !important;
+    line-height: 1 !important;
   }
 
   .sheetRowTotal,
   .totalRow {
     background: #f8fafc !important;
     color: #0f172a !important;
-    font-size: 9pt !important;
+    font-size: 7.2pt !important;
     font-weight: 800 !important;
-    padding: 5px 8px !important;
-    border-top: 1.5px solid #0f172a !important;
+    padding: 2.5px 5px !important;
+    border-top: 1px solid #0f172a !important;
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
@@ -1257,9 +1261,9 @@
   .netPayBanner {
     background: #047857 !important;
     color: #ffffff !important;
-    padding: 8px 14px !important;
-    border-radius: 4px !important;
-    margin-bottom: 8px !important;
+    padding: 3.5px 8px !important;
+    border-radius: 3px !important;
+    margin-bottom: 5px !important;
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
@@ -1268,27 +1272,27 @@
   }
 
   .netPayBanner h3 {
-    font-size: 9pt !important;
+    font-size: 7.2pt !important;
     font-weight: 700 !important;
     color: #ffffff !important;
     margin: 0 !important;
   }
 
   .netPayBanner span {
-    font-size: 7.5pt !important;
+    font-size: 6.2pt !important;
     color: rgba(255, 255, 255, 0.9) !important;
   }
 
   .netPayBanner .netAmount {
-    font-size: 14pt !important;
+    font-size: 10pt !important;
     font-weight: 800 !important;
     color: #ffffff !important;
     font-variant-numeric: tabular-nums !important;
   }
 
   .sheetFooterSign {
-    margin-top: 10px !important;
-    padding-top: 6px !important;
+    margin-top: 5px !important;
+    padding-top: 3px !important;
     border-top: 1px dashed #cbd5e1 !important;
     display: flex !important;
     justify-content: space-between !important;
@@ -1297,17 +1301,17 @@
   }
 
   .signBox {
-    font-size: 7.5pt !important;
+    font-size: 6.5pt !important;
     font-weight: 600 !important;
     color: #334155 !important;
-    width: 150px !important;
+    width: 130px !important;
     text-align: center !important;
   }
 
   .signLine {
-    height: 24px !important;
-    border-bottom: 1.5px solid #334155 !important;
-    margin-bottom: 4px !important;
+    height: 16px !important;
+    border-bottom: 1px solid #334155 !important;
+    margin-bottom: 2px !important;
   }
 
   .printableArea {

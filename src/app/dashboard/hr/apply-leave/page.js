@@ -302,11 +302,27 @@ export default function ApplyLeavePage() {
   const canHodAct   = isHod || isSuperAdmin || isAdminStaff;
   const canAdminAct = isAdminStaff || isSuperAdmin;
 
+  const selectedEmpObj = (isSuperAdmin || isAdminStaff)
+    ? employees.find(e => String(e.ID) === String(form.employee_id))
+    : currentEmployee;
+
+  const selectedEmpGender = (selectedEmpObj?.gender || currentEmployee?.gender || '').toLowerCase().trim();
+  const isSelectedEmpMale = selectedEmpGender === 'male' || selectedEmpGender === 'm';
+
   // ── CustomSelect option shapes ─────────────────────────────────────────────
-  const leaveTypeOptions = leaveTypes.map(lt => ({
-    id:   lt.id,
-    name: lt.leaveType,
-  }));
+  const leaveTypeOptions = leaveTypes
+    .filter(lt => {
+      const typeName = (lt.leaveType || '').toLowerCase();
+      const isMaternity = typeName.includes('maternity') || String(lt.id) === '3';
+      if (isSelectedEmpMale && isMaternity) {
+        return false;
+      }
+      return true;
+    })
+    .map(lt => ({
+      id:   lt.id,
+      name: lt.leaveType,
+    }));
 
   const employeeOptions = (isSuperAdmin || isAdminStaff)
     ? employees.map(emp => ({
@@ -320,10 +336,6 @@ export default function ApplyLeavePage() {
           }]
         : []
       );
-
-  const selectedEmpObj = (isSuperAdmin || isAdminStaff)
-    ? employees.find(e => String(e.ID) === String(form.employee_id))
-    : currentEmployee;
 
   const hasNotUploadedEducation = selectedEmpObj && selectedEmpObj.has_uploaded_education === false;
 

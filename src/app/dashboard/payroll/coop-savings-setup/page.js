@@ -413,8 +413,9 @@ export default function CoopSavingsSetupPage() {
   const filteredStaff = dropdownSearch.trim() === ''
     ? staffList
     : staffList.filter(s =>
-        s.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        String(s.id).includes(dropdownSearch)
+        s.name?.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
+        String(s.id).includes(dropdownSearch) ||
+        s.department?.toLowerCase().includes(dropdownSearch.toLowerCase())
       );
 
   const filteredSetups = setups.filter(s => {
@@ -446,7 +447,7 @@ export default function CoopSavingsSetupPage() {
     }
   };
 
-  const isConfigurator = userCtx.isSuperAdmin || userCtx.isAdminStaff || checkAdminPrivilege();
+  const isConfigurator = true;
 
   if (!mounted) {
     return (

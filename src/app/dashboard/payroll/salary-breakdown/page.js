@@ -454,6 +454,7 @@ export default function SalaryBreakdownPage() {
     const headers = [
       'ID NO', 'STAFF NAME', 'DEPARTMENT', 'DESIGNATION', 'BASIC SALARY',
       'HOUSING', 'TRANSPORT', 'MEDICAL', 'UTILITY', 'MEAL', 'VARIABLE ALLOWANCES',
+      'STAFF ALLOWANCES', 'STAFF BONUSES',
       'TOTAL GROSS INCOME', 'DECLARED SALARY', 'PAYE TAX', 'PENSION (8%)', 'RETENTION (5%)', 'IOU / ADVANCES',
       'MEDICAL LOAN', 'COOP. LOAN RPYT', 'COOP. SAVINGS', 'COOP. ASSET FIN.',
       'SURCHARGES', 'ABSENCE PENALTY', 'LEAVE OF ABSENCE', 'EMPLOYEE LOAN',
@@ -473,6 +474,8 @@ export default function SalaryBreakdownPage() {
       r.utility_allowance,
       r.meal_allowance,
       r.variable_allowances,
+      r.custom_allowances ?? 0,
+      r.bonuses ?? 0,
       r.gross_pay,
       r.declare_salary ?? r.gross_pay ?? 0,
       r.paye_tax,
@@ -771,6 +774,20 @@ export default function SalaryBreakdownPage() {
                 <div className={`${styles.metricValue} ${styles.metricValueGross}`}>
                   ₦{formatCurrency(summary?.gross_pay)}
                 </div>
+                {((earnings?.custom_allowances && earnings.custom_allowances.length > 0) || (earnings?.bonuses && earnings.bonuses.length > 0)) && (
+                  <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    {earnings.custom_allowances && earnings.custom_allowances.map((ca) => (
+                      <span key={ca.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#059669', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                        + ₦{formatCurrency(ca.amount)} {ca.title || 'Allowance'}
+                      </span>
+                    ))}
+                    {earnings.bonuses && earnings.bonuses.map((b) => (
+                      <span key={b.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#d97706', background: 'rgba(245, 158, 11, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(245, 158, 11, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                        + ₦{formatCurrency(b.amount)} {b.title || 'Bonus'}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -797,6 +814,20 @@ export default function SalaryBreakdownPage() {
                 <div className={`${styles.metricValue} ${styles.metricValueNet}`}>
                   ₦{formatCurrency(summary?.net_pay)}
                 </div>
+                {((earnings?.custom_allowances && earnings.custom_allowances.length > 0) || (earnings?.bonuses && earnings.bonuses.length > 0)) && (
+                  <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    {earnings.custom_allowances && earnings.custom_allowances.map((ca) => (
+                      <span key={ca.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#059669', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                        + ₦{formatCurrency(ca.amount)} {ca.title || 'Allowance'}
+                      </span>
+                    ))}
+                    {earnings.bonuses && earnings.bonuses.map((b) => (
+                      <span key={b.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#d97706', background: 'rgba(245, 158, 11, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(245, 158, 11, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                        + ₦{formatCurrency(b.amount)} {b.title || 'Bonus'}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -901,6 +932,50 @@ export default function SalaryBreakdownPage() {
                           ₦{formatCurrency(ev.amount)}
                         </span>
                         <span className={`${styles.badge} ${styles.badgeInfo}`}>Variable</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Configured Staff Allowances */}
+                {earnings?.custom_allowances && earnings.custom_allowances.length > 0 && (
+                  earnings.custom_allowances.map((ca) => (
+                    <div key={ca.id} className={styles.listItem}>
+                      <div className={styles.itemLeft}>
+                        <span className={styles.itemName}>{ca.title}</span>
+                        <span className={styles.itemSubtext}>
+                          {ca.frequency === 'one_time' ? 'One-Time' : 'Recurring'} Allowance
+                        </span>
+                      </div>
+                      <div className={styles.itemRight}>
+                        <span className={`${styles.itemAmount} ${styles.itemAmountEarning}`}>
+                          ₦{formatCurrency(ca.amount)}
+                        </span>
+                        <span className={`${styles.badge} ${styles.badgeSuccess}`} style={{ textTransform: 'capitalize' }}>
+                          {ca.category ? ca.category.replace(/_/g, ' ') : 'Allowance'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Configured Staff Bonuses */}
+                {earnings?.bonuses && earnings.bonuses.length > 0 && (
+                  earnings.bonuses.map((b) => (
+                    <div key={b.id} className={styles.listItem}>
+                      <div className={styles.itemLeft}>
+                        <span className={styles.itemName}>{b.title}</span>
+                        <span className={styles.itemSubtext}>
+                          {b.frequency === 'one_time' ? 'One-Time' : 'Recurring'} Bonus
+                        </span>
+                      </div>
+                      <div className={styles.itemRight}>
+                        <span className={`${styles.itemAmount} ${styles.itemAmountEarning}`}>
+                          ₦{formatCurrency(b.amount)}
+                        </span>
+                        <span className={`${styles.badge}`} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.25)', textTransform: 'capitalize' }}>
+                          {b.category ? b.category.replace(/_/g, ' ') : 'Bonus'}
+                        </span>
                       </div>
                     </div>
                   ))
@@ -1309,6 +1384,18 @@ export default function SalaryBreakdownPage() {
                         <span>{formatCurrency(ev.amount)}</span>
                       </div>
                     ))}
+                    {earnings?.custom_allowances && earnings.custom_allowances.map((ca) => (
+                      <div key={ca.id} className={styles.sheetRow}>
+                        <span>{ca.title} (Allowance)</span>
+                        <span>{formatCurrency(ca.amount)}</span>
+                      </div>
+                    ))}
+                    {earnings?.bonuses && earnings.bonuses.map((b) => (
+                      <div key={b.id} className={styles.sheetRow}>
+                        <span>{b.title} (Bonus)</span>
+                        <span>{formatCurrency(b.amount)}</span>
+                      </div>
+                    ))}
                     <div className={`${styles.sheetRow} ${styles.sheetRowTotal}`}>
                       <span>TOTAL GROSS INCOME</span>
                       <span>₦{formatCurrency(earnings?.gross_pay)}</span>
@@ -1598,6 +1685,8 @@ export default function SalaryBreakdownPage() {
                         <th className={styles.thMoney}>Utility (₦)</th>
                         <th className={styles.thMoney}>Meal (₦)</th>
                         <th className={styles.thMoney}>Variable (₦)</th>
+                        <th className={styles.thMoney}>Allowance (₦)</th>
+                        <th className={styles.thMoney}>Bonus (₦)</th>
                         <th className={styles.thMoney}>Gross Pay (₦)</th>
                         <th className={styles.thMoney}>Declared Sal. (₦)</th>
                         <th className={styles.thMoney}>PAYE Tax (₦)</th>
@@ -1633,6 +1722,12 @@ export default function SalaryBreakdownPage() {
                           <td className={styles.tdMoney}>{formatCurrency(r.utility_allowance)}</td>
                           <td className={styles.tdMoney}>{formatCurrency(r.meal_allowance)}</td>
                           <td className={styles.tdMoney}>{formatCurrency(r.variable_allowances)}</td>
+                          <td className={styles.tdMoney} style={{ color: '#059669', fontWeight: 600 }}>
+                            {formatCurrency(r.custom_allowances || 0)}
+                          </td>
+                          <td className={styles.tdMoney} style={{ color: '#d97706', fontWeight: 600 }}>
+                            {formatCurrency(r.bonuses || 0)}
+                          </td>
                           <td className={styles.tdMoney} style={{ fontWeight: 700, color: '#0369a1' }}>
                             {formatCurrency(r.gross_pay)}
                           </td>
@@ -1673,6 +1768,12 @@ export default function SalaryBreakdownPage() {
                         <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.utility_allowance, 0))}</td>
                         <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.meal_allowance, 0))}</td>
                         <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.variable_allowances, 0))}</td>
+                        <td className={styles.tdMoney} style={{ color: '#059669', fontWeight: 600 }}>
+                          {formatCurrency(allStaffRecords.reduce((a, c) => a + (c.custom_allowances || 0), 0))}
+                        </td>
+                        <td className={styles.tdMoney} style={{ color: '#d97706', fontWeight: 600 }}>
+                          {formatCurrency(allStaffRecords.reduce((a, c) => a + (c.bonuses || 0), 0))}
+                        </td>
                         <td className={styles.tdMoney} style={{ color: '#0369a1' }}>
                           ₦{formatCurrency(allStaffData.summary?.total_gross)}
                         </td>

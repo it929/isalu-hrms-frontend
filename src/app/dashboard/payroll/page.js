@@ -88,15 +88,17 @@ const TABLE_COLUMNS = [
 
 export default function PayrollPage() {
   // Metadata
-  const [divisions, setDivisions] = useState([]);
-  const [banks,     setBanks]     = useState([]);
-  const [metaLoaded, setMetaLoaded] = useState(false);
+  const [divisions,   setDivisions]   = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [banks,       setBanks]       = useState([]);
+  const [metaLoaded,  setMetaLoaded]  = useState(false);
 
   // Filter state
-  const [month,      setMonth]      = useState('');
-  const [year,       setYear]       = useState(String(curYear));
-  const [divisionID, setDivisionID] = useState('');
-  const [bankID,     setBankID]     = useState('');
+  const [month,        setMonth]        = useState('');
+  const [year,         setYear]         = useState(String(curYear));
+  const [divisionID,   setDivisionID]   = useState('');
+  const [departmentID, setDepartmentID] = useState('');
+  const [bankID,       setBankID]       = useState('');
 
   // Results
   const [data,     setData]     = useState([]);
@@ -127,7 +129,7 @@ export default function PayrollPage() {
     setTimeout(() => setToast(null), 4500);
   }, []);
 
-  // Load metadata (divisions, banks) once
+  // Load metadata (divisions, departments, banks) once
   useEffect(() => {
     let hasCache = false;
     if (typeof window !== 'undefined') {
@@ -136,6 +138,7 @@ export default function PayrollPage() {
         try {
           const parsed = JSON.parse(cached);
           setDivisions(parsed.divisions || []);
+          setDepartments(parsed.departments || []);
           setBanks(parsed.banks || []);
           setMetaLoaded(true);
           hasCache = true;
@@ -150,12 +153,15 @@ export default function PayrollPage() {
       .then(res => {
         if (res.data.status === 'success') {
           const divisionsData = res.data.divisions || [];
+          const departmentsData = res.data.departments || [];
           const banksData = res.data.banks || [];
           setDivisions(divisionsData);
+          setDepartments(departmentsData);
           setBanks(banksData);
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('hrms_payroll_metadata_cache', JSON.stringify({
               divisions: divisionsData,
+              departments: departmentsData,
               banks: banksData
             }));
           }
@@ -183,6 +189,7 @@ export default function PayrollPage() {
           if (filters.month) setMonth(filters.month);
           if (filters.year) setYear(String(filters.year));
           if (filters.divisionID) setDivisionID(filters.divisionID);
+          if (filters.departmentID) setDepartmentID(filters.departmentID);
           if (filters.bankID) setBankID(filters.bankID);
         }
 
@@ -202,6 +209,7 @@ export default function PayrollPage() {
                 month: filters.month,
                 year: filters.year,
                 divisionID: filters.divisionID || '',
+                departmentID: filters.departmentID || '',
                 bankID: filters.bankID || '',
                 page: results.page || 1,
                 perPage
@@ -249,7 +257,7 @@ export default function PayrollPage() {
     try {
       const res = await axios.get(`${API_BASE}/payroll`, {
         headers: buildHeaders(),
-        params: { month, year, divisionID, bankID, page: pg, perPage },
+        params: { month, year, divisionID, departmentID, bankID, page: pg, perPage },
       });
 
       if (res.data.status === 'success') {
@@ -266,7 +274,7 @@ export default function PayrollPage() {
         // Cache search parameters and results
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('hrms_payroll_last_search_cache', JSON.stringify({
-            filters: { month, year, divisionID, bankID },
+            filters: { month, year, divisionID, departmentID, bankID },
             results: {
               data: res.data.data,
               summary: res.data.summary,
@@ -286,7 +294,7 @@ export default function PayrollPage() {
     } finally {
       setLoading(false);
     }
-  }, [month, year, divisionID, bankID, perPage, showToast]);
+  }, [month, year, divisionID, departmentID, bankID, perPage, showToast]);
 
   const handlePerPageChange = (newPerPage) => {
     const val = parseInt(newPerPage, 10);
@@ -295,7 +303,7 @@ export default function PayrollPage() {
       setLoading(true);
       axios.get(`${API_BASE}/payroll`, {
         headers: buildHeaders(),
-        params: { month, year, divisionID, bankID, page: 1, perPage: val },
+        params: { month, year, divisionID, departmentID, bankID, page: 1, perPage: val },
       }).then(res => {
         if (res.data.status === 'success') {
           setData(res.data.data);
@@ -513,8 +521,9 @@ export default function PayrollPage() {
     setExporting(true);
     try {
       const params = new URLSearchParams({ month, year });
-      if (divisionID) params.append('divisionID', divisionID);
-      if (bankID)     params.append('bankID',     bankID);
+      if (divisionID)   params.append('divisionID',   divisionID);
+      if (departmentID) params.append('departmentID', departmentID);
+      if (bankID)       params.append('bankID',       bankID);
 
       const uid = getUserId();
       const res = await fetch(
@@ -527,16 +536,19 @@ export default function PayrollPage() {
         throw new Error(errJson.message || 'Export failed.');
       }
 
+      const selectedDept = departments.find(d => String(d.id) === String(departmentID))?.name;
+      const deptSuffix = selectedDept ? `_${selectedDept.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = `Payroll_${month}_${year}.xlsx`;
+      a.download = `Payroll_${month}_${year}${deptSuffix}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('Payroll exported successfully!', 'success');
+      showToast(`Payroll CSV ${selectedDept ? `for ${selectedDept} ` : ''}exported successfully!`, 'success');
     } catch (err) {
       showToast(err.message || 'Export failed. Please try again.', 'error');
     } finally {
@@ -576,9 +588,14 @@ export default function PayrollPage() {
   const divName = divisionID
     ? (divisions.find(d => String(d.id) === String(divisionID))?.name ?? '')
     : '';
+  const selectedDeptName = departmentID
+    ? (departments.find(d => String(d.id) === String(departmentID))?.name ?? '')
+    : '';
+
   const periodLabel = [
     MONTHS.find(m => m.id === month)?.name ?? '',
     year,
+    selectedDeptName ? `Dept: ${selectedDeptName}` : '',
     divName,
   ].filter(Boolean).join(' · ');
 
@@ -592,7 +609,7 @@ export default function PayrollPage() {
       {/* ── Header ── */}
       <div className={styles.header}>
         <h1>Payroll Report</h1>
-        <p>Generate and export the consolidated monthly payroll schedule.</p>
+        <p>Generate, filter by department, and export the consolidated monthly payroll schedule to Excel.</p>
       </div>
 
       {/* ── Filter Bar ── */}
@@ -634,6 +651,22 @@ export default function PayrollPage() {
               >
                 {YEARS.map(y => (
                   <option key={y.id} value={y.id}>{y.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Department */}
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel} htmlFor="pr-department">Department</label>
+              <select
+                id="pr-department"
+                className={styles.formSelect}
+                value={departmentID}
+                onChange={e => setDepartmentID(e.target.value)}
+              >
+                <option value="">-- All Departments --</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
             </div>
@@ -769,7 +802,7 @@ export default function PayrollPage() {
                   </span>
                 )}
               </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <span className={styles.tableMeta}>
                   Showing {data.length} of {total.toLocaleString()} staff
                 </span>
@@ -794,7 +827,7 @@ export default function PayrollPage() {
                   className={styles.btnExport}
                   disabled={exporting}
                   onClick={handleExport}
-                  title="Download as CSV"
+                  title={`Download payroll spreadsheet as CSV (.csv)${selectedDeptName ? ` for ${selectedDeptName}` : ''}`}
                   style={{
                     padding: '0.45rem 0.85rem',
                     fontSize: '0.8rem',
@@ -805,7 +838,7 @@ export default function PayrollPage() {
                     ? <Loader2 size={14} className={styles.spinner} />
                     : <Download size={14} />
                   }
-                  {exporting ? 'Exporting…' : 'Export CSV'}
+                  {exporting ? 'Exporting…' : (selectedDeptName ? `Export ${selectedDeptName} CSV` : 'Export CSV')}
                 </button>
               </div>
             </div>
