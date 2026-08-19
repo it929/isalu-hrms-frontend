@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { 
@@ -31,7 +31,8 @@ import {
   ClipboardCheck,
   UserX,
   Target,
-  Percent
+  Percent,
+  X
 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
@@ -92,19 +93,40 @@ export default function ReportsDashboard() {
   // Search, Pagination & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [profileSearchQuery, setProfileSearchQuery] = useState('');
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
+
   const [statusFilter, setStatusFilter] = useState('all'); 
   const [currentPage, setCurrentPage] = useState(1);
   const [deptSearchQuery, setDeptSearchQuery] = useState('');
+  
   const [leaveSearchQuery, setLeaveSearchQuery] = useState('');
+  const [leaveDropdownOpen, setLeaveDropdownOpen] = useState(false);
+  const leaveDropdownRef = useRef(null);
+
   const [fromDateFilter, setFromDateFilter] = useState('');
   const [toDateFilter, setToDateFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
-  const itemsPerPage = 10;
+  const [pageSize, setPageSize] = useState(10); // 10, 20, 50, 100, 'all'
 
   // Active month metadata
   const [activeMonthMeta, setActiveMonthMeta] = useState(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (leaveDropdownRef.current && !leaveDropdownRef.current.contains(e.target)) {
+        setLeaveDropdownOpen(false);
+      }
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -167,12 +189,19 @@ export default function ReportsDashboard() {
     showToast('Report exported successfully.');
   };
 
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrinting(false);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
+
   const handlePrint = () => {
     setIsPrinting(true);
     setTimeout(() => {
       window.print();
-      setIsPrinting(false);
-    }, 100);
+    }, 150);
   };
 
   // Helper to trim names
@@ -294,7 +323,6 @@ export default function ReportsDashboard() {
         { key: 'year', label: 'Payroll Year', render: (val, row) => row.year || '—' },
         { key: 'totalStaff', label: 'Total Employees Paid' },
         { key: 'totalGrossIncome', label: 'Gross Salary (₦)', render: (val) => fmt(val) },
-        { key: 'totalAllowances', label: 'Total Allowances (₦)', render: (val, row) => fmt(parseFloat(row.totalGrossIncome) - parseFloat(row.basic_total || 0)) },
         { key: 'totalDeductions', label: 'Total Deductions (₦)', render: (val) => fmt(val) },
         { key: 'totalNetPay', label: 'Net Salary Paid (₦)', render: (val) => fmt(val) }
       ],
@@ -416,18 +444,29 @@ export default function ReportsDashboard() {
     {
       id: '6.2_salary_advance',
       categoryId: 'LOANS',
-      title: '6.2 Salary Advance Report',
-      description: 'Audit records of dynamic salary IOUs / advances taken, recovery parameters, and outstanding balances.',
+      title: '6.2 Salary Advance / IOU Report',
+      description: 'Audit records of employee IOU / salary advances, amount requested, reason, recovery parameters, and approval status for selected month & year.',
       icon: <Coins size={20} />,
       apiPath: '/reports/salary-advances',
+      isPayrollPeriodQuery: true,
       columns: [
         { key: 'name', label: 'Employee Name' },
-        { key: 'advance_amt', label: 'Advance Amount (₦)', render: (val) => fmt(val) },
-        { key: 'recovery_amt', label: 'Recovery Amount (₦)', render: (val) => fmt(val) },
-        { key: 'balance', label: 'Outstanding Balance (₦)', render: (val) => fmt(val) }
+        { key: 'department', label: 'Department', render: (val) => val || '—' },
+        { key: 'amount', label: 'IOU Amount (₦)', render: (val, row) => fmt(val || row.advance_amt) },
+        { key: 'reason', label: 'Reason / Purpose', render: (val) => val || '—' },
+        { key: 'date', label: 'IOU Date', render: (val) => val || '—' },
+        { key: 'recovery_amt', label: 'Monthly Deduction (₦)', render: (val) => fmt(val) },
+        { key: 'balance', label: 'Balance (₦)', render: (val) => fmt(val) },
+        { key: 'status', label: 'Status', render: (val) => (
+          <span className={`${styles.badge} ${val === 'Approved' ? styles.badgeActive : val === 'Rejected' ? styles.badgeInactive : ''}`}>
+            {val || 'Pending'}
+          </span>
+        )}
       ],
       getMetrics: (data) => [
-        { label: 'Outstanding Salary Advance', value: '₦' + fmt(data.reduce((acc, r) => acc + r.balance, 0)), icon: <Coins size={16} /> }
+        { label: 'Total IOU Advances Granted', value: '₦' + fmt(data.reduce((acc, r) => acc + (parseFloat(r.amount || r.advance_amt) || 0), 0)), icon: <Coins size={16} /> },
+        { label: 'Total Outstanding Balance', value: '₦' + fmt(data.reduce((acc, r) => acc + (parseFloat(r.balance) || 0), 0)), icon: <Coins size={16} /> },
+        { label: 'Total Applications', value: data.length, icon: <FileText size={16} /> }
       ]
     },
 
@@ -518,23 +557,22 @@ export default function ReportsDashboard() {
       id: '9.1_hr_dashboard',
       categoryId: 'MANAGEMENT',
       title: '9.1 HR Dashboard Report',
-      description: 'Overview of workforce distribution: total headcount, active list, exited list, and employees on leave.',
+      description: 'Overview of workforce distribution: total headcount, active list, new enrollees, employees on leave, and exited staff.',
       icon: <Users size={20} />,
-      apiPath: '/hr/add-staff/list',
-      isSimulated: true,
-      simulatedGenerator: (staff) => [{
-        total: staff.length,
-        active: staff.filter(r => r.staff_status == 1).length,
-        newStaff: Math.floor(Math.random() * 5) + 1,
-        onLeave: Math.floor(Math.random() * 3) + 1,
-        exited: staff.filter(r => r.staff_status == 2).length
-      }],
+      apiPath: '/reports/hr-dashboard',
       columns: [
         { key: 'total', label: 'Total Headcount' },
         { key: 'active', label: 'Active Employees' },
         { key: 'newStaff', label: 'New Enrollees (Active Period)' },
         { key: 'onLeave', label: 'Employees on Leave' },
         { key: 'exited', label: 'Exited Employees' }
+      ],
+      getMetrics: (data) => [
+        { label: 'Total Workforce Headcount', value: data.reduce((acc, r) => acc + (parseInt(r.headcount || r.total) || 0), 0), icon: <Users size={16} /> },
+        { label: 'Active Employees', value: data.reduce((acc, r) => acc + (parseInt(r.active) || 0), 0), icon: <UserCheck size={16} /> },
+        { label: 'New Enrollees (Year)', value: data.reduce((acc, r) => acc + (parseInt(r.newStaff) || 0), 0), icon: <TrendingUp size={16} /> },
+        { label: 'Employees on Leave', value: data.reduce((acc, r) => acc + (parseInt(r.on_leave || r.onLeave) || 0), 0), icon: <Calendar size={16} /> },
+        { label: 'Exited Staff', value: data.reduce((acc, r) => acc + (parseInt(r.exited) || 0), 0), icon: <UserX size={16} /> }
       ]
     },
     {
@@ -611,9 +649,10 @@ export default function ReportsDashboard() {
       icon: <Users size={20} />,
       apiPath: '/reports/employee-changes',
       columns: [
-        { key: 'field', label: 'Modified Field' },
+        { key: 'staff', label: 'Staff Member' },
+        { key: 'field', label: 'Modified Field / Change Type' },
         { key: 'oldVal', label: 'Previous Value' },
-        { key: 'newVal', label: 'New Value' },
+        { key: 'newVal', label: 'New Value / Details' },
         { key: 'user', label: 'Modified By' },
         { key: 'date', label: 'Modification Date' }
       ]
@@ -648,29 +687,41 @@ export default function ReportsDashboard() {
           setReportData(report.simulatedGenerator(mappedStaff));
         }
       } else if (report.isPayrollPeriodQuery) {
-        // Fetch payroll-bound reports
-        const perPageParam = report.id === '4.2_salary_register' ? '&perPage=100000' : '';
-        const res = await axios.get(`${API_BASE}/payroll?month=${customMonth}&year=${customYear}${perPageParam}`, { headers });
-        if (res.data.status === 'success') {
-          if (report.id === '4.1_payroll_summary') {
-            const summary = res.data.summary || {};
-            const payrollRows = res.data.data || [];
-            const basicTotal = payrollRows.reduce((acc, row) => acc + parseFloat(row.BASIC || 0), 0);
-            setReportData([{
-              month: customMonth,
-              year: customYear,
-              totalStaff: summary.totalStaff || 0,
-              totalGrossIncome: summary.totalGrossIncome || 0,
-              basic_total: basicTotal,
-              totalDeductions: summary.totalDeductions || 0,
-              totalNetPay: summary.totalNetPay || 0
-            }]);
+        if (report.apiPath && report.apiPath !== '/') {
+          // Dedicated period-based endpoint accepting month and year parameters (e.g. /reports/salary-advances)
+          const res = await axios.get(`${API_BASE}${report.apiPath}?month=${customMonth}&year=${customYear}`, { headers });
+          if (res.data.status === 'success') {
+            const raw = report.dataKey ? (res.data[report.dataKey] || []) : (res.data.data || []);
+            setReportData(raw);
           } else {
-            setReportData(res.data.data || []);
+            setReportData([]);
+            showToast(res.data.message || 'Failed to load report data.', 'error');
           }
         } else {
-          setReportData([]);
-          showToast(res.data.message || 'Failed to load report data.', 'error');
+          // Fetch payroll-bound reports
+          const perPageParam = '&perPage=100000';
+          const res = await axios.get(`${API_BASE}/payroll?month=${customMonth}&year=${customYear}${perPageParam}`, { headers });
+          if (res.data.status === 'success') {
+            if (report.id === '4.1_payroll_summary') {
+              const summary = res.data.summary || {};
+              const payrollRows = res.data.data || [];
+              const basicTotal = payrollRows.reduce((acc, row) => acc + parseFloat(row.BASIC || 0), 0);
+              setReportData([{
+                month: customMonth,
+                year: customYear,
+                totalStaff: summary.totalStaff || 0,
+                totalGrossIncome: summary.totalGrossIncome || 0,
+                basic_total: basicTotal,
+                totalDeductions: summary.totalDeductions || 0,
+                totalNetPay: summary.totalNetPay || 0
+              }]);
+            } else {
+              setReportData(res.data.data || []);
+            }
+          } else {
+            setReportData([]);
+            showToast(res.data.message || 'Failed to load report data.', 'error');
+          }
         }
       } else {
         // Normal API endpoints
@@ -767,7 +818,7 @@ export default function ReportsDashboard() {
 
   // Specific load for Leave Balance (3.2)
   const [leaveBalanceStaff, setLeaveBalanceStaff] = useState(null);
-  const handleLoadLeaveBalance = async (staffId) => {
+  const handleLoadLeaveBalance = async (staffId, staffInfo = null) => {
     if (!staffId) {
       setLeaveBalanceStaff(null);
       return;
@@ -775,26 +826,59 @@ export default function ReportsDashboard() {
     setLoading(true);
     const headers = buildHeaders();
     try {
-      // Fetch leave records
-      const res = await axios.get(`${API_BASE}/hr/apply-leave/records`, { headers });
-      const staffListRes = await axios.get(`${API_BASE}/payroll/coop-loans/staff`, { headers });
-      const leaveTypesRes = await axios.get(`${API_BASE}/hr/leave-types`, { headers });
-      
-      const matchedStaff = staffListRes.data.data.find(s => s.id === parseInt(staffId));
-      const records = res.data.leaveRecords || [];
+      let matchedStaff = staffInfo || staffList.find(s => String(s.id) === String(staffId) || String(s.fileNo || '') === String(staffId));
+
+      // Fetch leave records and leave types in parallel
+      const [recordsRes, leaveTypesRes] = await Promise.all([
+        axios.get(`${API_BASE}/hr/apply-leave/records`, { headers }),
+        axios.get(`${API_BASE}/hr/leave-types`, { headers })
+      ]);
+
+      if (!matchedStaff && staffList.length === 0) {
+        const staffListRes = await axios.get(`${API_BASE}/payroll/coop-loans/staff`, { headers });
+        const list = staffListRes.data.data || [];
+        setStaffList(list);
+        matchedStaff = list.find(s => String(s.id) === String(staffId) || String(s.fileNo || '') === String(staffId));
+      }
+
+      const records = recordsRes.data.leaveRecords || [];
       const leaveTypes = leaveTypesRes.data.data || [];
-      
+
+      // Check staff gender
+      let staffGender = (matchedStaff?.gender || '').toLowerCase().trim();
+      if (!staffGender && staffId) {
+        try {
+          const profRes = await axios.get(`${API_BASE}/hr/documentation/${staffId}/profile`, { headers });
+          if (profRes.data?.staffFullDetails?.gender) {
+            staffGender = profRes.data.staffFullDetails.gender.toLowerCase().trim();
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      const isMale = staffGender === 'male' || staffGender === 'm';
+
+      // Filter out Maternity leave for male staff
+      const eligibleLeaveTypes = leaveTypes.filter(lt => {
+        const typeName = (lt.leaveType || '').toLowerCase();
+        const isMaternity = typeName.includes('maternity') || String(lt.id) === '3';
+        if (isMale && isMaternity) {
+          return false;
+        }
+        return true;
+      });
+
       // Calculate leave balances
-      const employeeRecords = records.filter(r => r.staffId === parseInt(staffId));
-      
-      const balances = leaveTypes.map(lt => {
-        // Sum approved days for this leave type
+      const employeeRecords = records.filter(r => String(r.staffId) === String(staffId) || (matchedStaff && String(r.staffId) === String(matchedStaff.id)));
+
+      const balances = eligibleLeaveTypes.map(lt => {
+        // Sum approved days for this leave type (status == 2 is Approved)
         const used = employeeRecords
-          .filter(r => r.leave_type_id === lt.id && r.status == 2)
+          .filter(r => (String(r.leave_type_id) === String(lt.id) || String(r.leave_type) === String(lt.leaveType)) && r.status == 2)
           .reduce((acc, r) => acc + (parseInt(r.duration_days) || 0), 0);
-          
+
         const limit = parseInt(lt.days) || 0;
-        
+
         return {
           type: lt.leaveType,
           limit: limit,
@@ -803,11 +887,20 @@ export default function ReportsDashboard() {
         };
       });
 
+      const totalLimit = balances.reduce((acc, b) => acc + b.limit, 0);
+      const totalUsed = balances.reduce((acc, b) => acc + b.used, 0);
+      const totalRemaining = balances.reduce((acc, b) => acc + b.remaining, 0);
+
       setLeaveBalanceStaff({
         name: matchedStaff?.name || 'Staff member',
-        id: staffId,
+        id: matchedStaff?.id || staffId,
         fileNo: matchedStaff?.fileNo || '',
-        balances: balances
+        gender: staffGender,
+        department: matchedStaff?.department || '',
+        balances: balances,
+        totalLimit,
+        totalUsed,
+        totalRemaining
       });
     } catch (err) {
       console.error(err);
@@ -850,8 +943,10 @@ export default function ReportsDashboard() {
     setLeaveBalanceStaff(null);
     setDepartmentGroups([]);
     setProfileSearchQuery('');
+    setProfileDropdownOpen(false);
     setDeptSearchQuery('');
     setLeaveSearchQuery('');
+    setLeaveDropdownOpen(false);
     setFromDateFilter('');
     setToDateFilter('');
     setMonthFilter('');
@@ -873,6 +968,8 @@ export default function ReportsDashboard() {
     setPayslipData(null);
     setLeaveBalanceStaff(null);
     setDepartmentGroups([]);
+    setLeaveDropdownOpen(false);
+    setProfileDropdownOpen(false);
     setFromDateFilter('');
     setToDateFilter('');
     setMonthFilter('');
@@ -950,11 +1047,12 @@ export default function ReportsDashboard() {
     return matchesSearch && matchesStatus && matchesLeaveFilters;
   });
 
-  const isNoPagination = activeReportId === '4.2_salary_register';
-  const totalPages = isNoPagination ? 1 : (Math.ceil(filteredData.length / itemsPerPage) || 1);
+  const isNoPagination = pageSize === 'all' || activeReportId === '4.2_salary_register';
+  const effectivePageSize = isNoPagination ? (filteredData.length || 1) : (parseInt(pageSize) || 10);
+  const totalPages = isNoPagination ? 1 : (Math.ceil(filteredData.length / effectivePageSize) || 1);
   const paginatedData = isNoPagination ? filteredData : filteredData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    (currentPage - 1) * effectivePageSize,
+    currentPage * effectivePageSize
   );
 
   const metrics = selectedReport && selectedReport.getMetrics ? selectedReport.getMetrics(filteredData) : [];
@@ -1076,71 +1174,190 @@ export default function ReportsDashboard() {
             {/* ──────── 1.2 EMPLOYEE PROFILE CUSTOM VIEW ──────── */}
             {activeReportId === '1.2_profile_report' && (
               <div>
-                <div className={styles.selectorRow} style={{ flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Select Employee:</label>
-                    <input
-                      type="text"
-                      className={styles.searchInput}
-                      placeholder="Search name, ID, dept..."
-                      value={profileSearchQuery}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setProfileSearchQuery(val);
-                        const q = val.toLowerCase().trim();
-                        if (q) {
-                          const filtered = staffList.filter(s => 
-                            (s.name && s.name.toLowerCase().includes(q)) || 
-                            (s.id && String(s.id).toLowerCase().includes(q)) || 
-                            (s.department && s.department.toLowerCase().includes(q)) ||
-                            (s.fileNo && String(s.fileNo).toLowerCase().includes(q))
-                          );
-                          if (filtered.length > 0) {
-                            const exactMatch = filtered.find(s => 
-                              String(s.id).toLowerCase() === q || 
-                              (s.fileNo && String(s.fileNo).toLowerCase() === q) ||
-                              (s.name && s.name.toLowerCase() === q)
-                            );
-                            const targetStaff = exactMatch || filtered[0];
-                            if (targetStaff && targetStaff.id !== selectedStaffId) {
-                              setSelectedStaffId(targetStaff.id);
-                              handleLoadEmployeeProfile(targetStaff.id);
-                            }
-                          } else {
+                <div className={styles.selectorRow} style={{ flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', flex: 1 }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600, whiteSpace: 'nowrap' }}>Select Employee:</label>
+                    
+                    {/* Searchable Staff Autocomplete with Immediate Load */}
+                    <div className={styles.staffSearchWrapper} ref={profileDropdownRef}>
+                      <Search size={16} className={styles.staffSearchIcon} />
+                      <input
+                        type="text"
+                        className={styles.staffSearchInput}
+                        placeholder="Type staff name or staff ID..."
+                        value={profileSearchQuery}
+                        onFocus={() => setProfileDropdownOpen(true)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setProfileSearchQuery(val);
+                          setProfileDropdownOpen(true);
+                          const q = val.toLowerCase().trim();
+                          
+                          if (!q) {
                             setSelectedStaffId('');
                             setProfileData(null);
+                            return;
                           }
-                        } else {
-                          setSelectedStaffId('');
-                          setProfileData(null);
-                        }
-                      }}
-                      style={{ padding: '0.4rem', border: '1px solid var(--border)', borderRadius: '4px', maxWidth: '200px' }}
-                    />
+
+                          const filtered = staffList.filter(s => {
+                            const idStr = String(s.id).toLowerCase();
+                            const fileNoStr = String(s.fileNo || '').toLowerCase();
+                            const cleanFileNo = fileNoStr.replace(/^0+/, '');
+                            const nameStr = (s.name || '').toLowerCase();
+                            const deptStr = (s.department || '').toLowerCase();
+                            return idStr === q || 
+                                   fileNoStr === q || 
+                                   cleanFileNo === q ||
+                                   idStr.includes(q) || 
+                                   fileNoStr.includes(q) || 
+                                   nameStr.includes(q) || 
+                                   deptStr.includes(q);
+                          });
+
+                          // Immediate match detection
+                          const exactMatch = staffList.find(s => {
+                            const idStr = String(s.id).toLowerCase();
+                            const fileNoStr = String(s.fileNo || '').toLowerCase();
+                            const cleanFileNo = fileNoStr.replace(/^0+/, '') || '0';
+                            const nameStr = (s.name || '').toLowerCase();
+                            return idStr === q || fileNoStr === q || cleanFileNo === q || nameStr === q;
+                          });
+
+                          if (exactMatch) {
+                            if (exactMatch.id !== selectedStaffId) {
+                              setSelectedStaffId(exactMatch.id);
+                              handleLoadEmployeeProfile(exactMatch.id);
+                            }
+                          } else if (filtered.length === 1 && (q.length >= 2 || !isNaN(q))) {
+                            if (filtered[0].id !== selectedStaffId) {
+                              setSelectedStaffId(filtered[0].id);
+                              handleLoadEmployeeProfile(filtered[0].id);
+                            }
+                          } else if (filtered.length > 0 && !isNaN(q)) {
+                            const idMatch = filtered.find(s => String(s.id) === q || String(s.fileNo) === q || String(s.fileNo).replace(/^0+/, '') === q);
+                            if (idMatch && idMatch.id !== selectedStaffId) {
+                              setSelectedStaffId(idMatch.id);
+                              handleLoadEmployeeProfile(idMatch.id);
+                            }
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const q = profileSearchQuery.toLowerCase().trim();
+                            const filtered = staffList.filter(s => {
+                              const idStr = String(s.id).toLowerCase();
+                              const fileNoStr = String(s.fileNo || '').toLowerCase();
+                              const nameStr = (s.name || '').toLowerCase();
+                              return idStr.includes(q) || fileNoStr.includes(q) || nameStr.includes(q);
+                            });
+                            if (filtered.length > 0) {
+                              const target = filtered[0];
+                              setSelectedStaffId(target.id);
+                              setProfileSearchQuery(target.name);
+                              setProfileDropdownOpen(false);
+                              handleLoadEmployeeProfile(target.id);
+                            }
+                          }
+                        }}
+                      />
+
+                      {profileSearchQuery && (
+                        <button
+                          type="button"
+                          className={styles.staffClearBtn}
+                          onClick={() => {
+                            setProfileSearchQuery('');
+                            setSelectedStaffId('');
+                            setProfileData(null);
+                            setProfileDropdownOpen(false);
+                          }}
+                          title="Clear search"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+
+                      {/* Dropdown Suggestions List */}
+                      {profileDropdownOpen && (
+                        <div className={styles.staffDropdownMenu}>
+                          {staffList.filter(s => {
+                            const q = profileSearchQuery.toLowerCase().trim();
+                            if (!q) return true;
+                            const idStr = String(s.id).toLowerCase();
+                            const fileNoStr = String(s.fileNo || '').toLowerCase();
+                            const nameStr = (s.name || '').toLowerCase();
+                            const deptStr = (s.department || '').toLowerCase();
+                            return idStr.includes(q) || fileNoStr.includes(q) || nameStr.includes(q) || deptStr.includes(q);
+                          }).length > 0 ? (
+                            staffList.filter(s => {
+                              const q = profileSearchQuery.toLowerCase().trim();
+                              if (!q) return true;
+                              const idStr = String(s.id).toLowerCase();
+                              const fileNoStr = String(s.fileNo || '').toLowerCase();
+                              const nameStr = (s.name || '').toLowerCase();
+                              const deptStr = (s.department || '').toLowerCase();
+                              return idStr.includes(q) || fileNoStr.includes(q) || nameStr.includes(q) || deptStr.includes(q);
+                            }).map(s => (
+                              <div
+                                key={s.id}
+                                className={`${styles.staffDropdownItem} ${selectedStaffId === s.id ? styles.staffDropdownItemActive : ''}`}
+                                onClick={() => {
+                                  setSelectedStaffId(s.id);
+                                  setProfileSearchQuery(s.name);
+                                  setProfileDropdownOpen(false);
+                                  handleLoadEmployeeProfile(s.id);
+                                }}
+                              >
+                                <div>
+                                  <div className={styles.staffDropdownItemName}>{s.name}</div>
+                                  <div className={styles.staffDropdownItemMeta}>
+                                    <span className={styles.staffBadgeSmall}>ID: {s.id}</span>
+                                    {s.fileNo && <span className={styles.staffBadgeSmall}>File: {s.fileNo}</span>}
+                                    {s.department && <span>• {s.department}</span>}
+                                  </div>
+                                </div>
+                                {selectedStaffId === s.id && (
+                                  <CheckCircle2 size={16} style={{ color: 'var(--primary, #6366f1)' }} />
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className={styles.staffDropdownItem} style={{ color: 'var(--secondary)', cursor: 'default' }}>
+                              No matching staff found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Synchronized Select Dropdown */}
                     <select
                       className={styles.selectField}
                       value={selectedStaffId}
                       onChange={(e) => {
-                        setSelectedStaffId(e.target.value);
-                        handleLoadEmployeeProfile(e.target.value);
+                        const sid = e.target.value;
+                        setSelectedStaffId(sid);
+                        const matched = staffList.find(s => String(s.id) === String(sid));
+                        if (matched) {
+                          setProfileSearchQuery(matched.name);
+                          handleLoadEmployeeProfile(sid);
+                        } else {
+                          setProfileSearchQuery('');
+                          setProfileData(null);
+                        }
                       }}
                     >
-                      <option value="">-- Choose Employee --</option>
-                      {staffList.filter(s => {
-                        const q = profileSearchQuery.toLowerCase().trim();
-                        return !q || 
-                          (s.name && s.name.toLowerCase().includes(q)) || 
-                          (s.id && String(s.id).toLowerCase().includes(q)) || 
-                          (s.department && s.department.toLowerCase().includes(q)) ||
-                          (s.fileNo && String(s.fileNo).toLowerCase().includes(q));
-                      }).map(s => (
-                        <option key={s.id} value={s.id}>{s.name} (ID: {s.id}) {s.department ? `- ${s.department}` : ''}</option>
+                      <option value="">-- Choose From List --</option>
+                      {staffList.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} (ID: {s.id}{s.fileNo ? ` / ${s.fileNo}` : ''}) {s.department ? `- ${s.department}` : ''}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   {profileData && (
-                    <div style={{ marginLeft: 'auto' }}>
+                    <div>
                       <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handlePrint}>
                         <Printer size={16} />
                         <span>Print Profile Sheet</span>
@@ -1382,71 +1599,189 @@ export default function ReportsDashboard() {
             {/* ──────── 3.2 LEAVE BALANCE CUSTOM VIEW ──────── */}
             {activeReportId === '3.2_leave_balances' && (
               <div>
-                <div className={styles.selectorRow} style={{ flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Select Employee:</label>
-                    <input
-                      type="text"
-                      className={styles.searchInput}
-                      placeholder="Search name, ID, dept..."
-                      value={leaveSearchQuery}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setLeaveSearchQuery(val);
-                        const q = val.toLowerCase().trim();
-                        if (q) {
-                          const filtered = staffList.filter(s => 
-                            (s.name && s.name.toLowerCase().includes(q)) || 
-                            (s.id && String(s.id).toLowerCase().includes(q)) || 
-                            (s.department && s.department.toLowerCase().includes(q)) ||
-                            (s.fileNo && String(s.fileNo).toLowerCase().includes(q))
-                          );
-                          if (filtered.length > 0) {
-                            const exactMatch = filtered.find(s => 
-                              String(s.id).toLowerCase() === q || 
-                              (s.fileNo && String(s.fileNo).toLowerCase() === q) ||
-                              (s.name && s.name.toLowerCase() === q)
-                            );
-                            const targetStaff = exactMatch || filtered[0];
-                            if (targetStaff && targetStaff.id !== selectedStaffId) {
-                              setSelectedStaffId(targetStaff.id);
-                              handleLoadLeaveBalance(targetStaff.id);
-                            }
-                          } else {
+                <div className={styles.selectorRow} style={{ flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', flex: 1 }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 600, whiteSpace: 'nowrap' }}>Select Employee:</label>
+                    
+                    {/* Searchable Staff Autocomplete with Immediate Load */}
+                    <div className={styles.staffSearchWrapper} ref={leaveDropdownRef}>
+                      <Search size={16} className={styles.staffSearchIcon} />
+                      <input
+                        type="text"
+                        className={styles.staffSearchInput}
+                        placeholder="Type staff name or staff ID..."
+                        value={leaveSearchQuery}
+                        onFocus={() => setLeaveDropdownOpen(true)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLeaveSearchQuery(val);
+                          setLeaveDropdownOpen(true);
+                          const q = val.toLowerCase().trim();
+                          
+                          if (!q) {
                             setSelectedStaffId('');
                             setLeaveBalanceStaff(null);
+                            return;
                           }
-                        } else {
-                          setSelectedStaffId('');
-                          setLeaveBalanceStaff(null);
-                        }
-                      }}
-                      style={{ padding: '0.4rem', border: '1px solid var(--border)', borderRadius: '4px', maxWidth: '200px' }}
-                    />
+
+                          const filtered = staffList.filter(s => {
+                            const idStr = String(s.id).toLowerCase();
+                            const fileNoStr = String(s.fileNo || '').toLowerCase();
+                            const cleanFileNo = fileNoStr.replace(/^0+/, '');
+                            const nameStr = (s.name || '').toLowerCase();
+                            const deptStr = (s.department || '').toLowerCase();
+                            return idStr === q || 
+                                   fileNoStr === q || 
+                                   cleanFileNo === q ||
+                                   idStr.includes(q) || 
+                                   fileNoStr.includes(q) || 
+                                   nameStr.includes(q) || 
+                                   deptStr.includes(q);
+                          });
+
+                          // Immediate match detection: exact ID, exact fileNo, exact name, or numeric ID prefix
+                          const exactMatch = staffList.find(s => {
+                            const idStr = String(s.id).toLowerCase();
+                            const fileNoStr = String(s.fileNo || '').toLowerCase();
+                            const cleanFileNo = fileNoStr.replace(/^0+/, '') || '0';
+                            const nameStr = (s.name || '').toLowerCase();
+                            return idStr === q || fileNoStr === q || cleanFileNo === q || nameStr === q;
+                          });
+
+                          if (exactMatch) {
+                            if (exactMatch.id !== selectedStaffId) {
+                              setSelectedStaffId(exactMatch.id);
+                              handleLoadLeaveBalance(exactMatch.id, exactMatch);
+                            }
+                          } else if (filtered.length === 1 && (q.length >= 2 || !isNaN(q))) {
+                            if (filtered[0].id !== selectedStaffId) {
+                              setSelectedStaffId(filtered[0].id);
+                              handleLoadLeaveBalance(filtered[0].id, filtered[0]);
+                            }
+                          } else if (filtered.length > 0 && !isNaN(q)) {
+                            const idMatch = filtered.find(s => String(s.id) === q || String(s.fileNo) === q || String(s.fileNo).replace(/^0+/, '') === q);
+                            if (idMatch && idMatch.id !== selectedStaffId) {
+                              setSelectedStaffId(idMatch.id);
+                              handleLoadLeaveBalance(idMatch.id, idMatch);
+                            }
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const q = leaveSearchQuery.toLowerCase().trim();
+                            const filtered = staffList.filter(s => {
+                              const idStr = String(s.id).toLowerCase();
+                              const fileNoStr = String(s.fileNo || '').toLowerCase();
+                              const nameStr = (s.name || '').toLowerCase();
+                              return idStr.includes(q) || fileNoStr.includes(q) || nameStr.includes(q);
+                            });
+                            if (filtered.length > 0) {
+                              const target = filtered[0];
+                              setSelectedStaffId(target.id);
+                              setLeaveSearchQuery(target.name);
+                              setLeaveDropdownOpen(false);
+                              handleLoadLeaveBalance(target.id, target);
+                            }
+                          }
+                        }}
+                      />
+
+                      {leaveSearchQuery && (
+                        <button
+                          type="button"
+                          className={styles.staffClearBtn}
+                          onClick={() => {
+                            setLeaveSearchQuery('');
+                            setSelectedStaffId('');
+                            setLeaveBalanceStaff(null);
+                            setLeaveDropdownOpen(false);
+                          }}
+                          title="Clear search"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+
+                      {/* Dropdown Suggestions List */}
+                      {leaveDropdownOpen && (
+                        <div className={styles.staffDropdownMenu}>
+                          {staffList.filter(s => {
+                            const q = leaveSearchQuery.toLowerCase().trim();
+                            if (!q) return true;
+                            const idStr = String(s.id).toLowerCase();
+                            const fileNoStr = String(s.fileNo || '').toLowerCase();
+                            const nameStr = (s.name || '').toLowerCase();
+                            const deptStr = (s.department || '').toLowerCase();
+                            return idStr.includes(q) || fileNoStr.includes(q) || nameStr.includes(q) || deptStr.includes(q);
+                          }).length > 0 ? (
+                            staffList.filter(s => {
+                              const q = leaveSearchQuery.toLowerCase().trim();
+                              if (!q) return true;
+                              const idStr = String(s.id).toLowerCase();
+                              const fileNoStr = String(s.fileNo || '').toLowerCase();
+                              const nameStr = (s.name || '').toLowerCase();
+                              const deptStr = (s.department || '').toLowerCase();
+                              return idStr.includes(q) || fileNoStr.includes(q) || nameStr.includes(q) || deptStr.includes(q);
+                            }).map(s => (
+                              <div
+                                key={s.id}
+                                className={`${styles.staffDropdownItem} ${selectedStaffId === s.id ? styles.staffDropdownItemActive : ''}`}
+                                onClick={() => {
+                                  setSelectedStaffId(s.id);
+                                  setLeaveSearchQuery(s.name);
+                                  setLeaveDropdownOpen(false);
+                                  handleLoadLeaveBalance(s.id, s);
+                                }}
+                              >
+                                <div>
+                                  <div className={styles.staffDropdownItemName}>{s.name}</div>
+                                  <div className={styles.staffDropdownItemMeta}>
+                                    <span className={styles.staffBadgeSmall}>ID: {s.id}</span>
+                                    {s.department && <span>• {s.department}</span>}
+                                  </div>
+                                </div>
+                                {selectedStaffId === s.id && (
+                                  <CheckCircle2 size={16} style={{ color: 'var(--primary, #6366f1)' }} />
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className={styles.staffDropdownItem} style={{ color: 'var(--secondary)', cursor: 'default' }}>
+                              No matching staff found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Synchronized Select Dropdown */}
                     <select
                       className={styles.selectField}
                       value={selectedStaffId}
                       onChange={(e) => {
-                        setSelectedStaffId(e.target.value);
-                        handleLoadLeaveBalance(e.target.value);
+                        const sid = e.target.value;
+                        setSelectedStaffId(sid);
+                        const matched = staffList.find(s => String(s.id) === String(sid));
+                        if (matched) {
+                          setLeaveSearchQuery(matched.name);
+                          handleLoadLeaveBalance(sid, matched);
+                        } else {
+                          setLeaveSearchQuery('');
+                          setLeaveBalanceStaff(null);
+                        }
                       }}
                     >
-                      <option value="">-- Choose Employee --</option>
-                      {staffList.filter(s => {
-                        const q = leaveSearchQuery.toLowerCase().trim();
-                        return !q || 
-                          (s.name && s.name.toLowerCase().includes(q)) || 
-                          (s.id && String(s.id).toLowerCase().includes(q)) || 
-                          (s.department && s.department.toLowerCase().includes(q)) ||
-                          (s.fileNo && String(s.fileNo).toLowerCase().includes(q));
-                      }).map(s => (
-                        <option key={s.id} value={s.id}>{s.name} (ID: {s.id}) {s.department ? `- ${s.department}` : ''}</option>
+                      <option value="">-- Choose From List --</option>
+                      {staffList.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} (ID: {s.id}) {s.department ? `- ${s.department}` : ''}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   {leaveBalanceStaff && (
-                    <div style={{ marginLeft: 'auto' }}>
+                    <div>
                       <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handlePrint}>
                         <Printer size={16} />
                         <span>Print Balance Sheet</span>
@@ -1460,35 +1795,81 @@ export default function ReportsDashboard() {
                     <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary, #6366f1)' }} />
                   </div>
                 ) : leaveBalanceStaff ? (
-                  <div className={styles.tableCard}>
-                    <div className={styles.tableContainer}>
-                      <table className={styles.table}>
-                        <thead>
-                          <tr>
-                            <th className={styles.th}>Leave Category Type</th>
-                            <th className={styles.th}>Statutory Annual Limit (Days)</th>
-                            <th className={styles.th}>Days Approved / Used</th>
-                            <th className={styles.th}>Remaining Balance (Days)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {leaveBalanceStaff.balances.map((bal, idx) => (
-                            <tr key={idx} className={styles.tr}>
-                              <td className={styles.td} style={{ fontWeight: 600, color: 'var(--foreground)' }}>{bal.type}</td>
-                              <td className={styles.td}>{bal.limit} Days</td>
-                              <td className={styles.td} style={{ color: bal.used > 0 ? '#ef4444' : 'inherit' }}>{bal.used} Days</td>
-                              <td className={styles.td} style={{ color: '#10b981', fontWeight: 600 }}>{bal.remaining} Days</td>
+                  <div>
+                    {/* Staff Details Banner */}
+                    <div className={styles.staffHeaderCard}>
+                      <div className={styles.staffHeaderInfo}>
+                        <div className={styles.staffAvatar}>
+                          {leaveBalanceStaff.name?.[0] || 'S'}
+                        </div>
+                        <div className={styles.staffHeaderMeta}>
+                          <h2 className={styles.staffHeaderName}>{leaveBalanceStaff.name}</h2>
+                          <div className={styles.staffHeaderSub}>
+                            <span className={styles.staffBadgeSmall}>Staff ID: {leaveBalanceStaff.id}</span>
+                            {leaveBalanceStaff.department && (
+                              <span>Dept: {leaveBalanceStaff.department}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={styles.staffHeaderStats}>
+                        <div className={styles.staffStatBox}>
+                          <div className={styles.staffStatLabel}>Annual Quota</div>
+                          <div className={styles.staffStatVal} style={{ color: 'var(--foreground)' }}>
+                            {leaveBalanceStaff.totalLimit || 0} Days
+                          </div>
+                        </div>
+                        <div className={styles.staffStatBox}>
+                          <div className={styles.staffStatLabel}>Days Used</div>
+                          <div className={styles.staffStatVal} style={{ color: leaveBalanceStaff.totalUsed > 0 ? '#ef4444' : 'var(--foreground)' }}>
+                            {leaveBalanceStaff.totalUsed || 0} Days
+                          </div>
+                        </div>
+                        <div className={styles.staffStatBox}>
+                          <div className={styles.staffStatLabel}>Remaining</div>
+                          <div className={styles.staffStatVal} style={{ color: '#10b981' }}>
+                            {leaveBalanceStaff.totalRemaining || 0} Days
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Table Card */}
+                    <div className={styles.tableCard}>
+                      <div className={styles.tableContainer}>
+                        <table className={styles.table}>
+                          <thead>
+                            <tr>
+                              <th className={styles.th}>Leave Category Type</th>
+                              <th className={styles.th}>Statutory Annual Limit (Days)</th>
+                              <th className={styles.th}>Days Approved / Used</th>
+                              <th className={styles.th}>Remaining Balance (Days)</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {leaveBalanceStaff.balances.map((bal, idx) => (
+                              <tr key={idx} className={styles.tr}>
+                                <td className={styles.td} style={{ fontWeight: 600, color: 'var(--foreground)' }}>{bal.type}</td>
+                                <td className={styles.td}>{bal.limit} Days</td>
+                                <td className={styles.td} style={{ color: bal.used > 0 ? '#ef4444' : 'inherit', fontWeight: bal.used > 0 ? 600 : 400 }}>
+                                  {bal.used} Days
+                                </td>
+                                <td className={styles.td} style={{ color: '#10b981', fontWeight: 600 }}>
+                                  {bal.remaining} Days
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 ) : (
                   <div className={styles.emptyState}>
                     <FileSpreadsheet size={40} />
                     <h3>No Employee Selected</h3>
-                    <p style={{ margin: 0 }}>Select a staff member from the dropdown list to calculate their remaining leave balances.</p>
+                    <p style={{ margin: 0 }}>Type a staff name or staff ID in the field above to immediately load their leave balance report.</p>
                   </div>
                 )}
               </div>
@@ -1737,6 +2118,27 @@ export default function ReportsDashboard() {
                         <option value="inactive">Status: Completed/Inactive</option>
                       </select>
                     )}
+
+                    {/* Page Size / Rows per page selector (10, 20, 50, 100, all) */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>Show:</span>
+                      <select
+                        className={styles.selectField}
+                        value={pageSize}
+                        onChange={(e) => {
+                          const val = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+                          setPageSize(val);
+                          setCurrentPage(1);
+                        }}
+                        style={{ minWidth: '100px' }}
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value="all">All</option>
+                      </select>
+                    </div>
                     
                     {activeReportId === '3.1_leave_applications' && (
                       <div className={styles.leaveFiltersContainer}>
@@ -1863,7 +2265,7 @@ export default function ReportsDashboard() {
                       ) : (
                         <div className={styles.pagination}>
                           <div>
-                            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} records
+                            Showing {filteredData.length > 0 ? (currentPage - 1) * effectivePageSize + 1 : 0} to {Math.min(currentPage * effectivePageSize, filteredData.length)} of {filteredData.length} records
                           </div>
                           <div className={styles.paginationButtons}>
                             <button
@@ -1874,6 +2276,9 @@ export default function ReportsDashboard() {
                             >
                               <ChevronLeft size={16} />
                             </button>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 500, margin: '0 0.5rem' }}>
+                              Page {currentPage} of {totalPages}
+                            </span>
                             <button
                               className={`${styles.btn} ${styles.btnSecondary}`}
                               style={{ padding: '0.25rem 0.5rem' }}

@@ -164,6 +164,37 @@ button, input, select, textarea {
 
 /* ── Global Media Print Rules ── */
 @media print {
+  html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Reset layout constraints so multi-page documents can scroll & flow naturally across all pages */
+  #__next,
+  [class*="layout"],
+  [class*="mainContainer"],
+  [class*="content"],
+  [class*="pageWrapper"],
+  [class*="container"],
+  [class*="tableContainer"],
+  [class*="tableCard"],
+  [class*="modalOverlay"],
+  [class*="modalContent"],
+  [class*="modalBody"] {
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
   body * {
     visibility: hidden;
   }

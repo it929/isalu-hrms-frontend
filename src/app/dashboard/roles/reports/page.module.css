@@ -613,6 +613,203 @@
   border: 1px solid var(--border);
   margin-bottom: 1.5rem;
   box-shadow: var(--shadow);
+  position: relative;
+  z-index: 20;
+}
+
+.staffSearchWrapper {
+  position: relative;
+  min-width: 280px;
+  max-width: 400px;
+  flex: 1;
+}
+
+.staffSearchInput {
+  width: 100%;
+  padding: 0.6rem 2.2rem 0.6rem 2.4rem;
+  border-radius: 8px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.staffSearchInput:focus {
+  border-color: var(--primary, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.staffSearchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--secondary, #94a3b8);
+  pointer-events: none;
+}
+
+.staffClearBtn {
+  position: absolute;
+  right: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--secondary, #94a3b8);
+  cursor: pointer;
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.staffClearBtn:hover {
+  color: var(--foreground);
+  background: var(--surface-hover);
+}
+
+.staffDropdownMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.staffDropdownItem {
+  padding: 0.65rem 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+}
+
+.staffDropdownItem:last-child {
+  border-bottom: none;
+}
+
+.staffDropdownItem:hover, .staffDropdownItemActive {
+  background: var(--surface-hover);
+}
+
+.staffDropdownItemName {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--foreground);
+}
+
+.staffDropdownItemMeta {
+  font-size: 0.78rem;
+  color: var(--secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.staffBadgeSmall {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary, #6366f1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.staffHeaderCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.staffHeaderInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.staffAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary, #6366f1), #a855f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.staffHeaderMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.staffHeaderName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.staffHeaderSub {
+  font-size: 0.82rem;
+  color: var(--secondary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.staffHeaderStats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.staffStatBox {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  text-align: center;
+  min-width: 90px;
+}
+
+.staffStatLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+.staffStatVal {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 0.1rem;
 }
 
 .leaveFiltersContainer {
@@ -751,7 +948,42 @@
     text-align: center !important;
   }
 
-  .tableCard, .tableContainer, .profileBlock, .profileSidebar, .deptBlock {
+  .tableCard, .tableContainer {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .table {
+    width: 100% !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    border-collapse: collapse !important;
+  }
+
+  .table thead {
+    display: table-header-group !important;
+  }
+
+  .table tfoot {
+    display: table-footer-group !important;
+  }
+
+  .table tr, .tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .profileBlock, .profileSidebar, .deptBlock, .staffHeaderCard {
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
     border-radius: 6px !important;

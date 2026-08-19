@@ -16,6 +16,11 @@ import {
   Landmark,
   ShieldCheck,
   ShieldAlert,
+  Check,
+  X,
+  CheckSquare,
+  Square,
+  RotateCcw
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -48,6 +53,7 @@ export default function PensionActivationPage() {
   // Data States
   const [staffRecords, setStaffRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,7 +115,7 @@ export default function PensionActivationPage() {
     }
   }, [fetchData]);
 
-  // Handle Toggle Pension Status
+  // Handle Toggle Pension Status (Single)
   const handleTogglePension = async (staffId, currentStatus) => {
     if (saving) return;
 
@@ -141,6 +147,68 @@ export default function PensionActivationPage() {
       showToast(err.response?.data?.message || 'Server error updating status.', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Handle Bulk Toggle Pension Status
+  const handleBulkTogglePension = async (targetStatus) => {
+    if (selectedIds.length === 0 || saving) return;
+
+    setSaving(true);
+    // Optimistic UI update
+    const originalRecords = [...staffRecords];
+    setStaffRecords(prev =>
+      prev.map(r => selectedIds.includes(r.id) ? { ...r, pen_act: targetStatus } : r)
+    );
+
+    const headers = buildHeaders();
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/pension-activation/bulk-toggle`, {
+        staff_ids: selectedIds,
+        pen_act: targetStatus
+      }, { headers });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || `Successfully ${targetStatus === 1 ? 'activated' : 'deactivated'} pension for ${selectedIds.length} staff.`);
+        setSelectedIds([]);
+        fetchData(true); // silent refresh
+      } else {
+        setStaffRecords(originalRecords); // rollback
+        showToast(res.data.message || 'Bulk update failed.', 'error');
+      }
+    } catch (err) {
+      setStaffRecords(originalRecords); // rollback
+      showToast(err.response?.data?.message || 'Server error during bulk update.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Selection handlers
+  const handleSelectRow = (staffId) => {
+    setSelectedIds(prev =>
+      prev.includes(staffId) ? prev.filter(id => id !== staffId) : [...prev, staffId]
+    );
+  };
+
+  const handleSelectAllVisible = (pageIds) => {
+    const allSelected = pageIds.every(id => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+    } else {
+      setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const handleSelectByStatus = (status) => {
+    if (status === 'all') {
+      setSelectedIds(filteredRecords.map(r => r.id));
+    } else if (status === 'active') {
+      setSelectedIds(filteredRecords.filter(r => r.pen_act === 1).map(r => r.id));
+    } else if (status === 'inactive') {
+      setSelectedIds(filteredRecords.filter(r => r.pen_act === 0).map(r => r.id));
+    } else if (status === 'none') {
+      setSelectedIds([]);
     }
   };
 
@@ -253,6 +321,10 @@ export default function PensionActivationPage() {
     ? filteredRecords
     : filteredRecords.slice(startIndex, startIndex + parseInt(itemsPerPage, 10));
 
+  const pageStaffIds = paginatedRecords.map(r => r.id);
+  const isAllPageSelected = pageStaffIds.length > 0 && pageStaffIds.every(id => selectedIds.includes(id));
+  const isSomePageSelected = pageStaffIds.some(id => selectedIds.includes(id)) && !isAllPageSelected;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -275,7 +347,7 @@ export default function PensionActivationPage() {
       {/* Page Header */}
       <div className={styles.header}>
         <h1>Staff Pension Activation</h1>
-        <p>Manage and configure pension status for active personnel individually or in bulk via spreadsheet imports.</p>
+        <p>Manage and configure pension status for active personnel individually or in bulk via checkbox selections and spreadsheet imports.</p>
       </div>
 
       {/* Tabs */}
@@ -288,14 +360,14 @@ export default function PensionActivationPage() {
           }}
         >
           <Users size={16} />
-          Manual Pension Setup
+          Manual & Bulk Pension Setup
         </button>
         <button
           className={`${styles.tabBtn} ${activeTab === 'bulk' ? styles.activeTabBtn : ''}`}
           onClick={() => setActiveTab('bulk')}
         >
           <UploadCloud size={16} />
-          Bulk Upload Spreadsheet
+          Spreadsheet Import
         </button>
       </div>
 
@@ -343,17 +415,92 @@ export default function PensionActivationPage() {
             transition={{ duration: 0.2 }}
             className={styles.tableCard}
           >
+            {/* Table Header & Search Controls */}
             <div className={styles.tableHeader}>
-              <h2 className={styles.tableTitle}>
-                <FileText size={18} />
-                Personnel Pension Registry
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <h2 className={styles.tableTitle}>
+                  <FileText size={18} />
+                  Personnel Pension Registry
+                </h2>
+
+                {/* Bulk Action Controls */}
+                {selectedIds.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkTogglePension(1)}
+                      disabled={saving}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.4rem 0.85rem',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        background: '#10b981',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s',
+                      }}
+                      title="Activate pension for all selected staff"
+                    >
+                      <Check size={14} />
+                      Bulk Activate ({selectedIds.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBulkTogglePension(0)}
+                      disabled={saving}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.4rem 0.85rem',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        background: '#fee2e2',
+                        color: '#b91c1c',
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s',
+                      }}
+                      title="Deactivate pension for all selected staff"
+                    >
+                      <X size={14} />
+                      Bulk Deactivate ({selectedIds.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIds([])}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.4rem 0.65rem',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        border: '1px solid var(--border)',
+                        background: 'transparent',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <RotateCcw size={12} />
+                      Clear ({selectedIds.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className={styles.tableControls}>
                 <div className={styles.tableSearch}>
                   <Search size={16} className={styles.tableSearchIcon} />
                   <input
                     type="text"
-                    placeholder="Search by staff name, ID or file no..."
+                    placeholder="Search by name, ID or file no..."
                     className={styles.tableSearchInput}
                     value={searchQuery}
                     onChange={(e) => {
@@ -362,6 +509,7 @@ export default function PensionActivationPage() {
                     }}
                   />
                 </div>
+
                 <div className={styles.perPageGroup}>
                   <span className={styles.perPageLabel}>Show:</span>
                   <select
@@ -383,6 +531,73 @@ export default function PensionActivationPage() {
               </div>
             </div>
 
+            {/* Quick Selection Presets Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.5rem', background: 'color-mix(in srgb, var(--bg) 50%, transparent)', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Quick Selection:</span>
+              <button
+                type="button"
+                onClick={() => handleSelectByStatus('all')}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Select All Filtered ({filteredRecords.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectByStatus('inactive')}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: 'rgba(239, 68, 68, 0.05)',
+                  color: '#ef4444',
+                  cursor: 'pointer',
+                }}
+              >
+                Select Inactive ({inactivePensionCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectByStatus('active')}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  background: 'rgba(16, 185, 129, 0.05)',
+                  color: '#10b981',
+                  cursor: 'pointer',
+                }}
+              >
+                Select Active ({activePensionCount})
+              </button>
+              {selectedIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectByStatus('none')}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'transparent',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Deselect All
+                </button>
+              )}
+            </div>
+
             <div className={styles.tableWrapper}>
               {loading ? (
                 <div className={styles.loadingState}>
@@ -394,6 +609,18 @@ export default function PensionActivationPage() {
                   <table className={styles.table}>
                     <thead>
                       <tr>
+                        <th style={{ width: '40px', textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={isAllPageSelected}
+                            ref={input => {
+                              if (input) input.indeterminate = isSomePageSelected;
+                            }}
+                            onChange={() => handleSelectAllVisible(pageStaffIds)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                            title="Select all on this page"
+                          />
+                        </th>
                         <th>Staff ID</th>
                         <th>Staff Name</th>
                         <th>Salary (₦)</th>
@@ -402,46 +629,70 @@ export default function PensionActivationPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedRecords.map((row) => (
-                        <tr key={row.id}>
-                          <td className={styles.tdPrimary}>#{row.id}</td>
-                          <td style={{ fontWeight: 600 }}>{row.name}</td>
-                          <td>
-                            {row.basic_salary > 0 
-                              ? `₦${row.basic_salary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : '₦0.00'
-                            }
-                          </td>
-                          <td>
-                            {row.pen_act === 1 ? (
-                              <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
-                            ) : (
-                              <span className={`${styles.badge} ${styles.badgeInactive}`}>Inactive</span>
-                            )}
-                          </td>
-                          <td>
-                            {row.pen_act === 1 ? (
-                              <button
-                                type="button"
-                                className={`${styles.actionBtn} ${styles.btnDeactivate}`}
-                                onClick={() => handleTogglePension(row.id, 1)}
-                                disabled={saving}
-                              >
-                                Deactivate
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className={`${styles.actionBtn} ${styles.btnActivate}`}
-                                onClick={() => handleTogglePension(row.id, 0)}
-                                disabled={saving}
-                              >
-                                Activate
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {paginatedRecords.map((row) => {
+                        const isSelected = selectedIds.includes(row.id);
+                        return (
+                          <tr 
+                            key={row.id} 
+                            style={{ 
+                              background: isSelected ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
+                              transition: 'background 0.15s ease'
+                            }}
+                          >
+                            <td style={{ textAlign: 'center' }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleSelectRow(row.id)}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                              />
+                            </td>
+                            <td className={styles.tdPrimary}>#{row.id}</td>
+                            <td style={{ fontWeight: 600 }}>
+                              {row.name}
+                              {row.fileNo && (
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>
+                                  File: {row.fileNo}
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {row.basic_salary > 0 
+                                ? `₦${row.basic_salary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : '₦0.00'
+                              }
+                            </td>
+                            <td>
+                              {row.pen_act === 1 ? (
+                                <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
+                              ) : (
+                                <span className={`${styles.badge} ${styles.badgeInactive}`}>Inactive</span>
+                              )}
+                            </td>
+                            <td>
+                              {row.pen_act === 1 ? (
+                                <button
+                                  type="button"
+                                  className={`${styles.actionBtn} ${styles.btnDeactivate}`}
+                                  onClick={() => handleTogglePension(row.id, 1)}
+                                  disabled={saving}
+                                >
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={`${styles.actionBtn} ${styles.btnActivate}`}
+                                  onClick={() => handleTogglePension(row.id, 0)}
+                                  disabled={saving}
+                                >
+                                  Activate
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
 
@@ -550,28 +801,24 @@ export default function PensionActivationPage() {
               onClick={() => document.getElementById('bulk-pension-input').click()}
             >
               <input
-                type="file"
                 id="bulk-pension-input"
+                type="file"
                 className={styles.fileInput}
                 accept=".xlsx,.xls,.csv"
                 onChange={handleFileChange}
               />
-              {uploading ? (
-                <Loader2 size={48} className={styles.spinner} />
-              ) : (
-                <UploadCloud size={48} />
-              )}
+              <UploadCloud size={48} />
               <div>
                 <p className={styles.uploadZoneTitle}>
-                  {uploading ? 'Analyzing spreadsheet...' : 'Drag & drop Excel or CSV file here'}
+                  {uploading ? 'Processing spreadsheet...' : 'Click to browse or drag & drop spreadsheet here'}
                 </p>
                 <p className={styles.uploadZoneDesc}>
-                  {!uploading && 'or click to browse local files (Supports .xlsx, .xls, .csv)'}
+                  Supported formats: Excel (.xlsx, .xls) and CSV (.csv) — Max 5MB
                 </p>
               </div>
             </div>
 
-            {/* Template Download Option */}
+            {/* Download Template & Instructions */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
               <button
                 type="button"
@@ -579,23 +826,23 @@ export default function PensionActivationPage() {
                 onClick={handleDownloadTemplate}
               >
                 <Download size={14} />
-                Download CSV Column Template
+                Download CSV Import Template
               </button>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Required column: <strong>staffId</strong>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Template only requires the <strong>staffId</strong> column.
               </span>
             </div>
 
-            {/* Warnings Alerts */}
+            {/* Warnings Log Area */}
             {warnings.length > 0 && (
-              <div className={styles.warningCard}>
-                <h4>
-                  <AlertTriangle size={16} style={{ verticalAlign: 'middle', marginRight: '0.35rem' }} />
-                  Import completed with some warnings:
-                </h4>
+              <div className={styles.warningCard} style={{ marginTop: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <AlertTriangle size={16} />
+                  <h4>Import Notice ({warnings.length} issues)</h4>
+                </div>
                 <ul className={styles.warningList}>
-                  {warnings.map((warn, i) => (
-                    <li key={i}>{warn}</li>
+                  {warnings.map((w, index) => (
+                    <li key={index}>{w}</li>
                   ))}
                 </ul>
               </div>

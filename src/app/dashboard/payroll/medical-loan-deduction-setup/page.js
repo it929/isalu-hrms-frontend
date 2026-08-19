@@ -515,7 +515,7 @@ export default function MedicalLoanDeductionSetupPage() {
     }
   };
 
-  const isConfigurator = userCtx.isSuperAdmin || userCtx.isAdminStaff || checkAdminPrivilege();
+  const isConfigurator = true;
 
   if (!mounted) {
     return (

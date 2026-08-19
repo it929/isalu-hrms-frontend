@@ -24,9 +24,10 @@ function buildHeaders() {
 const STATIC_APPROVAL_OPTIONS = [
   { id: 'hr_approve_leave', label: 'HR Leave & LOA Approvals' },
   { id: 'hr_approve_loan', label: 'HR Loan & Coop Loan Approvals' },
-  { id: 'hr_approve_iou', label: 'HR IOU Approvals' },
+  { id: 'hr_approve_iou', label: 'HR IOU / Salary Advance Approvals' },
   { id: 'hr_approve_refund', label: 'HR Refund Approvals' },
   { id: 'hr_approve_resignation', label: 'HR Resignation Approvals' },
+  { id: 'hr_approve_appraisal', label: 'HR Staff Appraisal Approvals' },
 ];
 
 export default function HRRoleDelegation() {
