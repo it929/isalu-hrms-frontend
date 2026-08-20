@@ -1454,3 +1454,180 @@
   flex-wrap: wrap;
 }
 
+/* ========================================================================= */
+/* SAVINGS & BALANCES OVERVIEW SECTION */
+/* ========================================================================= */
+.balancesOverviewCard {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.balancesOverviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.15rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+}
+
+.balancesOverviewTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.balancesOverviewSub {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #64748b);
+}
+
+.balancesOverviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.overviewCardItem {
+  background: #f8fafc;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 0.65rem;
+  padding: 1rem 1.15rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.overviewCardItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.overviewCardSavings {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.overviewIconWrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.overviewIconSavings {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.overviewIconLoan {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.overviewIconAsset {
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+}
+
+.overviewIconMedical {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+.overviewItemInfo {
+  flex: 1;
+}
+
+.overviewItemLabel {
+  font-size: 0.785rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 0.2rem;
+}
+
+.overviewItemValue {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.overviewItemValueSavings {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #047857;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.overviewItemDetail {
+  font-size: 0.725rem;
+  color: var(--text-secondary, #64748b);
+  margin-top: 0.25rem;
+}
+
+/* ========================================================================= */
+/* SHEET MODAL BALANCES CONTAINER */
+/* ========================================================================= */
+.sheetBalancesContainer {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.4rem;
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.85rem;
+  page-break-inside: avoid;
+}
+
+.sheetBalancesHeader {
+  font-size: 0.735rem;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.45rem;
+  text-transform: uppercase;
+}
+
+.sheetBalancesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem 1.25rem;
+  font-size: 0.76rem;
+}
+
+.sheetBalanceItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.15rem 0;
+  border-bottom: 1px dotted #e2e8f0;
+}
+
+.sheetBalanceLabel {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.725rem;
+}
+
+.sheetBalanceVal {
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+
