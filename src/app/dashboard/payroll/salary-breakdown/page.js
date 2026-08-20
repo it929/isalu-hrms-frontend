@@ -23,7 +23,12 @@ import {
   X,
   FileSpreadsheet,
   Layers,
-  Filter
+  Filter,
+  PiggyBank,
+  Wallet,
+  CreditCard,
+  ShoppingBag,
+  HeartPulse
 } from 'lucide-react';
 import NairaSign from '../../../../components/ui/NairaSign';
 import styles from './page.module.css';
@@ -1126,14 +1131,22 @@ export default function SalaryBreakdownPage() {
                 <div className={styles.listItem}>
                   <div className={styles.itemLeft}>
                     <span className={styles.itemName}>Cooperative Monthly Savings</span>
-                    <span className={styles.itemSubtext}>Monthly contribution to cooperative</span>
+                    <span className={styles.itemSubtext}>
+                      Cumulative Savings Balance: <strong style={{ color: '#059669', fontWeight: 600 }}>₦{formatCurrency(deductions?.coop_savings?.saving_balance ?? deductions?.coop_savings?.balance ?? deductions?.coop_savings?.balance_remaining ?? data?.balances?.coop_savings_balance ?? 0)}</strong>
+                    </span>
                   </div>
                   <div className={styles.itemRight}>
                     <span className={`${styles.itemAmount} ${styles.itemAmountDeduction}`}>
                       {deductions?.coop_savings?.amount > 0 ? `- ₦${formatCurrency(deductions.coop_savings.amount)}` : '₦0.00'}
                     </span>
-                    {deductions?.coop_savings?.is_active && (
-                      <span className={`${styles.badge} ${styles.badgeInfo}`}>Active</span>
+                    {deductions?.coop_savings?.is_active ? (
+                      <span className={`${styles.badge} ${styles.badgeSuccess}`}>Active</span>
+                    ) : (
+                      ((deductions?.coop_savings?.saving_balance || 0) > 0 || (data?.balances?.coop_savings_balance || 0) > 0) ? (
+                        <span className={`${styles.badge} ${styles.badgeInfo}`}>Balance on Record</span>
+                      ) : (
+                        <span className={`${styles.badge} ${styles.badgeMuted}`}>Not Active</span>
+                      )
                     )}
                   </div>
                 </div>
@@ -1241,6 +1254,103 @@ export default function SalaryBreakdownPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Balances & Outstanding Overview */}
+          <div className={styles.balancesOverviewCard}>
+            <div className={styles.balancesOverviewHeader}>
+              <h3 className={styles.balancesOverviewTitle}>
+                <PiggyBank size={20} style={{ color: '#059669' }} />
+                <span>Savings & Outstanding Balances Summary</span>
+              </h3>
+              <span className={styles.balancesOverviewSub}>
+                Real-time snapshot of cooperative savings accumulation & active loan balances
+              </span>
+            </div>
+
+            <div className={styles.balancesOverviewGrid}>
+              {/* 1. Cooperative Savings Balance */}
+              <div className={`${styles.overviewCardItem} ${styles.overviewCardSavings}`}>
+                <div className={`${styles.overviewIconWrap} ${styles.overviewIconSavings}`}>
+                  <Wallet size={22} />
+                </div>
+                <div className={styles.overviewItemInfo}>
+                  <div className={styles.overviewItemLabel}>Cooperative Savings Balance</div>
+                  <div className={styles.overviewItemValueSavings}>
+                    ₦{formatCurrency(deductions?.coop_savings?.saving_balance ?? deductions?.coop_savings?.balance ?? deductions?.coop_savings?.balance_remaining ?? data?.balances?.coop_savings_balance ?? 0)}
+                  </div>
+                  <div className={styles.overviewItemDetail}>
+                    {deductions?.coop_savings?.amount > 0 ? (
+                      <span style={{ color: '#047857', fontWeight: 600 }}>
+                        + ₦{formatCurrency(deductions.coop_savings.amount)}/mo deduction
+                      </span>
+                    ) : (
+                      <span style={{ color: '#64748b' }}>Cumulative savings balance</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Cooperative Loan Balance */}
+              <div className={styles.overviewCardItem}>
+                <div className={`${styles.overviewIconWrap} ${styles.overviewIconLoan}`}>
+                  <CreditCard size={22} />
+                </div>
+                <div className={styles.overviewItemInfo}>
+                  <div className={styles.overviewItemLabel}>Cooperative Loan Balance</div>
+                  <div className={styles.overviewItemValue}>
+                    ₦{formatCurrency(deductions?.coop_loan?.balance_remaining ?? data?.balances?.coop_loan_balance ?? 0)}
+                  </div>
+                  <div className={styles.overviewItemDetail}>
+                    {deductions?.coop_loan?.amount > 0 ? (
+                      <span>- ₦{formatCurrency(deductions.coop_loan.amount)}/mo repayment</span>
+                    ) : (
+                      <span style={{ color: '#64748b' }}>No active coop loan balance</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Cooperative Asset Finance */}
+              <div className={styles.overviewCardItem}>
+                <div className={`${styles.overviewIconWrap} ${styles.overviewIconAsset}`}>
+                  <ShoppingBag size={22} />
+                </div>
+                <div className={styles.overviewItemInfo}>
+                  <div className={styles.overviewItemLabel}>Coop Asset Finance Balance</div>
+                  <div className={styles.overviewItemValue}>
+                    ₦{formatCurrency(deductions?.coop_asset_finance?.balance_remaining ?? data?.balances?.coop_asset_finance_balance ?? 0)}
+                  </div>
+                  <div className={styles.overviewItemDetail}>
+                    {deductions?.coop_asset_finance?.amount > 0 ? (
+                      <span>- ₦{formatCurrency(deductions.coop_asset_finance.amount)}/mo deduction</span>
+                    ) : (
+                      <span style={{ color: '#64748b' }}>No active asset finance</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Medical Loan Balance */}
+              <div className={styles.overviewCardItem}>
+                <div className={`${styles.overviewIconWrap} ${styles.overviewIconMedical}`}>
+                  <HeartPulse size={22} />
+                </div>
+                <div className={styles.overviewItemInfo}>
+                  <div className={styles.overviewItemLabel}>Medical Loan Balance</div>
+                  <div className={styles.overviewItemValue}>
+                    ₦{formatCurrency(deductions?.medical_loan?.balance_remaining ?? data?.balances?.medical_loan_balance ?? 0)}
+                  </div>
+                  <div className={styles.overviewItemDetail}>
+                    {deductions?.medical_loan?.amount > 0 ? (
+                      <span>- ₦{formatCurrency(deductions.medical_loan.amount)}/mo deduction</span>
+                    ) : (
+                      <span style={{ color: '#64748b' }}>No active medical loan</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1447,7 +1557,12 @@ export default function SalaryBreakdownPage() {
                     )}
                     {deductions?.coop_savings?.amount > 0 && (
                       <div className={styles.sheetRow}>
-                        <span>Cooperative Monthly Savings</span>
+                        <span>
+                          Cooperative Monthly Savings
+                          <span style={{ display: 'block', fontSize: '0.685rem', color: '#059669', fontWeight: 600 }}>
+                            (Cumulative Savings Balance: ₦{formatCurrency(deductions?.coop_savings?.saving_balance ?? deductions?.coop_savings?.balance ?? deductions?.coop_savings?.balance_remaining ?? data?.balances?.coop_savings_balance ?? 0)})
+                          </span>
+                        </span>
                         <span>{formatCurrency(deductions.coop_savings.amount)}</span>
                       </div>
                     )}
@@ -1490,6 +1605,39 @@ export default function SalaryBreakdownPage() {
                     <div className={`${styles.sheetRow} ${styles.sheetRowTotal}`}>
                       <span>TOTAL DEDUCTIONS</span>
                       <span>₦{formatCurrency(deductions?.total_deductions)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Balances & Outstanding Information Section */}
+                <div className={styles.sheetBalancesContainer}>
+                  <div className={styles.sheetBalancesHeader}>
+                    BALANCES & OUTSTANDING INFORMATION
+                  </div>
+                  <div className={styles.sheetBalancesGrid}>
+                    <div className={styles.sheetBalanceItem}>
+                      <span className={styles.sheetBalanceLabel}>Cop. Contr. (Savings Bal):</span>
+                      <span className={styles.sheetBalanceVal} style={{ color: '#047857', fontWeight: 700 }}>
+                        ₦{formatCurrency(deductions?.coop_savings?.saving_balance ?? deductions?.coop_savings?.balance ?? deductions?.coop_savings?.balance_remaining ?? data?.balances?.coop_savings_balance ?? 0)}
+                      </span>
+                    </div>
+                    <div className={styles.sheetBalanceItem}>
+                      <span className={styles.sheetBalanceLabel}>Cop. Loan Bal:</span>
+                      <span className={styles.sheetBalanceVal}>
+                        ₦{formatCurrency(deductions?.coop_loan?.balance_remaining ?? data?.balances?.coop_loan_balance ?? 0)}
+                      </span>
+                    </div>
+                    <div className={styles.sheetBalanceItem}>
+                      <span className={styles.sheetBalanceLabel}>Cop. Asset Fin Bal:</span>
+                      <span className={styles.sheetBalanceVal}>
+                        ₦{formatCurrency(deductions?.coop_asset_finance?.balance_remaining ?? data?.balances?.coop_asset_finance_balance ?? 0)}
+                      </span>
+                    </div>
+                    <div className={styles.sheetBalanceItem}>
+                      <span className={styles.sheetBalanceLabel}>Med. Debt Bal:</span>
+                      <span className={styles.sheetBalanceVal}>
+                        ₦{formatCurrency(deductions?.medical_loan?.balance_remaining ?? data?.balances?.medical_loan_balance ?? 0)}
+                      </span>
                     </div>
                   </div>
                 </div>
