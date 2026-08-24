@@ -98,9 +98,16 @@ export default function ApplyLoaPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filterEndDate, setFilterEndDate]     = useState('');
+  const [filterStatus, setFilterStatus]       = useState('all');
+  const [searchQuery, setSearchQuery]         = useState('');
+  const [itemsPerPage, setItemsPerPage]       = useState('10');
+  const [currentPage, setCurrentPage]         = useState(1);
+
+  // ── Reset page on filter/items-per-page change ─────────────────────────────
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStartDate, filterEndDate, filterStatus, itemsPerPage]);
 
   // ── Toast helper ───────────────────────────────────────────────────────────
   const showToast = useCallback((message, type = 'success') => {
@@ -167,9 +174,11 @@ export default function ApplyLoaPage() {
     if (pageData) {
       const isSuperAdmin = pageData.isSuperAdmin ?? false;
       const isAdminStaff = pageData.isAdminStaff ?? false;
+      const isAuditStaff = pageData.isAuditStaff ?? false;
+      const isFinanceStaff = pageData.isFinanceStaff ?? false;
       const currentEmployee = pageData.employee ?? null;
 
-      if (!(isSuperAdmin || isAdminStaff) && currentEmployee) {
+      if (!(isSuperAdmin || isAdminStaff || isAuditStaff || isFinanceStaff) && currentEmployee) {
         setForm(prev => ({
           ...prev,
           employee_id: currentEmployee.ID,
@@ -198,7 +207,7 @@ export default function ApplyLoaPage() {
   const handleCancelEdit = () => {
     setEditRecordId(null);
     setForm({
-      employee_id: pageData && !(pageData.isSuperAdmin || pageData.isAdminStaff) && pageData.employee
+      employee_id: pageData && !(pageData.isSuperAdmin || pageData.isAdminStaff || pageData.isAuditStaff || pageData.isFinanceStaff) && pageData.employee
         ? pageData.employee.ID
         : '',
       start_date: '',
@@ -266,8 +275,11 @@ export default function ApplyLoaPage() {
   const isSuperAdmin = pageData?.isSuperAdmin ?? false;
   const isHod        = pageData?.isHod        ?? false;
   const isAdminStaff = pageData?.isAdminStaff ?? false;
+  const isAuditStaff = pageData?.isAuditStaff ?? false;
+  const isFinanceStaff = pageData?.isFinanceStaff ?? false;
   const currentEmployee = pageData?.employee  ?? null;
 
+  const canSelectStaff = isSuperAdmin || isAdminStaff || isAuditStaff || isFinanceStaff;
   const canHodAct   = isHod || isSuperAdmin || isAdminStaff;
   const canAdminAct = isAdminStaff || isSuperAdmin;
 
@@ -279,7 +291,7 @@ export default function ApplyLoaPage() {
     return `${emp.surname} ${emp.first_name}${other}`.trim();
   };
 
-  const employeeOptions = (isSuperAdmin || isAdminStaff)
+  const employeeOptions = canSelectStaff
     ? employees.map(emp => ({
         id:   emp.ID,
         name: formatName(emp),
@@ -292,7 +304,7 @@ export default function ApplyLoaPage() {
         : []
       );
 
-  const selectedEmpObj = (isSuperAdmin || isAdminStaff)
+  const selectedEmpObj = canSelectStaff
     ? employees.find(e => String(e.ID) === String(form.employee_id))
     : currentEmployee;
 
@@ -392,6 +404,16 @@ export default function ApplyLoaPage() {
 
   const showCheckboxes = canHodAct || canAdminAct;
 
+  // ── Pagination Calculation ──────────────────────────────────────────────────
+  const totalPages = itemsPerPage === 'all'
+    ? 1
+    : Math.ceil(filteredRecords.length / parseInt(itemsPerPage, 10)) || 1;
+
+  const startIndex = itemsPerPage === 'all' ? 0 : (currentPage - 1) * parseInt(itemsPerPage, 10);
+  const paginatedRecords = itemsPerPage === 'all'
+    ? filteredRecords
+    : filteredRecords.slice(startIndex, startIndex + parseInt(itemsPerPage, 10));
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <motion.div
@@ -428,7 +450,7 @@ export default function ApplyLoaPage() {
                 onChange={handleChange}
                 searchable={true}
                 required
-                disabled={formLoading || !(isSuperAdmin || isAdminStaff)}
+                disabled={formLoading || !canSelectStaff}
               />
             </div>
 
@@ -589,7 +611,24 @@ export default function ApplyLoaPage() {
               <option value="rejected">Rejected</option>
             </select>
           </div>
-          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery) && (
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Show:</span>
+            <select
+              className={styles.filterSelect}
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="10">10 per page</option>
+              <option value="20">20 per page</option>
+              <option value="50">50 per page</option>
+              <option value="100">100 per page</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+          {(filterStartDate || filterEndDate || filterStatus !== 'all' || searchQuery || itemsPerPage !== '10') && (
             <button
               type="button"
               className={styles.cancelBtn}
@@ -599,6 +638,8 @@ export default function ApplyLoaPage() {
                 setFilterEndDate('');
                 setFilterStatus('all');
                 setSearchQuery('');
+                setItemsPerPage('10');
+                setCurrentPage(1);
               }}
             >
               Clear Filters
@@ -615,12 +656,12 @@ export default function ApplyLoaPage() {
                     <input
                       type="checkbox"
                       checked={
-                        filteredRecords.length > 0 &&
-                        filteredRecords.filter(getApprovalLevel).length > 0 &&
-                        filteredRecords.filter(getApprovalLevel).every(r => selectedIds.includes(r.id))
+                        paginatedRecords.length > 0 &&
+                        paginatedRecords.filter(getApprovalLevel).length > 0 &&
+                        paginatedRecords.filter(getApprovalLevel).every(r => selectedIds.includes(r.id))
                       }
                       onChange={(e) => {
-                        const eligible = filteredRecords.filter(getApprovalLevel);
+                        const eligible = paginatedRecords.filter(getApprovalLevel);
                         if (e.target.checked) {
                           setSelectedIds(prev => {
                             const next = [...prev];
@@ -659,7 +700,7 @@ export default function ApplyLoaPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredRecords.length === 0 ? (
+              ) : paginatedRecords.length === 0 ? (
                 <tr>
                   <td colSpan={showCheckboxes ? 10 : 9} className={styles.emptyRow}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '1.5rem 0' }}>
@@ -669,7 +710,7 @@ export default function ApplyLoaPage() {
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map((rec, i) => {
+                paginatedRecords.map((rec, i) => {
                   const badge = statusBadge(rec.status);
                   return (
                     <tr key={rec.id}>
@@ -697,7 +738,7 @@ export default function ApplyLoaPage() {
                           )}
                         </td>
                       )}
-                      <td>{i + 1}</td>
+                      <td>{startIndex + i + 1}</td>
                       <td className={styles.capitalize}>
                         {rec.surname} {rec.first_name} {rec.othernames}
                       </td>
@@ -778,6 +819,52 @@ export default function ApplyLoaPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ── Pagination Footer ── */}
+        <div className={`${styles.paginationFooter} ${styles.noPrint}`}>
+          <span className={styles.paginationInfo}>
+            Showing {filteredRecords.length === 0 ? 0 : startIndex + 1} to {itemsPerPage === 'all' ? filteredRecords.length : Math.min(startIndex + parseInt(itemsPerPage, 10), filteredRecords.length)} of {filteredRecords.length} entries {itemsPerPage !== 'all' && totalPages > 1 && `(Page ${currentPage} of ${totalPages})`}
+          </span>
+
+          {itemsPerPage !== 'all' && totalPages > 1 && (
+            <div className={styles.paginationControls}>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => {
+                if (totalPages > 7 && Math.abs(pageNum - currentPage) > 2 && pageNum !== 1 && pageNum !== totalPages) {
+                  if (pageNum === 2 || pageNum === totalPages - 1) {
+                    return <span key={pageNum} className={styles.pageEllipsis}>...</span>;
+                  }
+                  return null;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    className={`${styles.pageBtn} ${currentPage === pageNum ? styles.pageBtnActive : ''}`}
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className={styles.pageBtn}
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
