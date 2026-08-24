@@ -665,6 +665,68 @@
   border-color: var(--primary);
 }
 
+/* ── Pagination ── */
+.paginationFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0 0 0;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.paginationInfo {
+  font-size: 0.8125rem;
+  color: var(--secondary);
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pageBtn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--primary);
+}
+
+.pageBtnActive {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
+}
+
+.pageBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageEllipsis {
+  padding: 0 0.25rem;
+  color: var(--secondary);
+  font-size: 0.8125rem;
+}
+
 /* ── Media Print Styles ── */
 @media print {
   @page {

@@ -414,15 +414,26 @@ export default function MedicalLoanEntryPage() {
             Record monthly medical loans taken by staff. Entered amounts automatically add to the employee&apos;s remaining balance and recalculate their monthly payroll deduction schedule.
           </p>
         </div>
-        <Link 
-          href="/dashboard/payroll/medical-loan-deduction-setup"
-          className={`${styles.btn} ${styles.btnSecondary}`}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
-        >
-          <Settings size={16} />
-          <span>View Deduction Setup Matrix</span>
-          <ExternalLink size={14} />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link 
+            href="/dashboard/payroll/medical-loan-records"
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <Calendar size={16} style={{ color: '#ec4899' }} />
+            <span>Search Loan Records (Date to Date)</span>
+            <ExternalLink size={14} />
+          </Link>
+          <Link 
+            href="/dashboard/payroll/medical-loan-deduction-setup"
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <Settings size={16} />
+            <span>View Deduction Setup Matrix</span>
+            <ExternalLink size={14} />
+          </Link>
+        </div>
       </div>
 
       {/* KPI Stats Grid */}
