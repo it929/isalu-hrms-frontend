@@ -533,12 +533,76 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const fileInputRef = useRef(null);
 
+  const validateImageFile = (file) => {
+    return new Promise((resolve) => {
+      if (!file) return resolve({ valid: true });
+
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        return resolve({
+          valid: false,
+          message: 'File size is too large. Maximum allowed size is 5MB.'
+        });
+      }
+
+      // Check image dimensions (up to 2000 x 2000 px)
+      if (file.type && file.type.startsWith('image/')) {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          if (img.width > 2000 || img.height > 2000) {
+            resolve({
+              valid: false,
+              message: `Certificate image dimensions (${img.width} × ${img.height}) exceed the maximum allowed size of 2000 × 2000 pixels.`
+            });
+          } else {
+            resolve({ valid: true });
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve({ valid: true });
+        };
+        img.src = objectUrl;
+      } else {
+        // Non-image files like PDF are allowed
+        resolve({ valid: true });
+      }
+    });
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setForm(prev => ({ ...prev, document: null }));
+      return;
+    }
+    const check = await validateImageFile(file);
+    if (!check.valid) {
+      if (showToast) {
+        showToast(check.message, 'error');
+      } else {
+        alert(check.message);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setForm(prev => ({ ...prev, document: null }));
+      return;
+    }
+    setForm(prev => ({ ...prev, document: file }));
+  };
+
   const handleAdd = async () => {
     if (!form.schoolattended || !form.category) return;
     
-    if (form.document && form.document.size > 5 * 1024 * 1024) {
-      showToast ? showToast('File size is too large. Maximum allowed size is 5MB.', 'error') : alert('File size is too large. Maximum allowed size is 5MB.');
-      return;
+    if (form.document) {
+      const check = await validateImageFile(form.document);
+      if (!check.valid) {
+        showToast ? showToast(check.message, 'error') : alert(check.message);
+        return;
+      }
     }
     
     setUploading(true);
@@ -559,6 +623,7 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
       });
       
       if (onRefetch) onRefetch();
+      if (showToast) showToast('Education record uploaded successfully.', 'success');
       
       setForm({ category: '', schoolattended: '', schoolfrom: '', schoolto: '', certificateheld: '', degreequalification: '', document: null });
       if (fileInputRef.current) {
@@ -566,7 +631,8 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to upload education record');
+      const msg = err.response?.data?.message || 'Failed to upload education record';
+      showToast ? showToast(msg, 'error') : alert(msg);
     } finally {
       setUploading(false);
     }
@@ -663,8 +729,10 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
           />
           <div className={styles.field}>
             <label>Attach Certificate</label>
-            <input type="file" ref={fileInputRef} onChange={e => setForm({...form, document: e.target.files[0]})} />
-            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>The file size must not exceed 5MB.</small>
+            <input type="file" ref={fileInputRef} accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" onChange={handleFileChange} />
+            <small style={{ color: 'var(--text-secondary, #6b7280)', display: 'block', marginTop: '4px', fontSize: '0.78rem' }}>
+              Allowed formats: PDF, JPG, PNG, WEBP. Max dimensions: 2000 &times; 2000 px (Max size: 5MB).
+            </small>
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>
@@ -1045,12 +1113,76 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const fileInputRef = useRef(null);
 
+  const validateImageFile = (file) => {
+    return new Promise((resolve) => {
+      if (!file) return resolve({ valid: true });
+
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        return resolve({
+          valid: false,
+          message: 'File size is too large. Maximum allowed size is 5MB.'
+        });
+      }
+
+      // Check image dimensions (up to 2000 x 2000 px)
+      if (file.type && file.type.startsWith('image/')) {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          if (img.width > 2000 || img.height > 2000) {
+            resolve({
+              valid: false,
+              message: `Attachment image dimensions (${img.width} × ${img.height}) exceed the maximum allowed size of 2000 × 2000 pixels.`
+            });
+          } else {
+            resolve({ valid: true });
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve({ valid: true });
+        };
+        img.src = objectUrl;
+      } else {
+        // Non-image files like PDF, DOC, DOCX are allowed
+        resolve({ valid: true });
+      }
+    });
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setForm(prev => ({ ...prev, filename: null }));
+      return;
+    }
+    const check = await validateImageFile(file);
+    if (!check.valid) {
+      if (showToast) {
+        showToast(check.message, 'error');
+      } else {
+        alert(check.message);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setForm(prev => ({ ...prev, filename: null }));
+      return;
+    }
+    setForm(prev => ({ ...prev, filename: file }));
+  };
+
   const handleUpload = async () => {
     if (!form.description || !form.filename) return;
 
-    if (form.filename && form.filename.size > 5 * 1024 * 1024) {
-      showToast ? showToast('File size is too large. Maximum allowed size is 5MB.', 'error') : alert('File size is too large. Maximum allowed size is 5MB.');
-      return;
+    if (form.filename) {
+      const check = await validateImageFile(form.filename);
+      if (!check.valid) {
+        showToast ? showToast(check.message, 'error') : alert(check.message);
+        return;
+      }
     }
 
     setUploading(true);
@@ -1064,13 +1196,15 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
       });
 
       if (onRefetch) onRefetch();
+      if (showToast) showToast('Supporting document attached successfully.', 'success');
       setForm({ description: '', filename: null });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to upload document attachment');
+      const msg = err.response?.data?.message || 'Failed to upload document attachment';
+      showToast ? showToast(msg, 'error') : alert(msg);
     } finally {
       setUploading(false);
     }
@@ -1108,6 +1242,7 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
     { id: 'Birth Certificate', name: 'Birth Certificate' },
     { id: 'Certificate of Indigene', name: 'Certificate of Indigene' },
     { id: 'Drivers licence', name: 'Driver\'s licence' },
+    { id: 'Medical Licence', name: 'Medical Licence' },
     { id: 'NYSC', name: 'NYSC' },
     { id: 'NIN Slip', name: 'NIN Slip' },
     { id: 'Guarantor Form', name: 'Guarantor Form' },
@@ -1148,8 +1283,10 @@ function StepAttachments({ staffId, data = [], onUpdate, onRefetch, showToast })
           />
           <div className={styles.field}>
             <label>Attach File</label>
-            <input type="file" ref={fileInputRef} onChange={e => setForm({...form, filename: e.target.files[0]})} />
-            <small style={{ color: 'red', display: 'block', marginTop: '4px' }}>The file size must not exceed 5MB.</small>
+            <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.bmp,.webp" onChange={handleFileChange} />
+            <small style={{ color: 'var(--text-secondary, #6b7280)', display: 'block', marginTop: '4px', fontSize: '0.78rem' }}>
+              Allowed formats: PDF, DOC, DOCX, JPG, PNG, WEBP. Max dimensions: 2000 &times; 2000 px (Max size: 5MB).
+            </small>
           </div>
           <div className={styles.field}>
             <label>&nbsp;</label>

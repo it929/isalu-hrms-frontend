@@ -31,6 +31,25 @@ function buildHeaders() {
   return uid ? { 'X-User-Id': uid } : {};
 }
 
+const hasValidPayerId = (val) => {
+  if (!val) return false;
+  const clean = String(val).trim().toLowerCase();
+  if (
+    clean === '' || 
+    clean === '0' || 
+    clean === '-' || 
+    clean === '--' || 
+    clean === '---' ||
+    clean === 'n/a' || 
+    clean === 'none' || 
+    clean === 'null' || 
+    clean === 'nil'
+  ) {
+    return false;
+  }
+  return true;
+};
+
 export default function PayerIdPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +59,7 @@ export default function PayerIdPage() {
   
   // Search and Filter
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'configured' | 'missing'
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,7 +81,7 @@ export default function PayerIdPage() {
 
   // Stats
   const totalStaff = records.length;
-  const staffWithPayerId = records.filter(r => r.payer_id && r.payer_id.trim() !== '').length;
+  const staffWithPayerId = records.filter(r => hasValidPayerId(r.payer_id)).length;
   const staffWithoutPayerId = totalStaff - staffWithPayerId;
 
   const showToast = (message, type = 'success') => {
@@ -94,13 +114,18 @@ export default function PayerIdPage() {
   // Reset to page 1 on filter or per-page change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, itemsPerPage]);
+  }, [searchTerm, statusFilter, itemsPerPage]);
 
   // Filter records for bottom display list
   const filteredRecords = records.filter(r => {
+    const hasPayer = hasValidPayerId(r.payer_id);
+    if (statusFilter === 'configured' && !hasPayer) return false;
+    if (statusFilter === 'missing' && hasPayer) return false;
+
     const term = searchTerm.toLowerCase();
     return (
       String(r.staffId).includes(term) ||
+      (r.fileNo && String(r.fileNo).toLowerCase().includes(term)) ||
       r.name?.toLowerCase().includes(term) ||
       r.payer_id?.toLowerCase().includes(term)
     );
@@ -269,7 +294,12 @@ export default function PayerIdPage() {
 
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
+        <div 
+          className={`${styles.statCard} ${statusFilter === 'all' ? styles.statCardActive : ''}`}
+          onClick={() => setStatusFilter('all')}
+          style={{ cursor: 'pointer', border: statusFilter === 'all' ? '2px solid var(--primary, #6366f1)' : undefined }}
+          title="Click to view all staff records"
+        >
           <div className={`${styles.statIcon}`} style={{ background: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)' }}>
             <FileText size={22} />
           </div>
@@ -279,7 +309,12 @@ export default function PayerIdPage() {
           </div>
         </div>
 
-        <div className={styles.statCard}>
+        <div 
+          className={`${styles.statCard} ${statusFilter === 'configured' ? styles.statCardActive : ''}`}
+          onClick={() => setStatusFilter(prev => prev === 'configured' ? 'all' : 'configured')}
+          style={{ cursor: 'pointer', border: statusFilter === 'configured' ? '2px solid #059669' : undefined }}
+          title="Click to filter staff with valid Payer IDs"
+        >
           <div className={`${styles.statIcon}`} style={{ background: '#d1fae5', color: '#059669' }}>
             <CheckCircle size={22} />
           </div>
@@ -289,7 +324,12 @@ export default function PayerIdPage() {
           </div>
         </div>
 
-        <div className={styles.statCard}>
+        <div 
+          className={`${styles.statCard} ${statusFilter === 'missing' ? styles.statCardActive : ''}`}
+          onClick={() => setStatusFilter(prev => prev === 'missing' ? 'all' : 'missing')}
+          style={{ cursor: 'pointer', border: statusFilter === 'missing' ? '2px solid #dc2626' : undefined }}
+          title="Click to filter staff with missing/invalid Payer IDs"
+        >
           <div className={`${styles.statIcon}`} style={{ background: '#fee2e2', color: '#dc2626' }}>
             <AlertCircle size={22} />
           </div>
@@ -479,6 +519,21 @@ export default function PayerIdPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span className={styles.perPageLabel}>Status:</span>
+              <select
+                className={styles.perPageSelect}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="all">All Staff ({totalStaff})</option>
+                <option value="configured">Configured ({staffWithPayerId})</option>
+                <option value="missing">Missing Payer IDs ({staffWithoutPayerId})</option>
+              </select>
+            </div>
             <div className={styles.perPageGroup}>
               <span className={styles.perPageLabel}>Show:</span>
               <select
@@ -522,13 +577,13 @@ export default function PayerIdPage() {
                     <td className={styles.tdPrimary}>{row.staffId}</td>
                     <td>{row.name}</td>
                     <td>
-                      {row.payer_id ? (
+                      {hasValidPayerId(row.payer_id) ? (
                         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                           {row.payer_id}
                         </span>
                       ) : (
-                        <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                          Not Configured
+                        <span style={{ color: '#dc2626', fontStyle: 'italic', background: '#fee2e2', padding: '0.2rem 0.55rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600, display: 'inline-block' }}>
+                          Missing {row.payer_id && (String(row.payer_id).trim() === '0' || String(row.payer_id).trim() === '-') ? `(${row.payer_id})` : ''}
                         </span>
                       )}
                     </td>

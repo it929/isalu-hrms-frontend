@@ -30,7 +30,24 @@ export function SessionProvider({ children }) {
     localStorage.setItem('hrms_role', JSON.stringify(roleData));
   };
 
-  const logout = () => {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
+
+  const logout = async () => {
+    try {
+      const savedUser = localStorage.getItem('hrms_user');
+      const uid = savedUser ? JSON.parse(savedUser)?.id : null;
+      if (uid && typeof window !== 'undefined') {
+        const headers = { 'X-User-Id': uid };
+        fetch(`${API_BASE}/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ user_id: uid })
+        }).catch(() => {});
+      }
+    } catch (e) {
+      /* ignore */
+    }
+
     setUser(null);
     setActiveModule(null);
     setActiveRole(null);

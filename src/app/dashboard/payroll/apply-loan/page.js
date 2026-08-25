@@ -44,6 +44,8 @@ function statusBadge(status) {
   }
 }
 
+const EXCLUDED_LOAN_TYPES = ['salary advance', 'cooperative loan', 'medical loan'];
+
 export default function ApplyLoanPage() {
   // UI & Loading States
   const [loading, setLoading] = useState(false);
@@ -301,11 +303,6 @@ export default function ApplyLoanPage() {
       return;
     }
 
-    if (!monthlyDeduction || parseFloat(monthlyDeduction) <= 0) {
-      showToast('Please enter a valid monthly deduction.', 'error');
-      return;
-    }
-
     setSaving(true);
     try {
       const payload = {
@@ -314,7 +311,7 @@ export default function ApplyLoanPage() {
         loan_type: finalLoanType,
         loan_amount: parseFloat(loanAmount),
         balance: balance !== '' ? parseFloat(balance) : parseFloat(loanAmount),
-        monthly_deduction: parseFloat(monthlyDeduction),
+        monthly_deduction: monthlyDeduction ? parseFloat(monthlyDeduction) : 0,
         status: status,
       };
 
@@ -348,7 +345,9 @@ export default function ApplyLoanPage() {
       setDropdownSearch(loan.name || 'Unknown Staff');
     }
 
-    const standardTypes = loanTypes.map(t => t.name);
+    const standardTypes = loanTypes
+      .filter(t => !EXCLUDED_LOAN_TYPES.includes((t.name || '').toLowerCase().trim()))
+      .map(t => t.name);
     if (standardTypes.includes(loan.loan_type)) {
       setLoanType(loan.loan_type);
       setCustomLoanType('');
@@ -465,6 +464,10 @@ export default function ApplyLoanPage() {
     return userCtx.employee && loan.staffId === userCtx.employee.ID;
   };
 
+  const availableLoanTypes = loanTypes
+    .filter(t => !EXCLUDED_LOAN_TYPES.includes((t.name || '').toLowerCase().trim()))
+    .map(t => t.name);
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -571,7 +574,7 @@ export default function ApplyLoanPage() {
                   </button>
                   {showLoanTypeDropdown && (
                     <ul className={styles.customSelectDropdown}>
-                      {[...loanTypes.map(t => t.name), 'Other'].map((type) => (
+                      {[...availableLoanTypes, 'Other'].map((type) => (
                         <li
                           key={type}
                           className={`${styles.customSelectItem} ${loanType === type ? styles.customSelectItemActive : ''}`}
@@ -619,21 +622,6 @@ export default function ApplyLoanPage() {
                       setBalance(e.target.value);
                     }
                   }}
-                />
-              </div>
-
-
-              {/* Monthly Deduction */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Monthly Deduction (₦) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className={styles.input}
-                  placeholder="0.00"
-                  value={monthlyDeduction}
-                  onChange={(e) => setMonthlyDeduction(e.target.value)}
                 />
               </div>
 
@@ -712,7 +700,6 @@ export default function ApplyLoanPage() {
                   <th>Loan Type</th>
                   <th>Loan Amount</th>
                   <th>Outstanding Balance</th>
-                  <th>Monthly Deduction</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -732,7 +719,6 @@ export default function ApplyLoanPage() {
                       <td>{loan.loan_type}</td>
                       <td>₦{fmt(loan.loan_amount)}</td>
                       <td>₦{fmt(loan.balance)}</td>
-                      <td>₦{fmt(loan.monthly_deduction)}</td>
                       <td>
                         <span className={`${styles.badge} ${badge.cls}`}>
                           {badge.label}

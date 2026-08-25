@@ -216,7 +216,7 @@ export default function IouLimitSetup() {
                       ) : s.max_iou_amount > 0 ? (
                         <span style={{ fontSize: '0.7rem', background: '#e0e7ff', color: '#3730a3', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: '700' }}>{formatCurrency(s.max_iou_amount)}</span>
                       ) : (
-                        <span style={{ fontSize: '0.7rem', background: '#d1fae5', color: '#065f46', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: '700' }}>50% Limit</span>
+                        <span style={{ fontSize: '0.7rem', background: '#d1fae5', color: '#065f46', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: '700' }}>70% Limit</span>
                       )}
                     </div>
                   </div>
@@ -264,7 +264,7 @@ export default function IouLimitSetup() {
                     />
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                       <BadgeInfo size={14} />
-                      Set to 0.00 to fall back to the default 50% gross salary limit.
+                      Set to 0.00 to fall back to the default 70% gross salary limit.
                     </p>
                   </div>
 

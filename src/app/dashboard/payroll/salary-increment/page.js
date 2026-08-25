@@ -23,18 +23,25 @@ import {
 } from 'lucide-react';
 import styles from './page.module.css';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost/isalu/Isalu%20HRMS/public/api/nextjs';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
 function getUserId() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('user_id') || sessionStorage.getItem('user_id') || '1';
+  try {
+    const raw = localStorage.getItem('hrms_user') || sessionStorage.getItem('hrms_user');
+    if (raw) {
+      const user = JSON.parse(raw);
+      return user?.id ?? user?.UserID ?? user?.ID ?? null;
+    }
+  } catch { /* ignore */ }
+  return localStorage.getItem('user_id') || sessionStorage.getItem('user_id') || null;
 }
 
 function buildHeaders() {
   const userId = getUserId();
   return {
     'Content-Type': 'application/json',
-    'X-User-Id': userId || '1',
+    ...(userId ? { 'X-User-Id': userId } : {}),
   };
 }
 
