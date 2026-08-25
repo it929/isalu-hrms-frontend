@@ -197,9 +197,22 @@ export default function ApplyLeavePage() {
         if (res.data.status === 'success') {
           setRemainingDays(res.data.remaining_days ?? '');
           setForm(prev => ({ ...prev, end_date: res.data.end_date ?? '' }));
+        } else if (res.data.status === 'error') {
+          setRemainingDays('');
+          setForm(prev => ({ ...prev, end_date: '' }));
+          showToast(res.data.message, 'warning');
         }
       })
-      .catch(err => { if (!axios.isCancel(err)) console.error(err); })
+      .catch(err => {
+        if (!axios.isCancel(err)) {
+          if (err.response?.data?.message) {
+            setRemainingDays('');
+            setForm(prev => ({ ...prev, end_date: '' }));
+            showToast(err.response.data.message, 'warning');
+          }
+          console.error(err);
+        }
+      })
       .finally(() => setCalcLoading(false));
 
     return () => controller.abort();

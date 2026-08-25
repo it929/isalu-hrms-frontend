@@ -50,6 +50,7 @@ export default function RetentionActivationPage() {
   const [staffRecords, setStaffRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,7 +62,7 @@ export default function RetentionActivationPage() {
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 30000);
+    setTimeout(() => setToast(null), 6000);
   }, []);
 
   // Fetch initial data
@@ -85,6 +86,7 @@ export default function RetentionActivationPage() {
       if (res.data.status === 'success') {
         const freshData = res.data.data || [];
         setStaffRecords(freshData);
+        setIsSuperAdmin(Boolean(res.data.isSuperAdmin));
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(cacheKey, JSON.stringify(freshData));
         }
@@ -112,6 +114,7 @@ export default function RetentionActivationPage() {
       if (cached) {
         setStaffRecords(JSON.parse(cached));
       }
+      fetchData(true);
     }
   }, [fetchData]);
 
@@ -120,6 +123,12 @@ export default function RetentionActivationPage() {
     if (saving) return;
 
     const newStatus = currentStatus === 1 ? 0 : 1;
+
+    // Only super admin can manually deactivate retention
+    if (newStatus === 0 && !isSuperAdmin) {
+      showToast('Permission denied: Only Super Administrators are authorized to manually deactivate staff retention.', 'warning');
+      return;
+    }
 
     // Optimistic UI update
     const originalRecords = [...staffRecords];
@@ -153,6 +162,12 @@ export default function RetentionActivationPage() {
   // Handle Bulk Toggle Retention Status
   const handleBulkToggleRetention = async (targetStatus) => {
     if (selectedIds.length === 0 || saving) return;
+
+    // Only super admin can manually deactivate retention
+    if (targetStatus === 0 && !isSuperAdmin) {
+      showToast('Permission denied: Only Super Administrators are authorized to manually deactivate staff retention.', 'warning');
+      return;
+    }
 
     setSaving(true);
     // Optimistic UI update

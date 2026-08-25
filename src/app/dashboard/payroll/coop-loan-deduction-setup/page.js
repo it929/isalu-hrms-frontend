@@ -306,6 +306,14 @@ export default function CoopLoanDeductionSetupPage() {
       return;
     }
 
+    if (editSetupId && isActive === 0 && !userCtx.isSuperAdmin) {
+      const existingSetup = setups.find(s => s.id === editSetupId);
+      if (existingSetup && existingSetup.is_active === 1) {
+        showToast('Permission denied: Only Super Administrators are authorized to manually deactivate Cooperative Loan Deduction Setup.', 'warning');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -364,7 +372,13 @@ export default function CoopLoanDeductionSetupPage() {
   };
 
   // Toggle status
-  const handleToggleStatus = async (id) => {
+  const handleToggleStatus = async (id, currentStatus) => {
+    // Only super admin can manually deactivate/inactive
+    if (currentStatus === 1 && !userCtx.isSuperAdmin) {
+      showToast('Permission denied: Only Super Administrators are authorized to manually deactivate Cooperative Loan Deduction Setup.', 'warning');
+      return;
+    }
+
     try {
       const res = await axios.post(`${API_BASE}/payroll/coop-loan-deduction-setups/toggle/${id}`, {}, {
         headers: buildHeaders()
@@ -900,7 +914,7 @@ export default function CoopLoanDeductionSetupPage() {
                         <button
                           type="button"
                           className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
-                          onClick={() => isConfigurator && handleToggleStatus(s.id)}
+                          onClick={() => isConfigurator && handleToggleStatus(s.id, s.is_active)}
                           style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
                         >
                           {s.is_active === 1 ? 'Active' : 'Inactive'}

@@ -102,6 +102,7 @@ export default function ApplyIouPage() {
     max_limit: 0,
     used_amount: 0,
     remaining_limit: 0,
+    available_net_pay: null,
     month_name: ''
   });
 
@@ -284,6 +285,7 @@ export default function ApplyIouPage() {
           max_limit: 0,
           used_amount: 0,
           remaining_limit: 0,
+          available_net_pay: null,
           month_name: ''
         });
       }
@@ -369,6 +371,17 @@ export default function ApplyIouPage() {
       return;
     }
 
+    // Net Pay check: The requested amount must not reduce available net pay to zero or negative
+    const availableNetPay = limitDetails.available_net_pay !== undefined && limitDetails.available_net_pay !== null
+      ? limitDetails.available_net_pay
+      : null;
+
+    if (availableNetPay !== null && (availableNetPay <= 0 || requestedAmt >= availableNetPay)) {
+      const monthStr = limitDetails.month_name || 'this month';
+      showToast(`Cannot apply for IOU: This employee available net pay for ${monthStr} can not be negative.`, 'error');
+      return;
+    }
+
     setSaving(true);
     const headers = buildHeaders();
     const payload = {
@@ -419,7 +432,7 @@ export default function ApplyIouPage() {
         name: record.name || `${record.surname} ${record.first_name}`,
         fileNo: record.fileNo || '',
         salary: record.gross_salary || 0,
-        max_iou: (record.gross_salary || 0) * 0.50,
+        max_iou: (record.gross_salary || 0) * 0.70,
       };
       setSelectedStaff(staffObj);
       setDropdownSearch(staffObj.name);
@@ -487,6 +500,11 @@ export default function ApplyIouPage() {
   const handleApprovalSubmit = async () => {
     const { recordId, level, action, remarks } = approvalModal;
     if (!recordId) return;
+
+    if (action === 'reject' && (!remarks || !remarks.trim())) {
+      showToast('Remarks are compulsory when rejecting an IOU application.', 'error');
+      return;
+    }
 
     setActionLoading(true);
 
@@ -568,6 +586,11 @@ export default function ApplyIouPage() {
   const totalPlannedAmount = alreadyUsedAmount + currentRequestAmount;
   const remainingLimit = limitDetails.remaining_limit !== undefined ? limitDetails.remaining_limit : maxIouLimit;
   const canTake = limitDetails.can_take_iou !== undefined ? limitDetails.can_take_iou : (selectedStaff?.can_take_iou ?? 1);
+  const availableNetPay = limitDetails.available_net_pay !== undefined && limitDetails.available_net_pay !== null
+    ? limitDetails.available_net_pay
+    : null;
+  const projectedNetPay = availableNetPay !== null ? (availableNetPay - currentRequestAmount) : null;
+  const isNetPayExceeded = availableNetPay !== null && currentRequestAmount > 0 && projectedNetPay <= 0;
 
   // Determine progress color based on percentage of max allowed limit used
   const limitPercent = maxIouLimit > 0 ? (totalPlannedAmount / maxIouLimit) * 100 : 0;
@@ -576,7 +599,7 @@ export default function ApplyIouPage() {
   if (limitPercent > 80 && limitPercent <= 100) {
     progressClass = styles.progressBarYellow;
     textClass = styles.limitTextYellow;
-  } else if (limitPercent > 100) {
+  } else if (limitPercent > 100 || isNetPayExceeded) {
     progressClass = styles.progressBarRed;
     textClass = styles.limitTextRed;
   }
@@ -800,7 +823,7 @@ export default function ApplyIouPage() {
       {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>Apply for IOU</h1>
-        <p className={styles.subtitle}>Submit salary IOUs. Requests are limited to a maximum of 50% of the employee's gross monthly salary or custom configurations.</p>
+        <p className={styles.subtitle}>Submit salary IOUs. Requests are limited to a maximum of 70% of the employee's gross monthly salary or custom configurations.</p>
       </div>
 
       {/* Form Card */}
@@ -880,6 +903,9 @@ export default function ApplyIouPage() {
                           {limitDetails.month_name && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85, fontSize: '0.78rem', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
                               <span>Remaining Limit: <strong style={{ color: remainingLimit > 0 ? 'var(--primary)' : 'var(--danger)' }}>₦{fmt(remainingLimit)}</strong></span>
+                              {availableNetPay !== null && (
+                                <span>Available Net Pay: <strong style={{ color: availableNetPay > 0 ? '#10b981' : '#ef4444' }}>₦{fmt(availableNetPay)}</strong></span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -899,6 +925,17 @@ export default function ApplyIouPage() {
                             <span style={{ fontWeight: 700 }}>EXCEEDS ALLOWED LIMIT</span>
                           )}
                         </div>
+                        {isNetPayExceeded && (
+                          <div style={{ marginTop: '0.4rem', color: '#991b1b', background: '#fee2e2', padding: '0.4rem 0.6rem', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <AlertCircle size={14} />
+                            <span>This employee available net pay for {limitDetails.month_name || 'this month'} can not be negative (₦{fmt(projectedNetPay)}).</span>
+                          </div>
+                        )}
+                        {!isNetPayExceeded && currentRequestAmount > 0 && projectedNetPay !== null && (
+                          <div style={{ marginTop: '0.3rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                            Estimated Take-Home after IOU: <strong style={{ color: '#10b981' }}>₦{fmt(projectedNetPay)}</strong>
+                          </div>
+                        )}
                       </>
                     )
                   ) : (
@@ -1682,13 +1719,26 @@ export default function ApplyIouPage() {
                   <p className={styles.confirmMsg} style={{ textAlign: 'left', marginBottom: '0.5rem' }}>
                     You are performing a <strong>{approvalModal.level}</strong> level <strong>{approvalModal.action === 'approve' ? 'approval' : 'rejection'}</strong>.
                   </p>
-                  <label className={styles.label}>Provide Remarks / Comments (Optional)</label>
+                  <label className={styles.label}>
+                    {approvalModal.action === 'reject' ? (
+                      <span>Provide Rejection Remarks <strong style={{ color: '#ef4444' }}>* (Compulsory)</strong></span>
+                    ) : (
+                      <span>Provide Remarks / Comments (Optional)</span>
+                    )}
+                  </label>
                   <textarea
                     className={styles.modalTextarea}
-                    placeholder="Enter any comments, observations or reasons for this approval action..."
+                    placeholder={approvalModal.action === 'reject' ? "Please state the reason for rejecting this IOU application (compulsory)..." : "Enter any comments, observations or reasons for this approval action..."}
                     value={approvalModal.remarks}
                     onChange={(e) => setApprovalModal(prev => ({ ...prev, remarks: e.target.value }))}
+                    style={approvalModal.action === 'reject' && !approvalModal.remarks?.trim() ? { borderColor: '#ef4444' } : {}}
+                    required={approvalModal.action === 'reject'}
                   />
+                  {approvalModal.action === 'reject' && !approvalModal.remarks?.trim() && (
+                    <span style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem', display: 'block' }}>
+                      Please provide remarks before confirming rejection.
+                    </span>
+                  )}
                 </div>
               </div>
 

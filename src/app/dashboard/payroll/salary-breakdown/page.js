@@ -143,7 +143,19 @@ function buildHeaders() {
 function formatCurrency(val) {
   const num = parseFloat(val);
   if (isNaN(num)) return '0.00';
+  if (num < 0) {
+    return '-' + Math.abs(num).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNaira(val) {
+  const num = parseFloat(val);
+  if (isNaN(num)) return '₦0.00';
+  if (num < 0) {
+    return `-₦${Math.abs(num).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `₦${num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function SalaryBreakdownPage() {
@@ -817,15 +829,20 @@ export default function SalaryBreakdownPage() {
             </div>
 
             {/* Net Pay */}
-            <div className={styles.metricCard}>
-              <div className={`${styles.metricIcon} ${styles.metricIconNet}`}>
+            <div className={styles.metricCard} style={summary?.net_pay < 0 ? { borderColor: '#ef4444' } : {}}>
+              <div className={`${styles.metricIcon} ${styles.metricIconNet}`} style={summary?.net_pay < 0 ? { background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' } : {}}>
                 <NairaSign size={24} />
               </div>
               <div className={styles.metricContent}>
                 <div className={styles.metricLabel}>Estimated Net Take-Home Pay</div>
-                <div className={`${styles.metricValue} ${styles.metricValueNet}`}>
-                  ₦{formatCurrency(summary?.net_pay)}
+                <div className={`${styles.metricValue} ${styles.metricValueNet}`} style={summary?.net_pay < 0 ? { color: '#ef4444' } : {}}>
+                  {formatNaira(summary?.net_pay)}
                 </div>
+                {summary?.net_pay < 0 && (
+                  <div style={{ marginTop: '0.35rem', fontSize: '0.74rem', fontWeight: 600, color: '#dc2626', background: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertCircle size={13} /> Deficit Balance: Total deductions exceed salary
+                  </div>
+                )}
                 {((earnings?.custom_allowances && earnings.custom_allowances.length > 0) || (earnings?.bonuses && earnings.bonuses.length > 0)) && (
                   <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                     {earnings.custom_allowances && earnings.custom_allowances.map((ca) => (
@@ -1643,13 +1660,13 @@ export default function SalaryBreakdownPage() {
                 </div>
 
                 {/* Net Pay Banner */}
-                <div className={styles.netPayBanner}>
+                <div className={styles.netPayBanner} style={summary?.net_pay < 0 ? { borderLeftColor: '#ef4444' } : {}}>
                   <div>
                     <h3>Estimated Net Take-Home Pay</h3>
-                    <span>Monthly payment payable to employee</span>
+                    <span>{summary?.net_pay < 0 ? 'Deficit balance payable / carryover' : 'Monthly payment payable to employee'}</span>
                   </div>
-                  <div className={styles.netAmount}>
-                    ₦{formatCurrency(summary?.net_pay)}
+                  <div className={styles.netAmount} style={summary?.net_pay < 0 ? { color: '#dc2626' } : {}}>
+                    {formatNaira(summary?.net_pay)}
                   </div>
                 </div>
 
@@ -1812,8 +1829,8 @@ export default function SalaryBreakdownPage() {
                 </div>
                 <div className={styles.miniKpiCard}>
                   <span className={styles.miniKpiLabel}>Estimated Net Pay</span>
-                  <span className={styles.miniKpiVal} style={{ color: '#059669' }}>
-                    ₦{formatCurrency(allStaffData?.summary?.total_net_pay)}
+                  <span className={styles.miniKpiVal} style={{ color: (allStaffData?.summary?.total_net_pay ?? 0) < 0 ? '#dc2626' : '#059669' }}>
+                    {formatNaira(allStaffData?.summary?.total_net_pay)}
                   </span>
                 </div>
               </div>
@@ -1905,8 +1922,8 @@ export default function SalaryBreakdownPage() {
                           <td className={styles.tdMoney} style={{ fontWeight: 700, color: '#dc2626' }}>
                             - {formatCurrency(r.total_deductions)}
                           </td>
-                          <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`}>
-                            ₦{formatCurrency(r.net_pay)}
+                          <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`} style={r.net_pay < 0 ? { color: '#dc2626', fontWeight: 700 } : {}}>
+                            {formatNaira(r.net_pay)}
                           </td>
                           <td>{r.bank_name}</td>
                           <td>{r.account_number}</td>
@@ -1951,8 +1968,8 @@ export default function SalaryBreakdownPage() {
                         <td className={styles.tdMoney} style={{ color: '#dc2626' }}>
                           - ₦{formatCurrency(allStaffData.summary?.total_deductions)}
                         </td>
-                        <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`}>
-                          ₦{formatCurrency(allStaffData.summary?.total_net_pay)}
+                        <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`} style={(allStaffData.summary?.total_net_pay ?? 0) < 0 ? { color: '#dc2626', fontWeight: 700 } : {}}>
+                          {formatNaira(allStaffData.summary?.total_net_pay)}
                         </td>
                         <td colSpan={2}></td>
                       </tr>

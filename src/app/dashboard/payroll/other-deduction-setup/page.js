@@ -72,6 +72,7 @@ export default function OtherDeductionSetupPage() {
   const [balanceRemaining, setBalanceRemaining] = useState('');
   const [startMonth, setStartMonth] = useState(''); // Format: YYYY-MM
   const [endMonth, setEndMonth] = useState(''); // Format: YYYY-MM
+  const [remarks, setRemarks] = useState('');
   const [isActive, setIsActive] = useState(1);
 
   // Import File Ref
@@ -269,6 +270,7 @@ export default function OtherDeductionSetupPage() {
     setBalanceRemaining('');
     setStartMonth('');
     setEndMonth('');
+    setRemarks('');
     setIsActive(1);
   };
 
@@ -314,6 +316,7 @@ export default function OtherDeductionSetupPage() {
           : parseFloat(balanceRemaining),
         start_month: startMonth,
         end_month: endMonth,
+        remarks: remarks.trim() || null,
         is_active: isActive,
       };
 
@@ -354,6 +357,7 @@ export default function OtherDeductionSetupPage() {
     setBalanceRemaining(setup.balance_remaining);
     setStartMonth(setup.start_month);
     setEndMonth(setup.end_month);
+    setRemarks(setup.remarks || '');
     setIsActive(setup.is_active);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -472,8 +476,12 @@ export default function OtherDeductionSetupPage() {
     if (selectedStaff && s.staffId !== selectedStaff.id) {
       return false;
     }
-    return s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(s.staffId).includes(searchQuery);
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return s.name?.toLowerCase().includes(q) ||
+      String(s.staffId).includes(q) ||
+      (s.department && s.department.toLowerCase().includes(q)) ||
+      (s.remarks && s.remarks.toLowerCase().includes(q));
   });
 
   const totalPages = itemsPerPage === 'all'
@@ -594,7 +602,7 @@ export default function OtherDeductionSetupPage() {
                         )}
                       </motion.div>
                     )}
-</div>
+                  </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     {/* Deduction Type */}
@@ -720,6 +728,19 @@ export default function OtherDeductionSetupPage() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Remarks Field */}
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Remarks (Reason / Description)</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="e.g. Uniform fee, damaged equipment, ID card replacement..."
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      maxLength={500}
+                    />
+                  </div>
                 </div>
 
                 <div className={styles.formActions} style={{ marginTop: '1.5rem' }}>
@@ -801,6 +822,7 @@ export default function OtherDeductionSetupPage() {
                   <li>Column 3: **Total Amount**</li>
                   <li>Column 4: **Duration Months** (optional, ignored for one_time)</li>
                   <li>Column 5: **Start Month** (format: `YYYY-MM`)</li>
+                  <li>Column 6: **Remarks** (optional description / reason)</li>
                 </ul>
               </div>
             </div>
@@ -816,7 +838,7 @@ export default function OtherDeductionSetupPage() {
             <input
               type="text"
               className={`${styles.input} ${styles.inputWithIcon}`}
-              placeholder="Search setups by staff name or ID..."
+              placeholder="Search setups by staff name, ID, or remarks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -859,6 +881,7 @@ export default function OtherDeductionSetupPage() {
                     <th>Monthly Deduction</th>
                     <th>Remaining Balance</th>
                     <th>Period (Start - End)</th>
+                    <th>Remarks</th>
                     <th>Status</th>
                     {isConfigurator && <th>Actions</th>}
                   </tr>
@@ -878,6 +901,11 @@ export default function OtherDeductionSetupPage() {
                       <td>₦{fmt(s.monthly_deduction)}</td>
                       <td>₦{fmt(s.balance_remaining)}</td>
                       <td>{s.start_month} to {s.end_month}</td>
+                      <td>
+                        <div style={{ maxWidth: '180px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '0.85rem', color: s.remarks ? 'inherit' : 'var(--secondary, #94a3b8)' }}>
+                          {s.remarks || '—'}
+                        </div>
+                      </td>
                       <td>
                         <button
                           type="button"

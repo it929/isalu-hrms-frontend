@@ -49,7 +49,7 @@ export default function StaffStatusPage() {
   const [staffList, setStaffList] = useState(cachedData?.staffList || []);
   const [divisions, setDivisions] = useState(cachedData?.divisions || []);
   const [curDivision, setCurDivision] = useState(cachedData?.curDivision || '');
-  
+
   // Update State
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [staffDetails, setStaffDetails] = useState(null);
@@ -131,7 +131,7 @@ export default function StaffStatusPage() {
       };
 
       const res = await axios.post(`${API_BASE}/hr/staff-status/update`, payload, { headers: buildHeaders() });
-      
+
       if (res.data.status === 'success') {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('hrms_employee_records_cache');
@@ -155,6 +155,7 @@ export default function StaffStatusPage() {
   const statusOptions = [
     { id: 'active service', name: 'Active Service' },
     { id: 'contract service', name: 'Contract Service' },
+    { id: 'abandonment', name: 'Abandonment' },
     { id: 'dismissal', name: 'Dismissal' },
     { id: 'maternity leave', name: 'Maternity Leave' },
     { id: 'study leave', name: 'Study Leave' },
@@ -175,85 +176,84 @@ export default function StaffStatusPage() {
 
 
       <AnimatePresence mode="wait">
-          <motion.div key="update" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -10, opacity: 0 }}>
-            <div className={styles.card}>
-              <h2 className={styles.cardTitle}><Users size={20} /> Select Staff</h2>
-              <div style={{ maxWidth: '400px', marginBottom: '2rem' }}>
-                <CustomSelect
-                  name="staffName"
-                  label="Search Staff"
-                  options={staffList}
-                  value={selectedStaffId}
-                  onChange={(e) => setSelectedStaffId(e.target.value)}
-                  placeholder={loading ? "Loading staff data..." : "Type to search..."}
-                  disabled={loading}
-                />
-              </div>
+        <motion.div key="update" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -10, opacity: 0 }}>
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}><Users size={20} /> Select Staff</h2>
+            <div style={{ maxWidth: '400px', marginBottom: '2rem' }}>
+              <CustomSelect
+                name="staffName"
+                label="Search Staff"
+                options={staffList}
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value)}
+                placeholder={loading ? "Loading staff data..." : "Type to search..."}
+                disabled={loading}
+              />
+            </div>
 
-              {staffDetails && (
-                <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
-                  <div className={styles.infoGrid}>
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoLabel}><FileText size={14} style={{display:'inline', marginRight:'4px'}}/> Staff ID</span>
-                      <span className={styles.infoValue}>{staffDetails.staffID || '—'}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoLabel}><Building2 size={14} style={{display:'inline', marginRight:'4px'}}/> Company</span>
-                      <span className={styles.infoValue}>{staffDetails.divisionName || 'N/A'}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoLabel}>Status Value</span>
-                      <span className={styles.infoValue} style={{textTransform: 'capitalize'}}>{staffDetails.status_value}</span>
-                    </div>
-                    <div className={styles.infoItem}>
-                      <span className={styles.infoLabel}>System Status</span>
-                      <span className={`${styles.badge} ${staffDetails.staff_status === 1 ? styles.badgeActive : styles.badgeInactive}`}>
-                        {staffDetails.staff_status === 1 ? 'Active' : 'Inactive'}
-                      </span>
+            {staffDetails && (
+              <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
+                <div className={styles.infoGrid}>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}><FileText size={14} style={{ display: 'inline', marginRight: '4px' }} /> Staff ID</span>
+                    <span className={styles.infoValue}>{staffDetails.staffID || '—'}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}><Building2 size={14} style={{ display: 'inline', marginRight: '4px' }} /> Company</span>
+                    <span className={styles.infoValue}>{staffDetails.divisionName || 'N/A'}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>Status Value</span>
+                    <span className={styles.infoValue} style={{ textTransform: 'capitalize' }}>{staffDetails.status_value}</span>
+                  </div>
+                  <div className={styles.infoItem}>
+                    <span className={styles.infoLabel}>System Status</span>
+                    <span className={`${styles.badge} ${staffDetails.staff_status === 1 ? styles.badgeActive : styles.badgeInactive}`}>
+                      {staffDetails.staff_status === 1 ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUpdateSubmit} style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                  <div className={styles.formGrid}>
+                    <div className={styles.formGroup}>
+                      <CustomSelect
+                        name="staffStatus"
+                        label="New Staff Status"
+                        options={statusOptions}
+                        value={newStatus}
+                        onChange={(e) => setNewStatus(e.target.value)}
+                        placeholder="Select new status..."
+                        searchable={false}
+                      />
                     </div>
                   </div>
 
-                  <form onSubmit={handleUpdateSubmit} style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-                    <div className={styles.formGrid}>
-                        <div className={styles.formGroup}>
-                          <CustomSelect
-                            name="staffStatus"
-                            label="New Staff Status"
-                            options={statusOptions}
-                            value={newStatus}
-                            onChange={(e) => setNewStatus(e.target.value)}
-                            placeholder="Select new status..."
-                            searchable={false}
-                          />
-                        </div>
-                    </div>
-
-                    <button type="submit" className={styles.btnSubmit} disabled={submitting}>
-                      {submitting ? <Loader2 size={18} className={styles.spinner} /> : <Save size={18} />}
-                      Update Staff Record
-                    </button>
-                  </form>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
+                  <button type="submit" className={styles.btnSubmit} disabled={submitting}>
+                    {submitting ? <Loader2 size={18} className={styles.spinner} /> : <Save size={18} />}
+                    Update Staff Record
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
 
       </AnimatePresence>
 
       <AnimatePresence>
         {toast && (
           <motion.div
-            className={`${styles.toast} ${
-              toast.type === 'success' ? styles.toastSuccess : 
+            className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess :
               toast.type === 'warning' ? styles.toastWarning : styles.toastError
-            }`}
+              }`}
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
           >
-            {toast.type === 'success' ? <CheckCircle2 size={20} className={styles.toastSuccessIcon} /> : 
-             toast.type === 'warning' ? <AlertCircle size={20} style={{color: '#f59e0b'}}/> :
-             <AlertCircle size={20} className={styles.toastErrorIcon} />}
+            {toast.type === 'success' ? <CheckCircle2 size={20} className={styles.toastSuccessIcon} /> :
+              toast.type === 'warning' ? <AlertCircle size={20} style={{ color: '#f59e0b' }} /> :
+                <AlertCircle size={20} className={styles.toastErrorIcon} />}
             <span>{toast.message}</span>
           </motion.div>
         )}

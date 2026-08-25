@@ -220,7 +220,7 @@ export default function ReportsDashboard() {
     { id: 'RECRUITMENT', label: 'Recruitment' },
     { id: 'PERFORMANCE', label: 'Performance' },
     { id: 'MANAGEMENT', label: 'Management Dashboards' },
-    { id: 'AUDIT', label: 'Audit & Compliance' }
+    { id: 'AUDIT', label: 'Audit Log & Trail' }
   ];
 
   // Reports definition map matching PDF specs
@@ -613,19 +613,69 @@ export default function ReportsDashboard() {
     {
       id: '10.1_user_activity',
       categoryId: 'AUDIT',
-      title: '10.1 User Activity Report',
-      description: 'Security and audit log containing system user login logs, logout logs, and actions performed.',
+      title: '10.1 Audit Log / Trail Report',
+      description: 'Comprehensive audit log and trail capturing user logins, logouts, state modifications, approvals, rejections, and actions performed across the entire application.',
       icon: <UserCheck size={20} />,
       apiPath: '/reports/user-activities',
       columns: [
-        { key: 'user', label: 'User Name' },
-        { key: 'action', label: 'Activity Performed' },
-        { key: 'date', label: 'Date & Time' },
-        { key: 'ipAddress', label: 'IP Address' }
+        { 
+          key: 'user', 
+          label: 'User / Staff Name', 
+          render: (val, row) => (
+            <div>
+              <strong style={{ color: 'var(--foreground)' }}>{val || 'System User'}</strong>
+              {row.role && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.role}</div>}
+            </div>
+          )
+        },
+        { 
+          key: 'activity_type', 
+          label: 'Activity Type',
+          render: (val) => {
+            const t = (val || 'general').toLowerCase();
+            let bg = 'rgba(100, 116, 139, 0.12)';
+            let color = '#475569';
+            if (t === 'login') { bg = 'rgba(16, 185, 129, 0.15)'; color = '#059669'; }
+            else if (t === 'logout') { bg = 'rgba(239, 68, 68, 0.15)'; color = '#dc2626'; }
+            else if (t === 'create') { bg = 'rgba(59, 130, 246, 0.15)'; color = '#2563eb'; }
+            else if (t === 'update') { bg = 'rgba(245, 158, 11, 0.15)'; color = '#d97706'; }
+            else if (t === 'delete') { bg = 'rgba(220, 38, 38, 0.15)'; color = '#b91c1c'; }
+            else if (t === 'approval') { bg = 'rgba(139, 92, 246, 0.15)'; color = '#7c3aed'; }
+            else if (t === 'export') { bg = 'rgba(14, 165, 233, 0.15)'; color = '#0284c7'; }
+            return (
+              <span style={{ background: bg, color: color, padding: '0.2rem 0.55rem', borderRadius: '5px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', display: 'inline-block' }}>
+                {val || 'GENERAL'}
+              </span>
+            );
+          }
+        },
+        { 
+          key: 'action', 
+          label: 'Action Performed', 
+          render: (val) => (
+            <div>
+              <span style={{ fontWeight: 500 }}>{val}</span>
+            </div>
+          )
+        },
+        { key: 'ipAddress', label: 'IP Address' },
+        { 
+          key: 'date', 
+          label: 'Date & Time', 
+          render: (val) => <span style={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}>{val}</span> 
+        }
       ],
-      getMetrics: (data) => [
-        { label: 'Logs Recorded', value: data.length, icon: <UserCheck size={16} /> }
-      ]
+      getMetrics: (data) => {
+        const logins = data.filter(r => (r.activity_type || '').toLowerCase() === 'login').length;
+        const logouts = data.filter(r => (r.activity_type || '').toLowerCase() === 'logout').length;
+        const actions = data.filter(r => !['login', 'logout'].includes((r.activity_type || '').toLowerCase())).length;
+        return [
+          { label: 'Total Activity Logs', value: data.length, icon: <UserCheck size={16} /> },
+          { label: 'Logins Recorded', value: logins, icon: <TrendingUp size={16} /> },
+          { label: 'Logouts Recorded', value: logouts, icon: <LogOut size={16} /> },
+          { label: 'Application Actions', value: actions, icon: <Activity size={16} /> }
+        ];
+      }
     },
     {
       id: '10.2_payroll_audit',
@@ -987,8 +1037,14 @@ export default function ReportsDashboard() {
       (row.staffId && String(row.staffId).toLowerCase().includes(query)) ||
       (row.staffID && String(row.staffID).toLowerCase().includes(query)) ||
       (row.staff_id && String(row.staff_id).toLowerCase().includes(query)) ||
+      (row.user && String(row.user).toLowerCase().includes(query)) ||
       (row.name && String(row.name).toLowerCase().includes(query)) ||
       (row.NAME && String(row.NAME).toLowerCase().includes(query)) ||
+      (row.action && String(row.action).toLowerCase().includes(query)) ||
+      (row.activity_type && String(row.activity_type).toLowerCase().includes(query)) ||
+      (row.role && String(row.role).toLowerCase().includes(query)) ||
+      (row.module && String(row.module).toLowerCase().includes(query)) ||
+      (row.ipAddress && String(row.ipAddress).toLowerCase().includes(query)) ||
       (fullName && fullName.toLowerCase().includes(query)) ||
       (row.department && String(row.department).toLowerCase().includes(query)) ||
       (row.DEPERTMENT && String(row.DEPERTMENT).toLowerCase().includes(query)) ||
@@ -997,7 +1053,11 @@ export default function ReportsDashboard() {
       (row.position && String(row.position).toLowerCase().includes(query));
 
     let matchesStatus = true;
-    if (activeReportId === '3.1_leave_applications') {
+    if (activeReportId === '10.1_user_activity') {
+      if (statusFilter !== 'all') {
+        matchesStatus = (String(row.activity_type || '').toLowerCase() === statusFilter.toLowerCase());
+      }
+    } else if (activeReportId === '3.1_leave_applications') {
       if (statusFilter === 'approved') {
         matchesStatus = (row.status == 2);
       } else if (statusFilter === 'pending') {
@@ -1013,7 +1073,7 @@ export default function ReportsDashboard() {
       }
     }
 
-    // Specific filters for Leave Application Report
+    // Specific filters for Leave Application Report & User Activity Report
     let matchesLeaveFilters = true;
     if (activeReportId === '3.1_leave_applications') {
       const targetDateStr = row.created_at || row.start_date;
@@ -1040,6 +1100,18 @@ export default function ReportsDashboard() {
         // If there's no parseable date, and filters are active, exclude the record.
         if (fromDateFilter || toDateFilter || monthFilter || yearFilter) {
           matchesLeaveFilters = false;
+        }
+      }
+    } else if (activeReportId === '10.1_user_activity') {
+      const rowDate = parseLocalDate(row.date);
+      if (rowDate) {
+        if (fromDateFilter) {
+          const fromLimit = parseLocalDate(fromDateFilter);
+          if (fromLimit && rowDate < fromLimit) matchesLeaveFilters = false;
+        }
+        if (toDateFilter) {
+          const toLimit = parseLocalDate(toDateFilter);
+          if (toLimit && rowDate > toLimit) matchesLeaveFilters = false;
         }
       }
     }
@@ -2090,7 +2162,25 @@ export default function ReportsDashboard() {
                       />
                     </div>
 
-                    {activeReportId === '3.1_leave_applications' ? (
+                    {activeReportId === '10.1_user_activity' ? (
+                      <select
+                        className={styles.selectField}
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value="all">Activity: All Types</option>
+                        <option value="login">Logins Only</option>
+                        <option value="logout">Logouts Only</option>
+                        <option value="create">Creations (POST)</option>
+                        <option value="update">Updates (PUT/PATCH)</option>
+                        <option value="delete">Deletions (DELETE)</option>
+                        <option value="approval">Approvals</option>
+                        <option value="export">Exports / Downloads</option>
+                      </select>
+                    ) : activeReportId === '3.1_leave_applications' ? (
                       <select
                         className={styles.selectField}
                         value={statusFilter}
@@ -2140,7 +2230,7 @@ export default function ReportsDashboard() {
                       </select>
                     </div>
                     
-                    {activeReportId === '3.1_leave_applications' && (
+                    {(activeReportId === '3.1_leave_applications' || activeReportId === '10.1_user_activity') && (
                       <div className={styles.leaveFiltersContainer}>
                         <div className={styles.leaveFilterField}>
                           <span className={styles.leaveFilterLabel}>From:</span>
@@ -2166,38 +2256,42 @@ export default function ReportsDashboard() {
                             }}
                           />
                         </div>
-                        <div className={styles.leaveFilterField}>
-                          <span className={styles.leaveFilterLabel}>Month:</span>
-                          <select
-                            className={styles.leaveSelectField}
-                            value={monthFilter}
-                            onChange={(e) => {
-                              setMonthFilter(e.target.value);
-                              setCurrentPage(1);
-                            }}
-                          >
-                            <option value="">Month: All</option>
-                            {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, idx) => (
-                              <option key={idx + 1} value={idx + 1}>{m}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className={styles.leaveFilterField}>
-                          <span className={styles.leaveFilterLabel}>Year:</span>
-                          <select
-                            className={styles.leaveSelectField}
-                            value={yearFilter}
-                            onChange={(e) => {
-                              setYearFilter(e.target.value);
-                              setCurrentPage(1);
-                            }}
-                          >
-                            <option value="">Year: All</option>
-                            {['2025', '2026', '2027', '2028', '2029'].map(y => (
-                              <option key={y} value={y}>{y}</option>
-                            ))}
-                          </select>
-                        </div>
+                        {activeReportId === '3.1_leave_applications' && (
+                          <>
+                            <div className={styles.leaveFilterField}>
+                              <span className={styles.leaveFilterLabel}>Month:</span>
+                              <select
+                                className={styles.leaveSelectField}
+                                value={monthFilter}
+                                onChange={(e) => {
+                                  setMonthFilter(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                              >
+                                <option value="">Month: All</option>
+                                {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, idx) => (
+                                  <option key={idx + 1} value={idx + 1}>{m}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className={styles.leaveFilterField}>
+                              <span className={styles.leaveFilterLabel}>Year:</span>
+                              <select
+                                className={styles.leaveSelectField}
+                                value={yearFilter}
+                                onChange={(e) => {
+                                  setYearFilter(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                              >
+                                <option value="">Year: All</option>
+                                {['2025', '2026', '2027', '2028', '2029'].map(y => (
+                                  <option key={y} value={y}>{y}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

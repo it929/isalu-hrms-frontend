@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload } from 'lucide-react';
@@ -64,14 +64,31 @@ export default function AbsencePenaltyDeductionSetupPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Form Fields
+  const MONTHS = [
+    { id: '01', name: 'January', code: 'JANUARY' },
+    { id: '02', name: 'February', code: 'FEBRUARY' },
+    { id: '03', name: 'March', code: 'MARCH' },
+    { id: '04', name: 'April', code: 'APRIL' },
+    { id: '05', name: 'May', code: 'MAY' },
+    { id: '06', name: 'June', code: 'JUNE' },
+    { id: '07', name: 'July', code: 'JULY' },
+    { id: '08', name: 'August', code: 'AUGUST' },
+    { id: '09', name: 'September', code: 'SEPTEMBER' },
+    { id: '10', name: 'October', code: 'OCTOBER' },
+    { id: '11', name: 'November', code: 'NOVEMBER' },
+    { id: '12', name: 'December', code: 'DECEMBER' },
+  ];
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthNum = String(now.getMonth() + 1).padStart(2, '0');
+
   const [editSetupId, setEditSetupId] = useState(null);
-  const [deductionType, setDeductionType] = useState('one_time'); // 'one_time' or 'spread'
-  const [totalAmount, setTotalAmount] = useState('');
-  const [durationMonths, setDurationMonths] = useState('');
-  const [monthlyDeduction, setMonthlyDeduction] = useState('');
-  const [balanceRemaining, setBalanceRemaining] = useState('');
-  const [startMonth, setStartMonth] = useState(''); // Format: YYYY-MM
-  const [endMonth, setEndMonth] = useState(''); // Format: YYYY-MM
+  const [staffSalaryInfo, setStaffSalaryInfo] = useState(null);
+  const [loadingSalary, setLoadingSalary] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthNum);
+  const [selectedYear, setSelectedYear] = useState(String(currentYear));
+  const [absentDays, setAbsentDays] = useState('');
+  const [remarks, setRemarks] = useState('');
   const [isActive, setIsActive] = useState(1);
 
   // Import File Ref
@@ -168,48 +185,6 @@ export default function AbsencePenaltyDeductionSetupPage() {
     return () => clearTimeout(timer);
   }, [fetchStaffData, fetchSetups]);
 
-  // Dynamic calculations for Monthly Deduction and End Month
-  useEffect(() => {
-    if (deductionType === 'one_time') {
-      const amount = parseFloat(totalAmount);
-      if (!isNaN(amount) && amount > 0) {
-        setMonthlyDeduction(amount.toFixed(2));
-      } else {
-        setMonthlyDeduction('');
-      }
-    } else {
-      const amount = parseFloat(totalAmount);
-      const months = parseInt(durationMonths);
-      if (!isNaN(amount) && amount > 0 && !isNaN(months) && months > 0) {
-        setMonthlyDeduction((amount / months).toFixed(2));
-      } else {
-        setMonthlyDeduction('');
-      }
-    }
-  }, [totalAmount, durationMonths, deductionType]);
-
-  useEffect(() => {
-    if (deductionType === 'one_time') {
-      setEndMonth(startMonth);
-    } else {
-      const months = parseInt(durationMonths);
-      if (startMonth && !isNaN(months) && months > 0) {
-        const parts = startMonth.split('-');
-        if (parts.length === 2) {
-          const y = parseInt(parts[0]);
-          const m = parseInt(parts[1]);
-          const date = new Date(y, m - 1, 1);
-          date.setMonth(date.getMonth() + months - 1);
-          const nextY = date.getFullYear();
-          const nextM = String(date.getMonth() + 1).padStart(2, '0');
-          setEndMonth(`${nextY}-${nextM}`);
-        }
-      } else {
-        setEndMonth('');
-      }
-    }
-  }, [startMonth, durationMonths, deductionType]);
-
   // Click outside listener for staff dropdown autocomplete
   useEffect(() => {
     function handleClickOutside(event) {
@@ -244,13 +219,34 @@ export default function AbsencePenaltyDeductionSetupPage() {
     }
   }, []);
 
+  // Fetch staff monthly and daily salary rate
+  const fetchStaffSalary = useCallback(async (staffId) => {
+    setLoadingSalary(true);
+    try {
+      const headers = buildHeaders();
+      const res = await axios.get(`${API_BASE}/payroll/absence-penalty-deduction-setups/staff-salary/${staffId}?month=${selectedMonth}&year=${selectedYear}`, { headers });
+      if (res.data.status === 'success') {
+        setStaffSalaryInfo(res.data.data);
+      } else {
+        setStaffSalaryInfo(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff salary:', err);
+      setStaffSalaryInfo(null);
+    } finally {
+      setLoadingSalary(false);
+    }
+  }, [selectedMonth, selectedYear]);
+
   useEffect(() => {
     if (selectedStaff) {
       fetchStaffNetPay(selectedStaff.id);
+      fetchStaffSalary(selectedStaff.id);
     } else {
       setStaffNetPay(null);
+      setStaffSalaryInfo(null);
     }
-  }, [selectedStaff, fetchStaffNetPay]);
+  }, [selectedStaff, fetchStaffNetPay, fetchStaffSalary]);
 
   const handleSelectStaff = (staff) => {
     setSelectedStaff(staff);
@@ -262,15 +258,38 @@ export default function AbsencePenaltyDeductionSetupPage() {
     setEditSetupId(null);
     setSelectedStaff(null);
     setDropdownSearch('');
-    setDeductionType('one_time');
-    setTotalAmount('');
-    setDurationMonths('');
-    setMonthlyDeduction('');
-    setBalanceRemaining('');
-    setStartMonth('');
-    setEndMonth('');
+    setStaffSalaryInfo(null);
+    setSelectedMonth(currentMonthNum);
+    setSelectedYear(String(currentYear));
+    setAbsentDays('');
+    setRemarks('');
     setIsActive(1);
   };
+
+  // Exact number of days in the selected month & year (e.g. 28/29 for Feb, 30 for Apr/Jun/Sep/Nov, 31 for Jan/Mar/May/Jul/Aug/Oct/Dec)
+  const daysInSelectedMonth = useMemo(() => {
+    const y = parseInt(selectedYear, 10) || currentYear;
+    const m = parseInt(selectedMonth, 10) || parseInt(currentMonthNum, 10);
+    return new Date(y, m, 0).getDate();
+  }, [selectedYear, selectedMonth, currentYear, currentMonthNum]);
+
+  const selectedMonthObj = MONTHS.find(m => m.id === selectedMonth);
+
+  // Dynamic daily salary based on actual calendar days in the selected month
+  const effectiveDailySalary = useMemo(() => {
+    if (staffSalaryInfo && staffSalaryInfo.monthly_salary > 0 && daysInSelectedMonth > 0) {
+      return staffSalaryInfo.monthly_salary / daysInSelectedMonth;
+    }
+    return staffSalaryInfo?.daily_salary || 0;
+  }, [staffSalaryInfo, daysInSelectedMonth]);
+
+  // Calculated values
+  const parsedAbsentDays = parseInt(absentDays, 10);
+  const validAbsentDays = (!isNaN(parsedAbsentDays) && parsedAbsentDays > 0) ? parsedAbsentDays : 0;
+  const calculatedPenaltyDays = validAbsentDays * 3;
+  const calculatedDeductionAmount = (effectiveDailySalary > 0 && validAbsentDays > 0)
+    ? (effectiveDailySalary * calculatedPenaltyDays).toFixed(2)
+    : '0.00';
 
   // Submit setup configuration
   const handleSubmit = async (e) => {
@@ -280,40 +299,39 @@ export default function AbsencePenaltyDeductionSetupPage() {
       return;
     }
 
-    const amt = parseFloat(totalAmount);
-    if (isNaN(amt) || amt <= 0) {
-      showToast('Please enter a valid total amount.', 'error');
+    if (!validAbsentDays || validAbsentDays <= 0) {
+      showToast('Please enter the number of absent days (minimum 1 day).', 'error');
       return;
     }
 
-    let months = 1;
-    if (deductionType === 'spread') {
-      months = parseInt(durationMonths);
-      if (isNaN(months) || months <= 0) {
-        showToast('Please enter a valid duration in months.', 'error');
-        return;
-      }
-    }
-
-    if (!startMonth) {
-      showToast('Please select a start month.', 'error');
+    if (!selectedMonth || !selectedYear) {
+      showToast('Please select the month and year.', 'error');
       return;
     }
+
+    const startMonthStr = `${selectedYear}-${selectedMonth}`;
+    const totalAmt = parseFloat(calculatedDeductionAmount) || 0;
 
     setSaving(true);
     try {
       const payload = {
         id: editSetupId,
         staffId: selectedStaff.id,
-        deduction_type: deductionType,
-        total_amount: amt,
-        duration_months: months,
-        monthly_deduction: parseFloat(monthlyDeduction),
-        balance_remaining: (!editSetupId || balanceRemaining === '' || isNaN(parseFloat(balanceRemaining)) || parseFloat(balanceRemaining) <= 0)
-          ? amt
-          : parseFloat(balanceRemaining),
-        start_month: startMonth,
-        end_month: endMonth,
+        month: selectedMonth,
+        year: selectedYear,
+        start_month: startMonthStr,
+        end_month: startMonthStr,
+        absent_days: validAbsentDays,
+        penalty_multiplier: 3,
+        penalty_days: calculatedPenaltyDays,
+        daily_salary: effectiveDailySalary,
+        monthly_salary: staffSalaryInfo?.monthly_salary || null,
+        total_amount: totalAmt,
+        deduction_type: 'one_time',
+        duration_months: 1,
+        monthly_deduction: totalAmt,
+        balance_remaining: totalAmt,
+        remarks: remarks.trim() || null,
         is_active: isActive,
       };
 
@@ -322,7 +340,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
       });
 
       if (res.data.status === 'success') {
-        showToast(res.data.message || 'Absence penalty configuration saved successfully.');
+        showToast(res.data.message || 'Absence penalty deduction setup saved successfully.');
         handleClearForm();
         fetchSetups(true);
       } else {
@@ -347,14 +365,25 @@ export default function AbsencePenaltyDeductionSetupPage() {
       setDropdownSearch(setup.name || 'Unknown Staff');
     }
 
-    setDeductionType(setup.deduction_type);
-    setTotalAmount(setup.total_amount);
-    setDurationMonths(setup.deduction_type === 'spread' ? setup.duration_months : '');
-    setMonthlyDeduction(setup.monthly_deduction);
-    setBalanceRemaining(setup.balance_remaining);
-    setStartMonth(setup.start_month);
-    setEndMonth(setup.end_month);
+    setAbsentDays(setup.absent_days ? String(setup.absent_days) : '1');
+    setRemarks(setup.remarks || '');
     setIsActive(setup.is_active);
+
+    if (setup.start_month) {
+      const parts = setup.start_month.split('-');
+      if (parts.length === 2) {
+        setSelectedYear(parts[0]);
+        setSelectedMonth(parts[1]);
+      }
+    }
+
+    if (setup.daily_salary || setup.monthly_salary) {
+      setStaffSalaryInfo({
+        daily_salary: parseFloat(setup.daily_salary) || 0,
+        monthly_salary: parseFloat(setup.monthly_salary) || 0,
+        penalty_multiplier: setup.penalty_multiplier || 3
+      });
+    }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -472,8 +501,13 @@ export default function AbsencePenaltyDeductionSetupPage() {
     if (selectedStaff && s.staffId !== selectedStaff.id) {
       return false;
     }
-    return s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(s.staffId).includes(searchQuery);
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return s.name?.toLowerCase().includes(q) ||
+      String(s.staffId).includes(q) ||
+      (s.department && s.department.toLowerCase().includes(q)) ||
+      (s.remarks && s.remarks.toLowerCase().includes(q)) ||
+      (s.start_month && s.start_month.toLowerCase().includes(q));
   });
 
   const totalPages = itemsPerPage === 'all'
@@ -485,17 +519,6 @@ export default function AbsencePenaltyDeductionSetupPage() {
         (currentPage - 1) * parseInt(itemsPerPage, 10),
         currentPage * parseInt(itemsPerPage, 10)
       );
-
-  const checkAdminPrivilege = () => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const role = JSON.parse(localStorage.getItem('hrms_role'));
-      const roleName = role?.name?.toLowerCase() || '';
-      return roleName === 'super admin' || roleName === 'system admin' || roleName === 'admin' || roleName === 'admin staff' || role.id === 1 || role.id === 48;
-    } catch {
-      return false;
-    }
-  };
 
   const isConfigurator = true;
 
@@ -511,7 +534,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Absence Penalty Deduction Setup</h1>
-        <p className={styles.subtitle}>Configure absence penalty deductions from employee salaries, supporting both one-time deductions and monthly spreading, as well as bulk spreadsheet importing.</p>
+        <p className={styles.subtitle}>Configure absence penalty deductions by selecting staff and absent days. The system automatically calculates 3 days salary deduction per absent day and applies it directly to net pay.</p>
       </div>
 
       {isConfigurator && (
@@ -567,153 +590,208 @@ export default function AbsencePenaltyDeductionSetupPage() {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         style={{
-                          padding: '0.75rem 1rem',
-                          background: 'rgba(59, 130, 246, 0.08)',
-                          border: '1px solid rgba(59, 130, 246, 0.2)',
-                          borderRadius: '8px',
                           display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '0.9rem',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
                           marginTop: '0.5rem'
                         }}
                       >
-                        <span style={{ color: '#9ca3af' }}>Current Net Pay:</span>
-                        {loadingNetPay ? (
-                          <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
-                        ) : (
-                          <span style={{ fontWeight: 'bold', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <NairaSign size={14} />
-                            {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
-                            {staffNetPay?.month && (
-                              <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af', marginLeft: '4px' }}>
-                                ({staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
+                        <div
+                          style={{
+                            padding: '0.75rem 1rem',
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: '0.9rem',
+                          }}
+                        >
+                          <span style={{ color: '#9ca3af' }}>Current Net Pay:</span>
+                          {loadingNetPay ? (
+                            <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
+                          ) : (
+                            <span style={{ fontWeight: 'bold', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <NairaSign size={14} />
+                              {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
+                              {staffNetPay?.month && (
+                                <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af', marginLeft: '4px' }}>
+                                  ({staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+
+                        {staffSalaryInfo && (
+                          <div
+                            style={{
+                              padding: '0.75rem 1rem',
+                              background: 'rgba(16, 185, 129, 0.08)',
+                              border: '1px solid rgba(16, 185, 129, 0.2)',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '0.5rem',
+                              fontSize: '0.85rem',
+                            }}
+                          >
+                            <span style={{ color: '#6ee7b7', fontWeight: 600 }}>
+                              Monthly Salary: ₦{fmt(staffSalaryInfo.monthly_salary)}
+                            </span>
+                            <span style={{ color: '#34d399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <span>Daily Rate ({daysInSelectedMonth} days in {selectedMonthObj?.name || 'Month'}):</span>
+                              <span style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '2px 6px', borderRadius: '4px' }}>
+                                ₦{fmt(effectiveDailySalary)} / day
                               </span>
-                            )}
-                          </span>
+                            </span>
+                          </div>
                         )}
                       </motion.div>
                     )}
-</div>
+                  </div>
 
+                  {/* Target Payroll Month & Year */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Deduction Type */}
                     <div className={styles.formGroup}>
-                      <label className={styles.label}>Deduction Type *</label>
+                      <label className={styles.label}>Payroll Month *</label>
                       <select
                         className={styles.select}
-                        value={deductionType}
-                        onChange={(e) => setDeductionType(e.target.value)}
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        required
                       >
-                        <option value="one_time">One-Time Deduction</option>
-                        <option value="spread">Spread Across Months</option>
+                        {MONTHS.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
-                    {/* Total Amount */}
                     <div className={styles.formGroup}>
-                      <label className={styles.label}>Total Penalty Amount (₦) *</label>
-                      <div className={styles.inputGroup}>
-                        <NairaSign size={16} className={styles.inputIcon} />
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className={`${styles.input} ${styles.inputWithIcon}`}
-                          placeholder="Enter total amount"
-                          value={totalAmount}
-                          onChange={(e) => setTotalAmount(e.target.value)}
-                          required
-                        />
-                      </div>
+                      <label className={styles.label}>Payroll Year *</label>
+                      <select
+                        className={styles.select}
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(e.target.value)}
+                        required
+                      >
+                        {Array.from({ length: 6 }, (_, i) => currentYear - 2 + i).map((yr) => (
+                          <option key={yr} value={String(yr)}>
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Duration Months (Active only for Spread) */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Duration (Months) *</label>
+                  {/* Absent Days Input & Live Penalty Calculation Card */}
+                  <div
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.05)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      borderRadius: '8px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <label className={styles.label} style={{ margin: 0, color: '#f59e0b', fontWeight: 600 }}>
+                        Number of Days Absent *
+                      </label>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', padding: '2px 8px', borderRadius: '12px' }}>
+                        Rule: 1 Day Absent = 3 Days Deduction
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <input
                         type="number"
                         min="1"
+                        step="1"
                         className={styles.input}
-                        placeholder={deductionType === 'one_time' ? "1 month (Fixed)" : "e.g. 3"}
-                        value={deductionType === 'one_time' ? '1' : durationMonths}
-                        onChange={(e) => setDurationMonths(e.target.value)}
-                        disabled={deductionType === 'one_time'}
-                        style={deductionType === 'one_time' ? { backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' } : {}}
+                        placeholder="Enter absent days..."
+                        value={absentDays}
+                        onChange={(e) => setAbsentDays(e.target.value)}
+                        style={{ maxWidth: '140px' }}
                         required
                       />
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        {[1, 2, 3, 4, 5].map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setAbsentDays(String(d))}
+                            style={{
+                              padding: '0.35rem 0.65rem',
+                              fontSize: '0.8rem',
+                              borderRadius: '6px',
+                              border: absentDays === String(d) ? '1px solid #f59e0b' : '1px solid var(--border-color, #e2e8f0)',
+                              background: absentDays === String(d) ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                              color: absentDays === String(d) ? '#f59e0b' : 'inherit',
+                              cursor: 'pointer',
+                              fontWeight: absentDays === String(d) ? '600' : 'normal',
+                            }}
+                          >
+                            {d} {d === 1 ? 'day' : 'days'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Calculated Monthly Deduction */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Monthly Deduction (₦)</label>
-                      <div className={styles.inputGroup}>
-                        <NairaSign size={16} className={styles.inputIcon} />
-                        <input
-                          type="text"
-                          className={`${styles.input} ${styles.inputWithIcon}`}
-                          placeholder="Calculated automatically"
-                          value={monthlyDeduction}
-                          disabled
-                          style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
-                        />
+                    {/* Automatic Deduction Calculation Summary */}
+                    <div
+                      style={{
+                        fontSize: '0.85rem',
+                        color: '#d97706',
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem',
+                        marginTop: '0.25rem'
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>⚡ Penalty Days: {validAbsentDays} day(s) absent × 3 = {calculatedPenaltyDays} days salary deduction</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(245, 158, 11, 0.3)', paddingTop: '0.35rem', marginTop: '0.2rem' }}>
+                        <span style={{ color: '#92400e', fontWeight: 500 }}>Automatic Deduction from Net Pay:</span>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                          <NairaSign size={16} />
+                          {fmt(calculatedDeductionAmount)}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Remaining Balance */}
+                  {/* Remarks Field & Status */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 0.6fr)', gap: '1rem' }}>
                     <div className={styles.formGroup}>
-                      <label className={styles.label}>Remaining Balance (₦)</label>
-                      <div className={styles.inputGroup}>
-                        <NairaSign size={16} className={styles.inputIcon} />
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className={`${styles.input} ${styles.inputWithIcon}`}
-                          placeholder="Defaults to total amount"
-                          value={balanceRemaining}
-                          onChange={(e) => setBalanceRemaining(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Start Month */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Start Month *</label>
+                      <label className={styles.label}>Remarks (Reason / Absence Details)</label>
                       <input
-                        type="month"
+                        type="text"
                         className={styles.input}
-                        value={startMonth}
-                        onChange={(e) => setStartMonth(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Calculated End Month */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>End Month</label>
-                      <input
-                        type="month"
-                        className={styles.input}
-                        value={endMonth}
-                        disabled
-                        style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
+                        placeholder="e.g. Absent without leave approval on 12th..."
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        maxLength={500}
                       />
                     </div>
 
-                    {/* Status */}
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Status</label>
                       <select
                         className={styles.select}
                         value={isActive}
-                        onChange={(e) => setIsActive(parseInt(e.target.value))}
+                        onChange={(e) => setIsActive(parseInt(e.target.value, 10))}
                       >
                         <option value={1}>Active</option>
                         <option value={0}>Deactivated</option>
@@ -728,7 +806,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
                   </button>
                   <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} disabled={saving}>
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                    {editSetupId ? 'Update Configuration' : 'Save Configuration'}
+                    {editSetupId ? 'Update Absence Penalty' : 'Save Absence Penalty'}
                   </button>
                 </div>
               </form>
@@ -797,10 +875,12 @@ export default function AbsencePenaltyDeductionSetupPage() {
                 </div>
                 <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                   <li>Column 1: **Staff ID**</li>
-                  <li>Column 2: **Deduction Type** (`one_time` or `spread`)</li>
-                  <li>Column 3: **Total Amount**</li>
-                  <li>Column 4: **Duration Months** (optional, ignored for one_time)</li>
-                  <li>Column 5: **Start Month** (format: `YYYY-MM`)</li>
+                  <li>Column 2: **Days Absent** (e.g. `1`, `2`, `3`)</li>
+                  <li>Column 3: **Deduction Type** (`one_time`)</li>
+                  <li>Column 4: **Total Amount** (optional, auto-calculated from days absent)</li>
+                  <li>Column 5: **Duration Months** (optional, default: `1`)</li>
+                  <li>Column 6: **Start Month** (format: `YYYY-MM`)</li>
+                  <li>Column 7: **Remarks** (optional reason / absence details)</li>
                 </ul>
               </div>
             </div>
@@ -816,7 +896,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
             <input
               type="text"
               className={`${styles.input} ${styles.inputWithIcon}`}
-              placeholder="Search setups by staff name or ID..."
+              placeholder="Search setups by staff name, ID, remarks, or period..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -854,64 +934,94 @@ export default function AbsencePenaltyDeductionSetupPage() {
                   <tr>
                     <th>Staff Info</th>
                     <th>Department</th>
-                    <th>Type</th>
-                    <th>Total Amount</th>
-                    <th>Monthly Deduction</th>
-                    <th>Remaining Balance</th>
-                    <th>Period (Start - End)</th>
+                    <th>Payroll Period</th>
+                    <th>Days Absent</th>
+                    <th>Penalty Days (3×)</th>
+                    <th>Daily Rate</th>
+                    <th>Net Pay Deduction</th>
+                    <th>Remarks</th>
                     <th>Status</th>
                     {isConfigurator && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedSetups.map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <div className={styles.staffCell}>
-                          <span className={styles.staffName}>{s.name}</span>
-                          <span className={styles.staffFile}>ID: {s.staffId}</span>
-                        </div>
-                      </td>
-                      <td>{s.department || 'N/A'}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{s.deduction_type.replace('_', ' ')}</td>
-                      <td>₦{fmt(s.total_amount)}</td>
-                      <td>₦{fmt(s.monthly_deduction)}</td>
-                      <td>₦{fmt(s.balance_remaining)}</td>
-                      <td>{s.start_month} to {s.end_month}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
-                          onClick={() => isConfigurator && handleToggleStatus(s.id)}
-                          style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
-                        >
-                          {s.is_active === 1 ? 'Active' : 'Inactive'}
-                        </button>
-                      </td>
-                      {isConfigurator && (
+                  {paginatedSetups.map((s) => {
+                    const days = s.absent_days || (s.total_amount && s.daily_salary ? Math.round(s.total_amount / (s.daily_salary * 3)) : null);
+                    const pDays = s.penalty_days || (days ? days * 3 : null);
+                    return (
+                      <tr key={s.id}>
                         <td>
-                          <div className={styles.rowActions}>
-                            <button
-                              type="button"
-                              className={`${styles.actionBtn} ${styles.actionBtnEdit}`}
-                              onClick={() => handleEdit(s)}
-                              title="Edit Setup"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
-                              onClick={() => handleDelete(s.id)}
-                              title="Delete Setup"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          <div className={styles.staffCell}>
+                            <span className={styles.staffName}>{s.name}</span>
+                            <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td>{s.department || 'N/A'}</td>
+                        <td>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {s.start_month}
+                          </span>
+                        </td>
+                        <td>
+                          {days ? (
+                            <span style={{ fontWeight: 600, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+                              {days} {days === 1 ? 'day' : 'days'}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td>
+                          {pDays ? (
+                            <span style={{ fontWeight: 700, color: '#ef4444' }}>
+                              {pDays} days
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td>
+                          {s.daily_salary ? `₦${fmt(s.daily_salary)}` : '—'}
+                        </td>
+                        <td>
+                          <strong style={{ color: '#b45309' }}>₦{fmt(s.total_amount)}</strong>
+                        </td>
+                        <td>
+                          <div style={{ maxWidth: '180px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '0.85rem', color: s.remarks ? 'inherit' : 'var(--secondary, #94a3b8)' }}>
+                            {s.remarks || '—'}
+                          </div>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
+                            onClick={() => isConfigurator && handleToggleStatus(s.id)}
+                            style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
+                          >
+                            {s.is_active === 1 ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+                        {isConfigurator && (
+                          <td>
+                            <div className={styles.rowActions}>
+                              <button
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.actionBtnEdit}`}
+                                onClick={() => handleEdit(s)}
+                                title="Edit Setup"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
+                                onClick={() => handleDelete(s.id)}
+                                title="Delete Setup"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
