@@ -1,0 +1,1145 @@
+/* ─── Nigeria New Tax Law Calculator CSS Module ─── */
+
+.container {
+  padding: 1.75rem;
+  max-width: 1350px;
+  margin: 0 auto;
+  --card-bg: var(--surface);
+  --bg: var(--background);
+}
+
+/* ─── Header ─── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.headerTitleArea h1 {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  letter-spacing: -0.02em;
+}
+
+.lawBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+
+.headerTitleArea p {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  margin: 0;
+  max-width: 700px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.headerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.headerBtn:hover {
+  background: var(--surface-hover);
+  border-color: var(--primary);
+}
+
+.primaryHeaderBtn {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+.primaryHeaderBtn:hover {
+  background: #1d4ed8 !important;
+}
+
+/* ─── Quick Presets Bar ─── */
+.presetsBar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.presetsLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.presetChips {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.presetChip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.presetChip:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+/* ─── Main Grid Layout (Interactive View) ─── */
+.mainGrid {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Left Column: Input Form Card ─── */
+.inputCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cardHeader h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.togglePills {
+  display: flex;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.togglePill {
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.togglePillActive {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Mode Switcher Tabs */
+.modeTabs {
+  display: flex;
+  gap: 0.5rem;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+}
+
+.modeTab {
+  flex: 1;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modeTabActive {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Staff Autocomplete Box */
+.staffSelectBox {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.staffInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.staffIcon {
+  position: absolute;
+  left: 0.85rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.staffInput {
+  width: 100%;
+  padding: 0.65rem 2.25rem 0.65rem 2.4rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.staffInput:focus {
+  border-color: var(--primary);
+}
+
+.clearStaffBtn {
+  position: absolute;
+  right: 0.65rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.staffDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  list-style: none;
+  padding: 0.35rem 0;
+}
+
+.staffItem {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background 0.15s;
+}
+
+.staffItem:hover {
+  background: var(--surface-hover);
+}
+
+.staffItemName {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.staffItemMeta {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+/* Form Groups */
+.formGroup {
+  margin-bottom: 1.15rem;
+}
+
+.formLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+}
+
+.formLabelSub {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.inputPrefixWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputPrefix {
+  position: absolute;
+  left: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.currencyInput {
+  width: 100%;
+  padding: 0.65rem 0.85rem 0.65rem 2.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.currencyInput:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.rangeSlider {
+  width: 100%;
+  margin-top: 0.5rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Detailed Inputs Grid */
+.detailedGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+
+.detailedGridFull {
+  grid-column: span 2;
+}
+
+/* Accordion Deductions Section */
+.deductionsSection {
+  border-top: 1px dashed var(--border);
+  padding-top: 1.15rem;
+  margin-top: 1.15rem;
+}
+
+.sectionHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0.85rem;
+}
+
+.deductionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.deductionLabelBox {
+  display: flex;
+  flex-direction: column;
+}
+
+.deductionTitle {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.deductionHint {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.toggleSwitch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggleSwitch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sliderRound {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border);
+  transition: .25s;
+  border-radius: 24px;
+}
+
+.sliderRound:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .25s;
+  border-radius: 50%;
+}
+
+.toggleSwitch input:checked + .sliderRound {
+  background-color: #10b981;
+}
+
+.toggleSwitch input:checked + .sliderRound:before {
+  transform: translateX(20px);
+}
+
+/* ─── Right Column: Results & Comparison ─── */
+.resultsCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Highlight Banner / Take-Home Summary Card */
+.summaryBanner {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+  border-radius: 18px;
+  padding: 1.75rem;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.summaryBanner::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.bannerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.bannerSub {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #93c5fd;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.bannerNetPay {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  line-height: 1.1;
+}
+
+.bannerPeriod {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #bfdbfe;
+  margin-left: 0.35rem;
+}
+
+.savingsBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.bannerMetricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
+  z-index: 1;
+}
+
+.bannerMetric {
+  display: flex;
+  flex-direction: column;
+}
+
+.metricLabel {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.metricVal {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* Comparison Cards Grid */
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .comparisonGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.compareCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.35rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.03);
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.compareCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.newLawCard {
+  border-top: 4px solid #10b981;
+}
+
+.annualCard {
+  border-top: 4px solid #3b82f6;
+}
+
+.compareHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.compareTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tagNew {
+  background: color-mix(in srgb, #10b981 15%, transparent);
+  color: #10b981;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.tagAnnual {
+  background: color-mix(in srgb, #3b82f6 15%, transparent);
+  color: #3b82f6;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.compareRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.compareRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.compareRowLabel {
+  color: var(--text-secondary);
+}
+
+.compareRowVal {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.taxRowVal {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.netRowVal {
+  color: #10b981;
+  font-weight: 700;
+}
+
+/* Progressive Tax Band Breakdown Card */
+.bandsCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.35rem;
+}
+
+.bandsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.85rem;
+  font-size: 0.84rem;
+}
+
+.bandsTable th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+}
+
+.bandsTable td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.bandRateBadge {
+  display: inline-block;
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rate0 {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.rate15 {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+.rate18 {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+.rate21 {
+  background: rgba(168, 85, 247, 0.12);
+  color: #a855f7;
+}
+
+.rate23 {
+  background: rgba(236, 72, 153, 0.12);
+  color: #ec4899;
+}
+
+.rate25 {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* Charts & Breakdown Card */
+.visualCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.35rem;
+}
+
+.chartContainer {
+  height: 240px;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+/* Policy Insights & FAQ Accordion */
+.infoBox {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+
+.infoTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.infoList {
+  list-style: disc;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  padding: 0.85rem 1.4rem;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  z-index: 1000;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.toastSuccess {
+  background: #059669;
+  color: #ffffff;
+}
+
+.toastError {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ─── DEDICATED PORTRAIT PRINTABLE STATEMENT (PRINT & PREVIEW) ───
+   ═══════════════════════════════════════════════════════════════════ */
+
+.screenOnly {
+  display: block;
+}
+
+.printableArea {
+  display: none;
+}
+
+/* Printable Sheet Component Styling */
+.printSheet {
+  background: #ffffff;
+  color: #111827;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  padding: 0;
+  max-width: 100%;
+}
+
+.printDocHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2.5px solid #1e3a8a;
+  padding-bottom: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.printOrgName {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  margin: 0 0 0.15rem;
+  letter-spacing: -0.01em;
+}
+
+.printOrgSubtitle {
+  font-size: 0.78rem;
+  color: #4b5563;
+  margin: 0;
+}
+
+.printDocTitleBox {
+  text-align: right;
+}
+
+.printDocTitle {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #111827;
+  text-transform: uppercase;
+  margin: 0 0 0.15rem;
+}
+
+.printDocStatute {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #059669;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+/* Meta info grid */
+.printMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem 0.85rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.printMetaItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.printMetaLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.printMetaValue {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Printable Tables & Grids */
+.printSectionHeading {
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #1e3a8a;
+  letter-spacing: 0.05em;
+  border-bottom: 1.5px solid #cbd5e1;
+  padding-bottom: 0.25rem;
+  margin: 0.85rem 0 0.45rem;
+}
+
+.printTwoColGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.printTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.printTable th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.printTable td {
+  padding: 0.32rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+
+.printTable tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.printTableTotalRow td {
+  font-weight: 800;
+  background: #f1f5f9 !important;
+  border-top: 1.5px solid #94a3b8;
+}
+
+/* Summary Box in Print */
+.printSummaryBox {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.85rem 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem;
+}
+
+.printSummaryItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.printSummaryLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #166534;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.printSummaryValue {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #14532d;
+}
+
+/* Signatures */
+.printSignaturesGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 1.25rem;
+  padding-top: 0.5rem;
+}
+
+.printSignatureBox {
+  display: flex;
+  flex-direction: column;
+}
+
+.printSignatureLine {
+  border-bottom: 1.5px dashed #64748b;
+  height: 38px;
+  margin-bottom: 0.35rem;
+}
+
+.printSignatureRole {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.printSignatureDate {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.printDisclaimer {
+  font-size: 0.65rem;
+  color: #64748b;
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ─── PRINT MEDIA QUERY (A4 PORTRAIT OPTIMIZED) ───
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 12mm 8mm 12mm;
+  }
+
+  .screenOnly {
+    display: none !important;
+  }
+
+  .printableArea {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    position: relative !important;
+  }
+
+  .container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    background: transparent !important;
+  }
+
+  .printSheet {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .printDocHeader {
+    border-bottom: 2px solid #000000 !important;
+  }
+
+  .printOrgName {
+    color: #000000 !important;
+  }
+
+  .printDocTitle {
+    color: #000000 !important;
+  }
+
+  .printDocStatute {
+    color: #047857 !important;
+  }
+
+  .printMetaGrid {
+    background: #f8fafc !important;
+    border: 1px solid #94a3b8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .printSectionHeading {
+    color: #000000 !important;
+    border-bottom: 1.5px solid #000000 !important;
+  }
+
+  .printTable th {
+    background: #e2e8f0 !important;
+    color: #000000 !important;
+    border: 1px solid #94a3b8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .printTable td {
+    border: 1px solid #cbd5e1 !important;
+    color: #000000 !important;
+  }
+
+  .printSummaryBox {
+    background: #f0fdf4 !important;
+    border: 1.5px solid #16a34a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .printSummaryValue {
+    color: #14532d !important;
+  }
+}

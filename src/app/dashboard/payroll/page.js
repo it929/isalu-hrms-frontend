@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, TrendingDown, TrendingUp, Download, Search, Loader2, FileText, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Building2, Landmark, Mail } from 'lucide-react';
+import Link from 'next/link';
+import { Users, TrendingDown, TrendingUp, Download, Search, Loader2, FileText, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Building2, Landmark, Mail, Calculator } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
@@ -607,9 +608,31 @@ export default function PayrollPage() {
       className={styles.container}
     >
       {/* ── Header ── */}
-      <div className={styles.header}>
-        <h1>Payroll Report</h1>
-        <p>Generate, filter by department, and export the consolidated monthly payroll schedule to Excel.</p>
+      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1>Payroll Report</h1>
+          <p>Generate, filter by department, and export the consolidated monthly payroll schedule to Excel.</p>
+        </div>
+        <Link 
+          href="/dashboard/payroll/tax-calculator"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.6rem 1.15rem',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            color: '#ffffff',
+            fontWeight: '600',
+            fontSize: '0.88rem',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+            transition: 'all 0.2s ease',
+            textDecoration: 'none'
+          }}
+        >
+          <Calculator size={18} />
+          Nigeria Tax Calculator
+        </Link>
       </div>
 
       {/* ── Filter Bar ── */}
