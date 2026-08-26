@@ -1,15 +1,73 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Link from 'next/link';
-import { UserPlus, Search, Eye, Users, FileText, X, Edit, RefreshCw, Printer } from 'lucide-react';
+import { UserPlus, Search, Eye, Users, FileText, X, Edit, RefreshCw, Printer, Calendar, Filter, RotateCcw, Sparkles } from 'lucide-react';
 import { useSession } from '@/contexts/SessionContext';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 const STORAGE_BASE = process.env.NEXT_PUBLIC_STORAGE_URL || 'http://127.0.0.1:8000/storage';
+
+const MONTHS = [
+  { value: '1', label: 'January' },
+  { value: '2', label: 'February' },
+  { value: '3', label: 'March' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'May' },
+  { value: '6', label: 'June' },
+  { value: '7', label: 'July' },
+  { value: '8', label: 'August' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+
+function parseAppointmentDate(dateStr) {
+  if (!dateStr || dateStr === '0000-00-00' || dateStr === '—' || dateStr === 'null') return null;
+  const str = String(dateStr).trim();
+
+  // Format: YYYY-MM-DD or YYYY/MM/DD
+  if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(str)) {
+    const parts = str.split(/[-/]/);
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m)) return { year: y, month: m, day: isNaN(d) ? 1 : d };
+  }
+
+  // Format: DD-MM-YYYY or DD/MM/YYYY
+  if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}/.test(str)) {
+    const parts = str.split(/[-/]/);
+    const d = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const y = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m)) return { year: y, month: m, day: isNaN(d) ? 1 : d };
+  }
+
+  // Fallback: standard Date parse
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+    };
+  }
+
+  return null;
+}
+
+function formatDisplayDate(dateStr) {
+  const parsed = parseAppointmentDate(dateStr);
+  if (!parsed) return '—';
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const m = monthNames[parsed.month - 1] || '';
+  return `${String(parsed.day).padStart(2, '0')} ${m}, ${parsed.year}`;
+}
 
 // ── In-Memory Client Cache ───────────────────────────────────────────────────
 function getUserId() {
@@ -30,6 +88,8 @@ export default function EmployeeRecords() {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
 
   const fetchStaff = useCallback((silent = false) => {
     if (!silent) setLoading(true);
@@ -602,18 +662,67 @@ export default function EmployeeRecords() {
   const isHrOrHrHead = roleName.includes('hr') || roleName.includes('human resource') || roleName.includes('hr head') || userType.includes('hr') || roleId === 48;
   const canManageStaff = isSuperOrAdmin || isHrOrHrHead;
 
-  const filtered = staffList.filter(s => {
-    const q = search.toLowerCase();
-    if (!q) return true;
-    return (
-      s.surname?.toLowerCase()?.includes(q) ||
-      s.first_name?.toLowerCase()?.includes(q) ||
-      s.email?.toLowerCase()?.includes(q) ||
-      String(s.id)?.toLowerCase()?.includes(q) ||
-      s.designation?.toLowerCase()?.includes(q) ||
-      s.department?.toLowerCase()?.includes(q)
-    );
-  });
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const yearSet = new Set();
+    
+    // Extract distinct appointment years from staff list
+    staffList.forEach(s => {
+      const rawDate = s.appointment_date || s.doj;
+      const parsed = parseAppointmentDate(rawDate);
+      if (parsed && parsed.year > 1960 && parsed.year <= currentYear + 1) {
+        yearSet.add(parsed.year);
+      }
+    });
+
+    // Populate recent years range
+    for (let y = currentYear; y >= currentYear - 15; y--) {
+      yearSet.add(y);
+    }
+
+    return Array.from(yearSet).sort((a, b) => b - a);
+  }, [staffList]);
+
+  const filtered = useMemo(() => {
+    return staffList.filter(s => {
+      // 1. Text Search query
+      const q = search.toLowerCase().trim();
+      if (q) {
+        const match = (
+          s.surname?.toLowerCase()?.includes(q) ||
+          s.first_name?.toLowerCase()?.includes(q) ||
+          s.email?.toLowerCase()?.includes(q) ||
+          String(s.id)?.toLowerCase()?.includes(q) ||
+          s.designation?.toLowerCase()?.includes(q) ||
+          s.department?.toLowerCase()?.includes(q)
+        );
+        if (!match) return false;
+      }
+
+      // 2. Appointment Month & Year Filtering
+      const rawDate = s.appointment_date || s.doj;
+      const parsed = parseAppointmentDate(rawDate);
+
+      if (selectedYear) {
+        if (!parsed || parsed.year !== parseInt(selectedYear, 10)) {
+          return false;
+        }
+      }
+
+      if (selectedMonth) {
+        if (!parsed || parsed.month !== parseInt(selectedMonth, 10)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [staffList, search, selectedMonth, selectedYear]);
+
+  const selectedMonthLabel = useMemo(() => {
+    if (!selectedMonth) return '';
+    return MONTHS.find(m => m.value === selectedMonth)?.label || '';
+  }, [selectedMonth]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -673,8 +782,67 @@ export default function EmployeeRecords() {
       {/* ── Table Card ── */}
       <div className={`premium-card ${styles.tableCard}`}>
         <div className={styles.tableHeader}>
-          <h2>Staff List</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div>
+            <h2>Staff List</h2>
+            {(selectedMonth || selectedYear) && (
+              <div className={styles.activeFilterBadge}>
+                <Sparkles size={14} color="var(--primary)" />
+                <span>
+                  Showing {filtered.length} staff appointed in {selectedMonthLabel ? selectedMonthLabel : 'all months'} {selectedYear ? selectedYear : ''}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.controlsWrap}>
+            {/* Month & Year Appointment Filters */}
+            <div className={styles.filterControls}>
+              <div className={styles.filterGroup}>
+                <Calendar size={15} className={styles.filterIcon} />
+                <select
+                  value={selectedMonth}
+                  onChange={e => setSelectedMonth(e.target.value)}
+                  className={styles.filterSelect}
+                  title="Filter by Month of Appointment"
+                >
+                  <option value="">All Months</option>
+                  {MONTHS.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <Filter size={15} className={styles.filterIcon} />
+                <select
+                  value={selectedYear}
+                  onChange={e => setSelectedYear(e.target.value)}
+                  className={styles.filterSelect}
+                  title="Filter by Year of Appointment"
+                >
+                  <option value="">All Years</option>
+                  {availableYears.map(y => (
+                    <option key={y} value={String(y)}>{y}</option>
+                  ))}
+                </select>
+              </div>
+
+              {(selectedMonth || selectedYear) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedMonth('');
+                    setSelectedYear('');
+                  }}
+                  className={styles.clearFilterBtn}
+                  title="Clear Appointment Date Filters"
+                >
+                  <RotateCcw size={13} />
+                  <span>Reset Filter</span>
+                </button>
+              )}
+            </div>
+
             <button
               onClick={() => fetchStaff()}
               title="Refresh Records"
@@ -693,11 +861,12 @@ export default function EmployeeRecords() {
             >
               <RefreshCw size={16} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
+
             <div className={styles.searchWrap}>
               <Search size={16} className={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Search by name, Staff ID, dept…"
+                placeholder="Search by name, ID, dept…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className={styles.searchInput}
@@ -727,7 +896,11 @@ export default function EmployeeRecords() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className={styles.emptyRow}>
-                    {search ? 'No results match your search.' : (
+                    {(selectedMonth || selectedYear) ? (
+                      `No staff found who were appointed in ${selectedMonthLabel ? selectedMonthLabel : ''} ${selectedYear ? selectedYear : ''}.`
+                    ) : search ? (
+                      'No results match your search.'
+                    ) : (
                       canManageStaff
                         ? 'No staff records found. Click "Add New Staff" to get started.'
                         : 'No staff records found.'
@@ -754,7 +927,11 @@ export default function EmployeeRecords() {
                       </span>
                     </td>
                     <td>{s.maritalstatus || '—'}</td>
-                    <td>{s.doj || '—'}</td>
+                    <td>
+                      <span style={{ fontWeight: (selectedMonth || selectedYear) ? 600 : 'normal', color: (selectedMonth || selectedYear) ? 'var(--primary)' : 'inherit' }}>
+                        {formatDisplayDate(s.appointment_date || s.doj)}
+                      </span>
+                    </td>
                     <td>
                       <div className={styles.actionGroup}>
                         {s.progress_regID >= 18 ? (
