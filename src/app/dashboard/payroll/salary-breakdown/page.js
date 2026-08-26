@@ -765,8 +765,13 @@ export default function SalaryBreakdownPage() {
                   </div>
                   <div className={styles.staffDetailItem}>
                     <Calendar size={14} />
-                    <span>Paid Days: <strong style={{ color: (deductions?.leave_of_absence?.days_absent || 0) > 0 ? '#ea580c' : 'inherit' }}>
-                      {period?.paid_days ?? summary?.paid_days ?? (30 - (deductions?.leave_of_absence?.days_absent || 0))} Days
+                    <span>Paid Days: <strong style={{ color: ((deductions?.leave_of_absence?.days_absent || 0) > 0 || (deductions?.mid_month_adjustment?.unworked_days || 0) > 0) ? '#ea580c' : 'inherit' }}>
+                      {period?.paid_days ?? summary?.paid_days ?? (30 - (deductions?.leave_of_absence?.days_absent || 0) - (deductions?.mid_month_adjustment?.unworked_days || 0))} Days
+                      {(deductions?.mid_month_adjustment?.unworked_days || 0) > 0 && (
+                        <span style={{ fontSize: '0.78rem', color: '#6366f1', marginLeft: '5px' }}>
+                          ({deductions.mid_month_adjustment.unworked_days} unworked days before appointment)
+                        </span>
+                      )}
                       {(deductions?.leave_of_absence?.days_absent || 0) > 0 && (
                         <span style={{ fontSize: '0.78rem', color: '#dc2626', marginLeft: '5px' }}>
                           ({deductions.leave_of_absence.days_absent} LOA)
@@ -1240,6 +1245,24 @@ export default function SalaryBreakdownPage() {
                   </div>
                 )}
 
+                {/* 11b. Mid-Month Appointment Adjustment */}
+                {deductions?.mid_month_adjustment?.amount > 0 && (
+                  <div className={styles.listItem}>
+                    <div className={styles.itemLeft}>
+                      <span className={styles.itemName}>Mid-Month Appointment Adjustment</span>
+                      <span className={styles.itemSubtext}>
+                        Joined {deductions.mid_month_adjustment.appointment_date ? new Date(deductions.mid_month_adjustment.appointment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'mid-month'} ({deductions.mid_month_adjustment.unworked_days} unworked day(s) prorated deduction)
+                      </span>
+                    </div>
+                    <div className={styles.itemRight}>
+                      <span className={`${styles.itemAmount} ${styles.itemAmountDeduction}`}>
+                        - ₦{formatCurrency(deductions.mid_month_adjustment.amount)}
+                      </span>
+                      <span className={`${styles.badge}`} style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#6366f1', border: '1px solid rgba(99, 102, 241, 0.25)' }}>Prorated</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* 12. Employee Loans / Other Deductions */}
                 {deductions?.regular_loan?.amount > 0 && (
                   <div className={styles.listItem}>
@@ -1605,6 +1628,12 @@ export default function SalaryBreakdownPage() {
                       <div className={styles.sheetRow}>
                         <span>Leave of Absence ({deductions.leave_of_absence.days_absent} days)</span>
                         <span>{formatCurrency(deductions.leave_of_absence.amount)}</span>
+                      </div>
+                    )}
+                    {deductions?.mid_month_adjustment?.amount > 0 && (
+                      <div className={styles.sheetRow}>
+                        <span>Mid-Month Appointment Adjustment ({deductions.mid_month_adjustment.unworked_days} unworked days)</span>
+                        <span>{formatCurrency(deductions.mid_month_adjustment.amount)}</span>
                       </div>
                     )}
                     {deductions?.regular_loan?.amount > 0 && (
