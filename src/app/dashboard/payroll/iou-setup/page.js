@@ -215,6 +215,8 @@ export default function IouLimitSetup() {
                         <span style={{ fontSize: '0.7rem', background: '#fee2e2', color: '#991b1b', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: '700' }}>Blocked</span>
                       ) : s.max_iou_amount > 0 ? (
                         <span style={{ fontSize: '0.7rem', background: '#e0e7ff', color: '#3730a3', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: '700' }}>{formatCurrency(s.max_iou_amount)}</span>
+                      ) : s.limit_percentage === 50 || (s.is_retention_active && !s.has_completed_retention) ? (
+                        <span style={{ fontSize: '0.7rem', background: '#eff6ff', color: '#1e40af', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: '700', border: '1px solid #bfdbfe' }}>50% Limit (Retention)</span>
                       ) : (
                         <span style={{ fontSize: '0.7rem', background: '#d1fae5', color: '#065f46', padding: '0.2rem 0.5rem', borderRadius: '99px', fontWeight: '700' }}>70% Limit</span>
                       )}
