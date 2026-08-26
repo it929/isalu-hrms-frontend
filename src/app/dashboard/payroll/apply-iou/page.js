@@ -823,7 +823,7 @@ export default function ApplyIouPage() {
       {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>Apply for IOU</h1>
-        <p className={styles.subtitle}>Submit salary IOUs. Requests are limited to a maximum of 70% of the employee's gross monthly salary or custom configurations.</p>
+        <p className={styles.subtitle}>Submit salary IOUs. Requests are limited to a maximum of 50% of monthly salary for staff under active retention (or 70% after completing 20-month retention / custom configurations).</p>
       </div>
 
       {/* Form Card */}
@@ -872,8 +872,17 @@ export default function ApplyIouPage() {
                           className={styles.dropdownItem}
                           onClick={() => handleSelectStaff(staff)}
                         >
-                          <span className={styles.staffName}>{staff.name}</span>
-                          <span className={styles.dropdownItemSub}>Staff ID: {staff.id}</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <div>
+                              <span className={styles.staffName}>{staff.name}</span>
+                              <span className={styles.dropdownItemSub}>Staff ID: {staff.id}</span>
+                            </div>
+                            {staff.is_retention_active && !staff.has_completed_retention ? (
+                              <span style={{ fontSize: '0.68rem', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', padding: '0.15rem 0.4rem', borderRadius: '4px', fontWeight: '600' }}>
+                                Retention (50% Limit)
+                              </span>
+                            ) : null}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -899,17 +908,52 @@ export default function ApplyIouPage() {
                       </div>
                     ) : (
                       <>
+                        {/* Retention Notice for incomplete retention */}
+                        {((limitDetails.is_retention_active && !limitDetails.has_completed_retention) || (selectedStaff?.is_retention_active && !selectedStaff?.has_completed_retention)) && (
+                          <div style={{
+                            background: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            color: '#1e40af',
+                            padding: '0.4rem 0.6rem',
+                            borderRadius: '6px',
+                            fontSize: '0.78rem',
+                            fontWeight: '600',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '0.4rem'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <Info size={15} color="#2563eb" />
+                              <span>Retention In Progress: Month {limitDetails.retention_months ?? selectedStaff?.retention_months ?? 0} of 20</span>
+                            </div>
+                            <span style={{
+                              background: '#dbeafe',
+                              color: '#1e40af',
+                              padding: '0.1rem 0.45rem',
+                              borderRadius: '999px',
+                              fontSize: '0.7rem',
+                              fontWeight: '700'
+                            }}>
+                              Capped at 50% of Salary
+                            </span>
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem' }}>
-                          {limitDetails.month_name && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.85, fontSize: '0.78rem', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9, fontSize: '0.78rem' }}>
+                            <span>Max Limit ({limitDetails.limit_percentage ?? selectedStaff?.limit_percentage ?? 70}%): <strong style={{ color: 'var(--primary)' }}>₦{fmt(maxIouLimit)}</strong></span>
+                            {limitDetails.month_name && (
                               <span>Remaining Limit: <strong style={{ color: remainingLimit > 0 ? 'var(--primary)' : 'var(--danger)' }}>₦{fmt(remainingLimit)}</strong></span>
-                              {availableNetPay !== null && (
-                                <span>Available Net Pay: <strong style={{ color: availableNetPay > 0 ? '#10b981' : '#ef4444' }}>₦{fmt(availableNetPay)}</strong></span>
-                              )}
+                            )}
+                          </div>
+                          {limitDetails.month_name && availableNetPay !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', opacity: 0.85, fontSize: '0.78rem', paddingTop: '0.15rem' }}>
+                              <span>Available Net Pay: <strong style={{ color: availableNetPay > 0 ? '#10b981' : '#ef4444' }}>₦{fmt(availableNetPay)}</strong></span>
                             </div>
                           )}
                         </div>
-                        <div className={styles.progressBarContainer}>
+                        <div className={styles.progressBarContainer} style={{ marginTop: '0.4rem' }}>
                           <div
                             className={`${styles.progressBarFill} ${progressClass}`}
                             style={{ width: `${Math.min(100, (maxIouLimit > 0 ? (totalPlannedAmount / maxIouLimit) * 100 : 0))}%` }}

@@ -561,7 +561,8 @@ export default function RetentionActivationPage() {
                         </th>
                         <th>Staff ID</th>
                         <th>Staff Name</th>
-                        <th>Basic Salary (₦)</th>
+                        <th>First Gross Salary (₦)</th>
+                        <th>Monthly Retention (5%)</th>
                         <th>Status</th>
                         <th>Total Deducted (₦)</th>
                         <th>Remaining Months</th>
@@ -588,8 +589,14 @@ export default function RetentionActivationPage() {
                           <td className={styles.tdPrimary}>{row.id}</td>
                           <td style={{ fontWeight: 600 }}>{row.name}</td>
                           <td>
-                            {row.basic_salary > 0
-                              ? `₦${row.basic_salary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            {row.gross_salary > 0
+                              ? `₦${row.gross_salary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : '₦0.00'
+                            }
+                          </td>
+                          <td style={{ color: '#2563eb', fontWeight: 600 }}>
+                            {row.monthly_retention > 0
+                              ? `₦${row.monthly_retention.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                               : '₦0.00'
                             }
                           </td>
