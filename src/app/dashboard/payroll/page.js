@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Link from 'next/link';
-import { Users, TrendingDown, TrendingUp, Download, Search, Loader2, FileText, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Building2, Landmark, Mail, Calculator } from 'lucide-react';
+import { Users, TrendingDown, TrendingUp, Download, Search, Loader2, FileText, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Building2, Landmark, Mail, Calculator, FileSpreadsheet } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
@@ -110,9 +110,10 @@ export default function PayrollPage() {
   const [perPage,  setPerPage]  = useState(-1);
 
   // UI state
-  const [loading,    setLoading]    = useState(false);
-  const [exporting,  setExporting]  = useState(false);
-  const [searched,   setSearched]   = useState(false);
+  const [loading,            setLoading]            = useState(false);
+  const [exporting,          setExporting]          = useState(false);
+  const [exportingVariance,  setExportingVariance]  = useState(false);
+  const [searched,           setSearched]           = useState(false);
   const [toast,      setToast]      = useState(null);
   const [userCtx,    setUserCtx]    = useState({ isAuditStaff: false, isSuperAdmin: false, isFinanceStaff: false, isAdminStaff: false });
   const [submittingWorkflow, setSubmittingWorkflow] = useState(false);
@@ -557,6 +558,48 @@ export default function PayrollPage() {
     }
   };
 
+  const handleExportVariance = async () => {
+    if (!month) { showToast('Please select a Month before downloading variance summary.', 'error'); return; }
+    if (!year)  { showToast('Please select a Year before downloading variance summary.',  'error'); return; }
+
+    setExportingVariance(true);
+    try {
+      const params = new URLSearchParams({ month, year });
+      if (divisionID)   params.append('divisionID',   divisionID);
+      if (departmentID) params.append('departmentID', departmentID);
+      if (bankID)       params.append('bankID',       bankID);
+
+      const uid = getUserId();
+      const res = await fetch(
+        `${API_BASE}/payroll/export-variance-summary?${params.toString()}`,
+        { headers: uid ? { 'X-User-Id': uid } : {} }
+      );
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Variance summary export failed.');
+      }
+
+      const selectedDept = departments.find(d => String(d.id) === String(departmentID))?.name;
+      const deptSuffix = selectedDept ? `_${selectedDept.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `Payroll_Variance_Summary_${month}_${year}${deptSuffix}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Payroll Variance Summary CSV ${selectedDept ? `for ${selectedDept} ` : ''}downloaded successfully!`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to download variance summary CSV. Please try again.', 'error');
+    } finally {
+      setExportingVariance(false);
+    }
+  };
+
   const statCards = summary
     ? [
         {
@@ -862,6 +905,25 @@ export default function PayrollPage() {
                     : <Download size={14} />
                   }
                   {exporting ? 'Exporting…' : (selectedDeptName ? `Export ${selectedDeptName} CSV` : 'Export CSV')}
+                </button>
+                <button
+                  id="pr-export-variance-btn"
+                  type="button"
+                  className={styles.btnExportVariance}
+                  disabled={exportingVariance}
+                  onClick={handleExportVariance}
+                  title={`Download month-on-month summary comparison spreadsheet (.csv) explaining all differences from last month${selectedDeptName ? ` for ${selectedDeptName}` : ''}`}
+                  style={{
+                    padding: '0.45rem 0.85rem',
+                    fontSize: '0.8rem',
+                    borderRadius: '8px',
+                  }}
+                >
+                  {exportingVariance
+                    ? <Loader2 size={14} className={styles.spinner} />
+                    : <FileSpreadsheet size={14} />
+                  }
+                  {exportingVariance ? 'Generating…' : 'Variance Summary (CSV)'}
                 </button>
               </div>
             </div>

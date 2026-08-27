@@ -155,6 +155,35 @@
   cursor: not-allowed;
 }
 
+.btnExportVariance {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.62rem 1.25rem;
+  border-radius: 10px;
+  border: 1.5px solid #10b981;
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease, transform 0.15s;
+  white-space: nowrap;
+}
+
+.btnExportVariance:hover:not(:disabled) {
+  background: #10b981;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.btnExportVariance:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ─── Summary Cards ─── */
 .statsGrid {
   display: grid;
