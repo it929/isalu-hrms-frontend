@@ -204,6 +204,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
       if (res.data.status === 'success') {
         setStaffNetPay({
           amount: res.data.net_pay,
+          grossPay: res.data.gross_pay,
           month: res.data.month,
           year: res.data.year,
           isEstimated: res.data.is_estimated
