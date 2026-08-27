@@ -159,6 +159,11 @@ function formatNaira(val) {
   return `₦${num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function getDaysInMonth(month, year) {
+  if (!month || !year) return 30;
+  return new Date(year, month, 0).getDate();
+}
+
 export default function SalaryBreakdownPage() {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -802,7 +807,7 @@ export default function SalaryBreakdownPage() {
                   <div className={styles.staffDetailItem}>
                     <Calendar size={14} />
                     <span>Paid Days: <strong style={{ color: ((deductions?.leave_of_absence?.days_absent || 0) > 0 || (deductions?.mid_month_adjustment?.unworked_days || 0) > 0) ? '#ea580c' : 'inherit' }}>
-                      {period?.paid_days ?? summary?.paid_days ?? (30 - (deductions?.leave_of_absence?.days_absent || 0) - (deductions?.mid_month_adjustment?.unworked_days || 0))} Days
+                      {period?.paid_days ?? summary?.paid_days ?? ((period?.days_in_month || summary?.days_in_month || getDaysInMonth(selectedMonth, selectedYear)) - (deductions?.leave_of_absence?.days_absent || 0) - (deductions?.mid_month_adjustment?.unworked_days || 0))} Days
                       {(deductions?.mid_month_adjustment?.unworked_days || 0) > 0 && (
                         <span style={{ fontSize: '0.78rem', color: '#6366f1', marginLeft: '5px' }}>
                           ({deductions.mid_month_adjustment.unworked_days} unworked days before appointment)
@@ -1529,7 +1534,7 @@ export default function SalaryBreakdownPage() {
                   <div className={styles.sheetField}>
                     <span className={styles.sheetFieldLabel}>Paid Days:</span>
                     <span className={styles.sheetFieldValue} style={{ fontWeight: 700, color: (deductions?.leave_of_absence?.days_absent || 0) > 0 ? '#ea580c' : 'inherit' }}>
-                      {period?.paid_days ?? summary?.paid_days ?? (30 - (deductions?.leave_of_absence?.days_absent || 0))} / 30 Days
+                      {period?.paid_days ?? summary?.paid_days ?? ((period?.days_in_month || summary?.days_in_month || getDaysInMonth(selectedMonth, selectedYear)) - (deductions?.leave_of_absence?.days_absent || 0))} / {period?.days_in_month ?? summary?.days_in_month ?? getDaysInMonth(selectedMonth, selectedYear)} Days
                       {(deductions?.leave_of_absence?.days_absent || 0) > 0 && (
                         <span style={{ fontSize: '0.78rem', color: '#dc2626', marginLeft: '6px', fontWeight: 600 }}>
                           ({deductions.leave_of_absence.days_absent} Unpaid Day(s) LOA)
@@ -2232,8 +2237,13 @@ export default function SalaryBreakdownPage() {
                     )}
                     <div className={styles.sheetField}>
                       <span className={styles.sheetFieldLabel}>Paid Days:</span>
-                      <span className={styles.sheetFieldValue} style={{ fontWeight: 700 }}>
-                        {modalStaffBreakdown.period?.paid_days ?? modalStaffBreakdown.summary?.paid_days ?? 30} / 30 Days
+                      <span className={styles.sheetFieldValue} style={{ fontWeight: 700, color: (modalStaffBreakdown.deductions?.leave_of_absence?.days_absent || 0) > 0 ? '#ea580c' : 'inherit' }}>
+                        {modalStaffBreakdown.period?.paid_days ?? modalStaffBreakdown.summary?.paid_days ?? modalStaffBreakdown.staff?.paid_days ?? ((modalStaffBreakdown.period?.days_in_month || modalStaffBreakdown.summary?.days_in_month || getDaysInMonth(selectedMonth, selectedYear)) - (modalStaffBreakdown.deductions?.leave_of_absence?.days_absent || 0))} / {modalStaffBreakdown.period?.days_in_month ?? modalStaffBreakdown.summary?.days_in_month ?? modalStaffBreakdown.staff?.days_in_month ?? getDaysInMonth(selectedMonth, selectedYear)} Days
+                        {(modalStaffBreakdown.deductions?.leave_of_absence?.days_absent || 0) > 0 && (
+                          <span style={{ fontSize: '0.78rem', color: '#dc2626', marginLeft: '6px', fontWeight: 600 }}>
+                            ({modalStaffBreakdown.deductions.leave_of_absence.days_absent} Unpaid Day(s) LOA)
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
