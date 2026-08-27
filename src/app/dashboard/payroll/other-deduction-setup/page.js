@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload } from 'lucide-react';
@@ -65,6 +65,10 @@ export default function OtherDeductionSetupPage() {
 
   // Form Fields
   const [editSetupId, setEditSetupId] = useState(null);
+  const [calcMode, setCalcMode] = useState('amount'); // 'amount' (Normal Amount Setup) or 'days' (Day Deduction Setup)
+  const [deductionDays, setDeductionDays] = useState('');
+  const [staffSalaryInfo, setStaffSalaryInfo] = useState(null);
+  const [loadingSalary, setLoadingSalary] = useState(false);
   const [deductionType, setDeductionType] = useState('one_time'); // 'one_time' or 'spread'
   const [totalAmount, setTotalAmount] = useState('');
   const [durationMonths, setDurationMonths] = useState('');
@@ -169,28 +173,73 @@ export default function OtherDeductionSetupPage() {
     return () => clearTimeout(timer);
   }, [fetchStaffData, fetchSetups]);
 
-  // Dynamic calculations for Monthly Deduction and End Month
+  // Exact days in the selected month
+  const daysInSelectedMonth = useMemo(() => {
+    if (!startMonth) {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    }
+    const parts = startMonth.split('-');
+    if (parts.length === 2) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      return new Date(y, m, 0).getDate();
+    }
+    return 30;
+  }, [startMonth]);
+
+  // Effective daily salary based on actual calendar days
+  const effectiveDailySalary = useMemo(() => {
+    if (staffSalaryInfo && staffSalaryInfo.monthly_salary > 0 && daysInSelectedMonth > 0) {
+      return staffSalaryInfo.monthly_salary / daysInSelectedMonth;
+    }
+    return staffSalaryInfo?.daily_salary || 0;
+  }, [staffSalaryInfo, daysInSelectedMonth]);
+
+  // Dynamic calculations for Monthly Deduction and End Month in Amount Mode
   useEffect(() => {
-    if (deductionType === 'one_time') {
-      const amount = parseFloat(totalAmount);
-      if (!isNaN(amount) && amount > 0) {
-        setMonthlyDeduction(amount.toFixed(2));
+    if (calcMode === 'amount') {
+      if (deductionType === 'one_time') {
+        const amount = parseFloat(totalAmount);
+        if (!isNaN(amount) && amount > 0) {
+          setMonthlyDeduction(amount.toFixed(2));
+        } else {
+          setMonthlyDeduction('');
+        }
       } else {
-        setMonthlyDeduction('');
-      }
-    } else {
-      const amount = parseFloat(totalAmount);
-      const months = parseInt(durationMonths);
-      if (!isNaN(amount) && amount > 0 && !isNaN(months) && months > 0) {
-        setMonthlyDeduction((amount / months).toFixed(2));
-      } else {
-        setMonthlyDeduction('');
+        const amount = parseFloat(totalAmount);
+        const months = parseInt(durationMonths);
+        if (!isNaN(amount) && amount > 0 && !isNaN(months) && months > 0) {
+          setMonthlyDeduction((amount / months).toFixed(2));
+        } else {
+          setMonthlyDeduction('');
+        }
       }
     }
-  }, [totalAmount, durationMonths, deductionType]);
+  }, [totalAmount, durationMonths, deductionType, calcMode]);
+
+  // Dynamic calculation for Days Mode
+  useEffect(() => {
+    if (calcMode === 'days') {
+      const days = parseFloat(deductionDays);
+      if (!isNaN(days) && days > 0 && effectiveDailySalary > 0) {
+        const computedAmt = (days * effectiveDailySalary).toFixed(2);
+        setTotalAmount(computedAmt);
+        setMonthlyDeduction(computedAmt);
+        setBalanceRemaining(computedAmt);
+        setDeductionType('one_time');
+        setDurationMonths('1');
+        setEndMonth(startMonth);
+      } else if (isNaN(days) || days <= 0) {
+        setTotalAmount('');
+        setMonthlyDeduction('');
+        setBalanceRemaining('');
+      }
+    }
+  }, [calcMode, deductionDays, effectiveDailySalary, startMonth]);
 
   useEffect(() => {
-    if (deductionType === 'one_time') {
+    if (calcMode === 'days' || deductionType === 'one_time') {
       setEndMonth(startMonth);
     } else {
       const months = parseInt(durationMonths);
@@ -209,7 +258,15 @@ export default function OtherDeductionSetupPage() {
         setEndMonth('');
       }
     }
-  }, [startMonth, durationMonths, deductionType]);
+  }, [startMonth, durationMonths, deductionType, calcMode]);
+
+  const isDeductionExceedingNet = useMemo(() => {
+    if (!staffNetPay || staffNetPay.amount === null || isNaN(parseFloat(staffNetPay.amount))) return false;
+    const net = parseFloat(staffNetPay.amount);
+    const deduct = parseFloat(monthlyDeduction);
+    if (isNaN(deduct) || deduct <= 0) return false;
+    return deduct > net;
+  }, [staffNetPay, monthlyDeduction]);
 
   // Click outside listener for staff dropdown autocomplete
   useEffect(() => {
@@ -246,13 +303,40 @@ export default function OtherDeductionSetupPage() {
     }
   }, []);
 
+  const fetchStaffSalary = useCallback(async (staffId, monthStr) => {
+    setLoadingSalary(true);
+    try {
+      const headers = buildHeaders();
+      let monthParam = '';
+      let yearParam = '';
+      if (monthStr && monthStr.includes('-')) {
+        const [y, m] = monthStr.split('-');
+        yearParam = y;
+        monthParam = m;
+      }
+      const res = await axios.get(`${API_BASE}/payroll/other-deduction-setups/staff-salary/${staffId}?month=${monthParam}&year=${yearParam}`, { headers });
+      if (res.data.status === 'success') {
+        setStaffSalaryInfo(res.data.data);
+      } else {
+        setStaffSalaryInfo(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch staff salary:', err);
+      setStaffSalaryInfo(null);
+    } finally {
+      setLoadingSalary(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedStaff) {
       fetchStaffNetPay(selectedStaff.id);
+      fetchStaffSalary(selectedStaff.id, startMonth);
     } else {
       setStaffNetPay(null);
+      setStaffSalaryInfo(null);
     }
-  }, [selectedStaff, fetchStaffNetPay]);
+  }, [selectedStaff, startMonth, fetchStaffNetPay, fetchStaffSalary]);
 
   const handleSelectStaff = (staff) => {
     setSelectedStaff(staff);
@@ -264,13 +348,16 @@ export default function OtherDeductionSetupPage() {
     setEditSetupId(null);
     setSelectedStaff(null);
     setDropdownSearch('');
+    setCalcMode('amount');
+    setDeductionDays('');
+    setStaffSalaryInfo(null);
     setDeductionType('one_time');
     setTotalAmount('');
     setDurationMonths('');
     setMonthlyDeduction('');
     setBalanceRemaining('');
-    setStartMonth('');
-    setEndMonth('');
+    setStartMonth(getCurrentMonthStr());
+    setEndMonth(getCurrentMonthStr());
     setRemarks('');
     setIsActive(1);
   };
@@ -283,14 +370,22 @@ export default function OtherDeductionSetupPage() {
       return;
     }
 
+    if (calcMode === 'days') {
+      const days = parseFloat(deductionDays);
+      if (isNaN(days) || days <= 0) {
+        showToast('Please enter a valid number of days to deduct (e.g. 0.5, 1, 2, 3).', 'error');
+        return;
+      }
+    }
+
     const amt = parseFloat(totalAmount);
     if (isNaN(amt) || amt <= 0) {
-      showToast('Please enter a valid total amount.', 'error');
+      showToast('Please enter a valid total deduction amount.', 'error');
       return;
     }
 
     let months = 1;
-    if (deductionType === 'spread') {
+    if (calcMode === 'amount' && deductionType === 'spread') {
       months = parseInt(durationMonths);
       if (isNaN(months) || months <= 0) {
         showToast('Please enter a valid duration in months.', 'error');
@@ -299,8 +394,17 @@ export default function OtherDeductionSetupPage() {
     }
 
     if (!startMonth) {
-      showToast('Please select a start month.', 'error');
+      showToast('Please select a start month / payroll period.', 'error');
       return;
+    }
+
+    const monthlyAmt = parseFloat(monthlyDeduction);
+    if (staffNetPay && staffNetPay.amount !== null && !isNaN(parseFloat(staffNetPay.amount))) {
+      const currentAvailableNet = parseFloat(staffNetPay.amount);
+      if (monthlyAmt > currentAvailableNet) {
+        showToast(`Deduction declined: Monthly deduction of ₦${monthlyAmt.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} exceeds staff's available Net Pay (₦${currentAvailableNet.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Net pay cannot be negative.`, 'error');
+        return;
+      }
     }
 
     setSaving(true);
@@ -308,15 +412,20 @@ export default function OtherDeductionSetupPage() {
       const payload = {
         id: editSetupId,
         staffId: selectedStaff.id,
-        deduction_type: deductionType,
+        calculation_mode: calcMode,
+        deduction_type: calcMode === 'days' ? 'one_time' : deductionType,
+        deduction_days: calcMode === 'days' ? parseFloat(deductionDays) : null,
+        daily_rate: calcMode === 'days' ? effectiveDailySalary : null,
+        monthly_salary: calcMode === 'days' ? (staffSalaryInfo?.monthly_salary || 0) : null,
+        days_in_month: calcMode === 'days' ? daysInSelectedMonth : null,
         total_amount: amt,
-        duration_months: months,
+        duration_months: calcMode === 'days' ? 1 : months,
         monthly_deduction: parseFloat(monthlyDeduction),
         balance_remaining: (!editSetupId || balanceRemaining === '' || isNaN(parseFloat(balanceRemaining)) || parseFloat(balanceRemaining) <= 0)
           ? amt
           : parseFloat(balanceRemaining),
         start_month: startMonth,
-        end_month: endMonth,
+        end_month: calcMode === 'days' ? startMonth : endMonth,
         remarks: remarks.trim() || null,
         is_active: isActive,
       };
@@ -351,7 +460,10 @@ export default function OtherDeductionSetupPage() {
       setDropdownSearch(setup.name || 'Unknown Staff');
     }
 
-    setDeductionType(setup.deduction_type);
+    const mode = setup.calculation_mode === 'days' || (setup.deduction_days && parseFloat(setup.deduction_days) > 0) ? 'days' : 'amount';
+    setCalcMode(mode);
+    setDeductionDays(setup.deduction_days ? String(setup.deduction_days) : '');
+    setDeductionType(setup.deduction_type || 'one_time');
     setTotalAmount(setup.total_amount);
     setDurationMonths(setup.deduction_type === 'spread' ? setup.duration_months : '');
     setMonthlyDeduction(setup.monthly_deduction);
@@ -625,150 +737,420 @@ export default function OtherDeductionSetupPage() {
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Deduction Type */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Deduction Type *</label>
-                      <select
-                        className={styles.select}
-                        value={deductionType}
-                        onChange={(e) => setDeductionType(e.target.value)}
+                  {/* Setup Mode Toggle Switch */}
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Deduction Calculation Mode *</label>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '0.5rem',
+                      background: 'rgba(241, 245, 249, 0.7)',
+                      padding: '4px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(226, 232, 240, 0.9)'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCalcMode('amount');
+                        }}
+                        style={{
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: '8px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: calcMode === 'amount' ? '600' : '500',
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s ease',
+                          background: calcMode === 'amount' ? '#2563eb' : 'transparent',
+                          color: calcMode === 'amount' ? '#ffffff' : '#64748b',
+                          boxShadow: calcMode === 'amount' ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none',
+                        }}
                       >
-                        <option value="one_time">One-Time Deduction</option>
-                        <option value="spread">Spread Across Months</option>
-                      </select>
-                    </div>
+                        <NairaSign size={15} />
+                        Normal Setup (Fixed Amount)
+                      </button>
 
-                    {/* Total Amount */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Total Amount (₦) *</label>
-                      <div className={styles.inputGroup}>
-                        <NairaSign size={16} className={styles.inputIcon} />
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className={`${styles.input} ${styles.inputWithIcon}`}
-                          placeholder="Enter total amount"
-                          value={totalAmount}
-                          onChange={(e) => setTotalAmount(e.target.value)}
-                          required
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCalcMode('days');
+                          if (!deductionDays) setDeductionDays('1');
+                        }}
+                        style={{
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: '8px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: calcMode === 'days' ? '600' : '500',
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s ease',
+                          background: calcMode === 'days' ? '#059669' : 'transparent',
+                          color: calcMode === 'days' ? '#ffffff' : '#64748b',
+                          boxShadow: calcMode === 'days' ? '0 2px 6px rgba(5, 150, 105, 0.25)' : 'none',
+                        }}
+                      >
+                        <Calendar size={15} />
+                        Day Setup (Deduct Days)
+                      </button>
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Duration Months (Active only for Spread) */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Duration (Months) *</label>
-                      <input
-                        type="number"
-                        min="1"
-                        className={styles.input}
-                        placeholder={deductionType === 'one_time' ? "1 month (Fixed)" : "e.g. 3"}
-                        value={deductionType === 'one_time' ? '1' : durationMonths}
-                        onChange={(e) => setDurationMonths(e.target.value)}
-                        disabled={deductionType === 'one_time'}
-                        style={deductionType === 'one_time' ? { backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' } : {}}
-                        required
-                      />
-                    </div>
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {/* MODE 1: DAY-BASED DEDUCTION SETUP */}
+                  {/* ───────────────────────────────────────────────────────────── */}
+                  {calcMode === 'days' ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                    >
+                      {/* Quick Select Days Pills */}
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Quick Select Days to Deduct</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          {[
+                            { label: '0.5 Day (Half Day)', val: '0.5' },
+                            { label: '1 Day', val: '1' },
+                            { label: '2 Days', val: '2' },
+                            { label: '3 Days', val: '3' },
+                            { label: '4 Days', val: '4' },
+                            { label: '5 Days', val: '5' },
+                          ].map((pill) => (
+                            <button
+                              key={pill.val}
+                              type="button"
+                              onClick={() => setDeductionDays(pill.val)}
+                              style={{
+                                padding: '0.4rem 0.8rem',
+                                borderRadius: '20px',
+                                fontSize: '0.8rem',
+                                border: '1px solid',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                borderColor: deductionDays === pill.val ? '#059669' : '#cbd5e1',
+                                background: deductionDays === pill.val ? '#ecfdf5' : '#ffffff',
+                                color: deductionDays === pill.val ? '#065f46' : '#475569',
+                                fontWeight: deductionDays === pill.val ? '600' : '500',
+                              }}
+                            >
+                              {pill.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                    {/* Calculated Monthly Deduction */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Monthly Deduction (₦)</label>
-                      <div className={styles.inputGroup}>
-                        <NairaSign size={16} className={styles.inputIcon} />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        {/* Custom Days Input */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Number of Days to Deduct *</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            className={styles.input}
+                            placeholder="e.g. 0.5, 1, 1.5, 2, 3..."
+                            value={deductionDays}
+                            onChange={(e) => setDeductionDays(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        {/* Start Month / Payroll Period */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Payroll Month / Period *</label>
+                          <input
+                            type="month"
+                            className={styles.input}
+                            value={startMonth}
+                            onChange={(e) => setStartMonth(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Live Calculation Preview Card */}
+                      <div style={{
+                        padding: '1rem',
+                        background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.7), rgba(240, 253, 250, 0.7))',
+                        border: '1px solid #a7f3d0',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.65rem',
+                        fontSize: '0.875rem'
+                      }}>
+                        <div style={{ fontWeight: '600', color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Calendar size={16} color="#059669" />
+                          <span>Day Deduction Calculation Breakdown</span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', paddingTop: '4px' }}>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Monthly Gross:</span>
+                            <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                              ₦{fmt(staffSalaryInfo?.monthly_salary || 0)}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Days in Month:</span>
+                            <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                              {daysInSelectedMonth} days
+                            </span>
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Daily Salary Rate:</span>
+                            <span style={{ fontWeight: '600', color: '#059669' }}>
+                              ₦{fmt(effectiveDailySalary)} / day
+                            </span>
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Deduction Days:</span>
+                            <span style={{ fontWeight: '700', color: '#0f766e' }}>
+                              {parseFloat(deductionDays) > 0 ? `${deductionDays} day(s)` : '0 days'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          borderTop: '1px dashed #6ee7b7',
+                          paddingTop: '8px',
+                          marginTop: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <span style={{ fontWeight: '600', color: '#065f46' }}>Total Deduction Amount:</span>
+                          <span style={{ fontSize: '1.05rem', fontWeight: 'bold', color: '#047857', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            <NairaSign size={16} />
+                            {fmt(totalAmount || 0)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Status</label>
+                        <select
+                          className={styles.select}
+                          value={isActive}
+                          onChange={(e) => setIsActive(parseInt(e.target.value))}
+                        >
+                          <option value={1}>Active</option>
+                          <option value={0}>Deactivated</option>
+                        </select>
+                      </div>
+
+                      {/* Remarks Field */}
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Remarks (Reason / Description)</label>
                         <input
                           type="text"
-                          className={`${styles.input} ${styles.inputWithIcon}`}
-                          placeholder="Calculated automatically"
-                          value={monthlyDeduction}
-                          disabled
-                          style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
+                          className={styles.input}
+                          placeholder="e.g. 1 day salary deduction for unexcused leave, half day deduction..."
+                          value={remarks}
+                          onChange={(e) => setRemarks(e.target.value)}
+                          maxLength={500}
                         />
                       </div>
-                    </div>
-                  </div>
+                    </motion.div>
+                  ) : (
+                    /* ───────────────────────────────────────────────────────────── */
+                    /* MODE 2: NORMAL AMOUNT-BASED DEDUCTION SETUP */
+                    /* ───────────────────────────────────────────────────────────── */
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                    >
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        {/* Deduction Type */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Deduction Type *</label>
+                          <select
+                            className={styles.select}
+                            value={deductionType}
+                            onChange={(e) => setDeductionType(e.target.value)}
+                          >
+                            <option value="one_time">One-Time Deduction</option>
+                            <option value="spread">Spread Across Months</option>
+                          </select>
+                        </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Remaining Balance */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Remaining Balance (₦)</label>
-                      <div className={styles.inputGroup}>
-                        <NairaSign size={16} className={styles.inputIcon} />
+                        {/* Total Amount */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Total Amount (₦) *</label>
+                          <div className={styles.inputGroup}>
+                            <NairaSign size={16} className={styles.inputIcon} />
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className={`${styles.input} ${styles.inputWithIcon}`}
+                              placeholder="Enter total amount"
+                              value={totalAmount}
+                              onChange={(e) => setTotalAmount(e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        {/* Duration Months (Active only for Spread) */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Duration (Months) *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            className={styles.input}
+                            placeholder={deductionType === 'one_time' ? "1 month (Fixed)" : "e.g. 3"}
+                            value={deductionType === 'one_time' ? '1' : durationMonths}
+                            onChange={(e) => setDurationMonths(e.target.value)}
+                            disabled={deductionType === 'one_time'}
+                            style={deductionType === 'one_time' ? { backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' } : {}}
+                            required
+                          />
+                        </div>
+
+                        {/* Calculated Monthly Deduction */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Monthly Deduction (₦)</label>
+                          <div className={styles.inputGroup}>
+                            <NairaSign size={16} className={styles.inputIcon} />
+                            <input
+                              type="text"
+                              className={`${styles.input} ${styles.inputWithIcon}`}
+                              placeholder="Calculated automatically"
+                              value={monthlyDeduction}
+                              disabled
+                              style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        {/* Remaining Balance */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Remaining Balance (₦)</label>
+                          <div className={styles.inputGroup}>
+                            <NairaSign size={16} className={styles.inputIcon} />
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className={`${styles.input} ${styles.inputWithIcon}`}
+                              placeholder="Defaults to total amount"
+                              value={balanceRemaining}
+                              onChange={(e) => setBalanceRemaining(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Start Month */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Start Month *</label>
+                          <input
+                            type="month"
+                            className={styles.input}
+                            value={startMonth}
+                            onChange={(e) => setStartMonth(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        {/* Calculated End Month */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>End Month</label>
+                          <input
+                            type="month"
+                            className={styles.input}
+                            value={endMonth}
+                            disabled
+                            style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
+                          />
+                        </div>
+
+                        {/* Status */}
+                        <div className={styles.formGroup}>
+                          <label className={styles.label}>Status</label>
+                          <select
+                            className={styles.select}
+                            value={isActive}
+                            onChange={(e) => setIsActive(parseInt(e.target.value))}
+                          >
+                            <option value={1}>Active</option>
+                            <option value={0}>Deactivated</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Remarks Field */}
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>Remarks (Reason / Description)</label>
                         <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className={`${styles.input} ${styles.inputWithIcon}`}
-                          placeholder="Defaults to total amount"
-                          value={balanceRemaining}
-                          onChange={(e) => setBalanceRemaining(e.target.value)}
+                          type="text"
+                          className={styles.input}
+                          placeholder="e.g. Uniform fee, damaged equipment, ID card replacement..."
+                          value={remarks}
+                          onChange={(e) => setRemarks(e.target.value)}
+                          maxLength={500}
                         />
                       </div>
-                    </div>
+                    </motion.div>
+                  )}
 
-                    {/* Start Month */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Start Month *</label>
-                      <input
-                        type="month"
-                        className={styles.input}
-                        value={startMonth}
-                        onChange={(e) => setStartMonth(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* Calculated End Month */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>End Month</label>
-                      <input
-                        type="month"
-                        className={styles.input}
-                        value={endMonth}
-                        disabled
-                        style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
-                      />
-                    </div>
-
-                    {/* Status */}
-                    <div className={styles.formGroup}>
-                      <label className={styles.label}>Status</label>
-                      <select
-                        className={styles.select}
-                        value={isActive}
-                        onChange={(e) => setIsActive(parseInt(e.target.value))}
-                      >
-                        <option value={1}>Active</option>
-                        <option value={0}>Deactivated</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Remarks Field */}
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>Remarks (Reason / Description)</label>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      placeholder="e.g. Uniform fee, damaged equipment, ID card replacement..."
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      maxLength={500}
-                    />
-                  </div>
+                  {isDeductionExceedingNet && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        borderRadius: '8px',
+                        background: '#fef2f2',
+                        border: '1px solid #fca5a5',
+                        color: '#991b1b',
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        marginTop: '1.25rem'
+                      }}
+                    >
+                      <AlertCircle size={18} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+                      <div>
+                        <strong style={{ display: 'block', marginBottom: '2px' }}>Deduction Exceeds Available Net Pay:</strong>
+                        Monthly deduction of <strong>₦{fmt(monthlyDeduction)}</strong> exceeds the staff member's available Net Pay (<strong>₦{fmt(staffNetPay?.amount || 0)}</strong>). This deduction will be declined because net pay cannot be negative.
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
                 <div className={styles.formActions} style={{ marginTop: '1.5rem' }}>
                   <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleClearForm}>
                     Clear Form
                   </button>
-                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} disabled={saving}>
+                  <button 
+                    type="submit" 
+                    className={`${styles.btn} ${styles.btnPrimary}`} 
+                    disabled={saving || isDeductionExceedingNet}
+                    style={isDeductionExceedingNet ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#94a3b8', borderColor: '#94a3b8' } : {}}
+                    title={isDeductionExceedingNet ? 'Cannot save: Deduction exceeds available Net Pay' : ''}
+                  >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                     {editSetupId ? 'Update Configuration' : 'Save Configuration'}
                   </button>
@@ -917,8 +1299,50 @@ export default function OtherDeductionSetupPage() {
                         </div>
                       </td>
                       <td>{s.department || 'N/A'}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{s.deduction_type.replace('_', ' ')}</td>
-                      <td>₦{fmt(s.total_amount)}</td>
+                      <td>
+                        {s.calculation_mode === 'days' || (s.deduction_days && parseFloat(s.deduction_days) > 0) ? (
+                          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              background: '#ecfdf5',
+                              color: '#065f46',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              border: '1px solid #a7f3d0'
+                            }}>
+                              <Calendar size={12} />
+                              {s.deduction_days} {parseFloat(s.deduction_days) === 1 ? 'Day' : 'Days'} Deduct
+                            </span>
+                            {s.daily_rate > 0 && (
+                              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>
+                                @ ₦{fmt(s.daily_rate)}/day
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            background: '#eff6ff',
+                            color: '#1e40af',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            border: '1px solid #bfdbfe',
+                            textTransform: 'capitalize'
+                          }}>
+                            <NairaSign size={12} />
+                            {s.deduction_type?.replace('_', ' ')}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: '600', color: '#0f172a' }}>₦{fmt(s.total_amount)}</td>
                       <td>₦{fmt(s.monthly_deduction)}</td>
                       <td>₦{fmt(s.balance_remaining)}</td>
                       <td>{s.start_month} to {s.end_month}</td>

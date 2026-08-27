@@ -17,6 +17,7 @@ import {
   X,
   Edit,
   Printer,
+  RotateCcw,
 } from 'lucide-react';
 import CustomSelect from '../../../../components/ui/CustomSelect';
 import styles from './page.module.css';
@@ -42,12 +43,26 @@ function buildHeaders() {
   return uid ? { 'X-User-Id': uid } : {};
 }
 
-function statusBadge(status) {
-  switch (status) {
+function statusBadge(rec) {
+  if (typeof rec === 'object' && rec !== null) {
+    if (rec.is_recalled === 1 || rec.status === 5) {
+      const returned = rec.unused_days_returned ?? 0;
+      return { label: `Recalled (${returned}d returned)`, cls: styles.badgeRecalled };
+    }
+    switch (rec.status) {
+      case 1:  return { label: 'HOD Approved',  cls: styles.badgeHodApproved };
+      case 2:  return { label: 'HR Approved',   cls: styles.badgeHrApproved  };
+      case 3:  return { label: 'HOD Rejected',  cls: styles.badgeRejected    };
+      case 4:  return { label: 'HR Rejected',   cls: styles.badgeRejected    };
+      default: return { label: 'Pending',       cls: styles.badgePending     };
+    }
+  }
+  switch (rec) {
     case 1:  return { label: 'HOD Approved',  cls: styles.badgeHodApproved };
     case 2:  return { label: 'HR Approved',   cls: styles.badgeHrApproved  };
     case 3:  return { label: 'HOD Rejected',  cls: styles.badgeRejected    };
     case 4:  return { label: 'HR Rejected',   cls: styles.badgeRejected    };
+    case 5:  return { label: 'Recalled',      cls: styles.badgeRecalled    };
     default: return { label: 'Pending',       cls: styles.badgePending     };
   }
 }
@@ -105,6 +120,14 @@ export default function ApplyLeavePage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ── Leave Recall State ───────────────────────────────────────────────────────
+  const [recallModalRecord, setRecallModalRecord] = useState(null);
+  const [resumptionDate, setResumptionDate]       = useState('');
+  const [recallReason, setRecallReason]           = useState('');
+  const [recallPreview, setRecallPreview]         = useState(null);
+  const [previewLoading, setPreviewLoading]       = useState(false);
+  const [recallSubmitting, setRecallSubmitting]   = useState(false);
+
   // ── Toast helper ───────────────────────────────────────────────────────────
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -113,16 +136,11 @@ export default function ApplyLeavePage() {
 
   // ── Fetch page data (form metadata) ────────────────────────────────────────
   const fetchFormData = useCallback(async (silent = false) => {
-    if (silent && cachedPageData) {
-      setPageData(cachedPageData);
-      return;
-    }
     if (!silent) setFormLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/hr/apply-leave`, { headers: buildHeaders() });
       if (res.data.status === 'success') {
         setPageData(res.data);
-        cachedPageData = res.data;
       } else {
         showToast(res.data.message || 'Failed to load form metadata.', 'error');
       }
@@ -136,16 +154,11 @@ export default function ApplyLeavePage() {
 
   // ── Fetch leave records for the table ──────────────────────────────────────
   const fetchRecords = useCallback(async (silent = false) => {
-    if (silent && cachedLeaveRecords) {
-      setLeaveRecords(cachedLeaveRecords);
-      return;
-    }
     if (!silent) setTableLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/hr/apply-leave/records`, { headers: buildHeaders() });
       if (res.data.status === 'success') {
         setLeaveRecords(res.data.leaveRecords || []);
-        cachedLeaveRecords = res.data.leaveRecords || [];
       } else {
         showToast(res.data.message || 'Failed to load records.', 'error');
       }
@@ -158,10 +171,8 @@ export default function ApplyLeavePage() {
   }, [showToast]);
 
   useEffect(() => {
-    const hasCache = !!cachedPageData;
-    const hasRecordsCache = !!cachedLeaveRecords;
-    fetchFormData(hasCache);
-    fetchRecords(hasRecordsCache);
+    fetchFormData();
+    fetchRecords();
   }, [fetchFormData, fetchRecords]);
 
   // ── Auto-prepopulate employee ID for regular staff ──────────────────────────
@@ -304,6 +315,82 @@ export default function ApplyLeavePage() {
     }
   };
 
+  // ── Recall Staff from Leave Handlers (HR Head / Super Admin Only) ──────────
+  const handleOpenRecallModal = (rec) => {
+    setRecallModalRecord(rec);
+    setResumptionDate(rec.start_date);
+    setRecallReason('');
+    fetchRecallPreview(rec.id, rec.start_date);
+  };
+
+  const closeRecallModal = () => {
+    setRecallModalRecord(null);
+    setResumptionDate('');
+    setRecallReason('');
+    setRecallPreview(null);
+  };
+
+  const fetchRecallPreview = async (recordId, dateStr) => {
+    if (!recordId || !dateStr) return;
+    setPreviewLoading(true);
+    try {
+      const headers = buildHeaders();
+      const res = await axios.get(`${API_BASE}/hr/apply-leave/recall-preview/${recordId}?resumption_date=${dateStr}`, { headers });
+      if (res.data.status === 'success') {
+        setRecallPreview(res.data.data);
+      } else {
+        setRecallPreview(null);
+      }
+    } catch (err) {
+      setRecallPreview(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleResumptionDateChange = (e) => {
+    const newDate = e.target.value;
+    setResumptionDate(newDate);
+    if (recallModalRecord && newDate) {
+      fetchRecallPreview(recallModalRecord.id, newDate);
+    }
+  };
+
+  const handleConfirmRecall = async (e) => {
+    e.preventDefault();
+    if (!recallModalRecord) return;
+    if (!resumptionDate) {
+      showToast('Please select a resumption / return date.', 'error');
+      return;
+    }
+    if (!recallReason.trim()) {
+      showToast('Please enter the recall reason / justification.', 'error');
+      return;
+    }
+
+    setRecallSubmitting(true);
+    try {
+      const headers = buildHeaders();
+      const res = await axios.post(`${API_BASE}/hr/apply-leave/recall/${recallModalRecord.id}`, {
+        resumption_date: resumptionDate,
+        recall_reason: recallReason.trim()
+      }, { headers });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Staff recalled from leave and unused days returned to balance successfully.', 'success');
+        cachedLeaveRecords = null;
+        closeRecallModal();
+        fetchRecords(true);
+      } else {
+        showToast(res.data.message || 'Failed to recall staff.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Server error recalling staff from leave.', 'error');
+    } finally {
+      setRecallSubmitting(false);
+    }
+  };
+
   // ── Destructure page data ──────────────────────────────────────────────────
   const leaveTypes   = pageData?.leaveTypes   ?? [];
   const employees    = pageData?.employees    ?? [];
@@ -405,6 +492,13 @@ export default function ApplyLeavePage() {
   };
 
   const filteredRecords = leaveRecords.filter(rec => {
+    // 0. Non-admin staff strictly sees only their own leave applications
+    if (!(isSuperAdmin || isAdminStaff) && currentEmployee) {
+      if (String(rec.staffId) !== String(currentEmployee.ID)) {
+        return false;
+      }
+    }
+
     // 1. Search Query
     if (searchQuery) {
       const fullName = `${rec.surname || ''} ${rec.first_name || ''} ${rec.othernames || ''}`.toLowerCase();
@@ -853,6 +947,17 @@ export default function ApplyLeavePage() {
                                   </button>
                                 </>
                               )}
+
+                              {/* Recall Action: Strictly for Super Admin & HR Head on HR-approved leaves (status = 2) that are not yet recalled */}
+                              {rec.status === 2 && !rec.is_recalled && (isSuperAdmin || isAdminStaff) && (
+                                <button
+                                  className={`${styles.iconBtn} ${styles.recallBtn}`}
+                                  title="Recall Staff from Leave & Return Unused Days"
+                                  onClick={() => handleOpenRecallModal(rec)}
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -910,12 +1015,21 @@ export default function ApplyLeavePage() {
                     <span className={styles.detailValue}>{formatDate(viewRecord.start_date)}</span>
                   </div>
                   <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>End Date</span>
+                    <span className={styles.detailLabel}>
+                      {viewRecord.is_recalled ? 'Curtailed End Date' : 'End Date'}
+                    </span>
                     <span className={styles.detailValue}>{formatDate(viewRecord.end_date)}</span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Duration</span>
-                    <span className={styles.detailValue}>{viewRecord.duration_days} day{viewRecord.duration_days !== 1 ? 's' : ''}</span>
+                    <span className={styles.detailValue}>
+                      {viewRecord.duration_days} day{viewRecord.duration_days !== 1 ? 's' : ''}
+                      {viewRecord.is_recalled === 1 && viewRecord.original_duration_days && (
+                        <span style={{ fontSize: '0.78rem', color: '#64748b', marginLeft: '4px' }}>
+                          (Original: {viewRecord.original_duration_days}d)
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Date Applied</span>
@@ -923,15 +1037,68 @@ export default function ApplyLeavePage() {
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Status</span>
-                    <span className={`${styles.badge} ${statusBadge(viewRecord.status).cls}`}>
-                      {statusBadge(viewRecord.status).label}
+                    <span className={`${styles.badge} ${statusBadge(viewRecord).cls}`}>
+                      {statusBadge(viewRecord).label}
                     </span>
                   </div>
                 </div>
 
+                {/* Recall Details Panel */}
+                {viewRecord.is_recalled === 1 && (
+                  <div style={{
+                    marginTop: '1rem',
+                    padding: '1rem',
+                    background: 'rgba(124, 58, 237, 0.06)',
+                    border: '1px solid rgba(124, 58, 237, 0.25)',
+                    borderRadius: '10px'
+                  }}>
+                    <h4 style={{ margin: '0 0 0.75rem 0', color: '#6d28d9', fontSize: '0.9rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <RotateCcw size={15} /> Early Recall & Leave Curtailed Details
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div>
+                        <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Resumption Date:</span>
+                        <strong style={{ color: '#1e293b' }}>{formatDate(viewRecord.recall_date)}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Original Scheduled End:</span>
+                        <strong style={{ color: '#1e293b' }}>{formatDate(viewRecord.original_end_date)}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Actual Days Spent:</span>
+                        <strong style={{ color: '#1e293b' }}>{viewRecord.days_used ?? 0} day(s)</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Unused Days Returned:</span>
+                        <strong style={{ color: '#059669', fontSize: '0.95rem' }}>+{viewRecord.unused_days_returned ?? 0} day(s)</strong>
+                      </div>
+                      {viewRecord.recalled_by_name && (
+                        <div>
+                          <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Recalled By:</span>
+                          <strong style={{ color: '#1e293b' }}>{viewRecord.recalled_by_name}</strong>
+                        </div>
+                      )}
+                      {viewRecord.recalled_at_formatted && (
+                        <div>
+                          <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Recalled At:</span>
+                          <strong style={{ color: '#1e293b' }}>{viewRecord.recalled_at_formatted}</strong>
+                        </div>
+                      )}
+                    </div>
+                    {viewRecord.recall_reason && (
+                      <div style={{ marginTop: '0.75rem', borderTop: '1px dashed rgba(124, 58, 237, 0.2)', paddingTop: '0.5rem' }}>
+                        <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Recall Reason / Justification:</span>
+                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#334155', fontStyle: 'italic' }}>
+                          "{viewRecord.recall_reason}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Reason panel */}
-                <div className={styles.reasonBox}>
-                  <span className={styles.detailLabel}>Leave Reason</span>
+                <div className={styles.reasonBox} style={{ marginTop: '1rem' }}>
+                  <span className={styles.detailLabel}>Original Leave Reason</span>
                   <p className={styles.reasonText}>{viewRecord.reason_of_leave}</p>
                 </div>
               </div>
@@ -1038,6 +1205,189 @@ export default function ApplyLeavePage() {
             </div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* ═══════════════ RECALL STAFF FROM LEAVE MODAL ═══════════════ */}
+      <AnimatePresence>
+        {recallModalRecord && (
+          <div className={styles.modalOverlay} onClick={closeRecallModal}>
+            <motion.div
+              className={styles.modalBox}
+              style={{ maxWidth: '520px' }}
+              initial={{ opacity: 0, scale: 0.95, y: -15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -15 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={`${styles.modalHeader} ${styles.recallModalHeader}`}>
+                <h3 className={styles.modalTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <RotateCcw size={18} />
+                  Recall Staff from Leave
+                </h3>
+                <button className={styles.modalClose} onClick={closeRecallModal} disabled={recallSubmitting}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleConfirmRecall} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', margin: 0 }}>
+                <div className={styles.modalBody} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', padding: '1rem 1.25rem' }}>
+                  {/* Staff & Leave Brief */}
+                  <div style={{
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '8px',
+                    background: 'rgba(241, 245, 249, 0.85)',
+                    border: '1px solid #e2e8f0',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '0.4rem 0.75rem',
+                    fontSize: '0.8rem'
+                  }}>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Staff Name:</span>
+                      <strong style={{ color: '#1e293b' }}>
+                        {recallModalRecord.surname} {recallModalRecord.first_name}
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Department:</span>
+                      <strong style={{ color: '#1e293b' }}>{recallModalRecord.department}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Leave Type:</span>
+                      <strong style={{ color: '#2563eb' }}>{recallModalRecord.leaveType}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Original Schedule:</span>
+                      <strong style={{ color: '#1e293b' }}>
+                        {formatDate(recallModalRecord.start_date)} – {formatDate(recallModalRecord.original_end_date || recallModalRecord.end_date)}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Resumption Date Input */}
+                  <div className={styles.formGroup} style={{ gap: '0.3rem' }}>
+                    <label className={styles.label} style={{ fontWeight: '600', color: '#1e293b', fontSize: '0.85rem' }}>
+                      Resumption / Call-back Date (Resume work date) *
+                    </label>
+                    <input
+                      type="date"
+                      className={styles.input}
+                      value={resumptionDate}
+                      min={recallModalRecord.start_date}
+                      max={recallModalRecord.original_end_date || recallModalRecord.end_date}
+                      onChange={handleResumptionDateChange}
+                      required
+                      style={{ fontSize: '0.9rem', padding: '0.45rem 0.65rem' }}
+                    />
+                  </div>
+
+                  {/* Dynamic Calculation Summary Card */}
+                  <div style={{
+                    padding: '0.75rem 0.85rem',
+                    borderRadius: '8px',
+                    background: '#f5f3ff',
+                    border: '1px solid #ddd6fe',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.4rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#6b21a8', fontWeight: '600' }}>
+                        Live Leave Impact:
+                      </span>
+                      {previewLoading && <Loader2 size={13} className="animate-spin" style={{ color: '#7c3aed' }} />}
+                    </div>
+
+                    {recallPreview ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem', textAlign: 'center' }}>
+                        <div style={{ background: '#fff', padding: '0.35rem 0.25rem', borderRadius: '6px', border: '1px solid #e9d5ff' }}>
+                          <span style={{ fontSize: '0.68rem', color: '#64748b', display: 'block' }}>Days Used</span>
+                          <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>
+                            {recallPreview.days_used}d
+                          </strong>
+                        </div>
+                        <div style={{ background: '#ecfdf5', padding: '0.35rem 0.25rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                          <span style={{ fontSize: '0.68rem', color: '#047857', display: 'block', fontWeight: '600' }}>Days Returned</span>
+                          <strong style={{ fontSize: '0.95rem', color: '#059669' }}>
+                            +{recallPreview.unused_days_returned}d
+                          </strong>
+                        </div>
+                        <div style={{ background: '#fff', padding: '0.35rem 0.25rem', borderRadius: '6px', border: '1px solid #e9d5ff' }}>
+                          <span style={{ fontSize: '0.68rem', color: '#64748b', display: 'block' }}>New End Date</span>
+                          <strong style={{ fontSize: '0.78rem', color: '#1e293b', display: 'block', whiteSpace: 'nowrap' }}>
+                            {recallPreview.curtailed_end_date_formatted}
+                          </strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.78rem', color: '#7c3aed', textAlign: 'center', padding: '0.25rem 0' }}>
+                        {previewLoading ? 'Calculating unused days...' : 'Select a resumption date above to preview.'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recall Reason / Justification */}
+                  <div className={styles.formGroup} style={{ gap: '0.3rem' }}>
+                    <label className={styles.label} style={{ fontWeight: '600', color: '#1e293b', fontSize: '0.85rem' }}>
+                      Recall Justification / Remarks *
+                    </label>
+                    <textarea
+                      className={styles.textarea}
+                      rows={2}
+                      placeholder="e.g. Urgent operational requirements, shortage of shift personnel..."
+                      value={recallReason}
+                      onChange={e => setRecallReason(e.target.value)}
+                      required
+                      style={{ fontSize: '0.82rem', padding: '0.45rem 0.65rem' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Sticky Modal Footer with Prominent Actions */}
+                <div className={styles.modalFooter} style={{ padding: '0.75rem 1.25rem' }}>
+                  <button
+                    type="button"
+                    className={styles.modalCloseBtn}
+                    onClick={closeRecallModal}
+                    disabled={recallSubmitting}
+                    style={{ padding: '0.5rem 1rem' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={styles.confirmActionBtn}
+                    style={{
+                      background: '#7c3aed',
+                      color: '#ffffff',
+                      border: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '0.5rem 1.25rem',
+                      fontWeight: '600',
+                      borderRadius: '8px'
+                    }}
+                    disabled={recallSubmitting || !resumptionDate || !recallReason.trim()}
+                  >
+                    {recallSubmitting ? (
+                      <>
+                        <Loader2 size={15} className={styles.btnSpinner} />
+                        Processing…
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw size={14} />
+                        Confirm Recall & Return Days
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       {/* ═══════════════ TOAST ═══════════════ */}

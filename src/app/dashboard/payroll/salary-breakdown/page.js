@@ -28,7 +28,8 @@ import {
   Wallet,
   CreditCard,
   ShoppingBag,
-  HeartPulse
+  HeartPulse,
+  Eye
 } from 'lucide-react';
 import NairaSign from '../../../../components/ui/NairaSign';
 import styles from './page.module.css';
@@ -182,10 +183,15 @@ export default function SalaryBreakdownPage() {
   const [allStaffData, setAllStaffData] = useState(null);
   const [allStaffSearch, setAllStaffSearch] = useState('');
   const [allStaffDeptFilter, setAllStaffDeptFilter] = useState('');
-  const [allStaffPerPage, setAllStaffPerPage] = useState('10');
+  const [allStaffPerPage, setAllStaffPerPage] = useState('all');
   const [allStaffCurrentPage, setAllStaffCurrentPage] = useState(1);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingStaffExcel, setExportingStaffExcel] = useState(false);
+
+  // Individual Staff Breakdown Popup (from All Staff modal)
+  const [showStaffBreakdownModal, setShowStaffBreakdownModal] = useState(false);
+  const [modalStaffBreakdown, setModalStaffBreakdown] = useState(null);
+  const [loadingStaffBreakdownModal, setLoadingStaffBreakdownModal] = useState(false);
 
   useEffect(() => {
     setAllStaffCurrentPage(1);
@@ -341,6 +347,8 @@ export default function SalaryBreakdownPage() {
 
   const handleOpenAllStaffModal = () => {
     setShowAllStaffModal(true);
+    setAllStaffPerPage('all');
+    setAllStaffCurrentPage(1);
     fetchAllStaffSheet(allStaffDeptFilter, allStaffSearch);
   };
 
@@ -352,6 +360,34 @@ export default function SalaryBreakdownPage() {
   const handleAllStaffDeptChange = (deptId) => {
     setAllStaffDeptFilter(deptId);
     fetchAllStaffSheet(deptId, allStaffSearch);
+  };
+
+  const handleViewStaffBreakdown = async (staffId) => {
+    if (!staffId) return;
+    setLoadingStaffBreakdownModal(true);
+    setShowStaffBreakdownModal(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('staff_id', staffId);
+      params.append('month', selectedMonth);
+      params.append('year', selectedYear);
+
+      const res = await axios.get(`${API_BASE}/payroll/salary-breakdown?${params.toString()}`, {
+        headers: buildHeaders()
+      });
+
+      if (res.data?.status === 'success' && res.data?.staff) {
+        setModalStaffBreakdown(res.data);
+      } else {
+        showToast(res.data?.message || 'Failed to load staff salary breakdown.', 'error');
+        setShowStaffBreakdownModal(false);
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error loading staff salary breakdown.', 'error');
+      setShowStaffBreakdownModal(false);
+    } finally {
+      setLoadingStaffBreakdownModal(false);
+    }
   };
 
   const handleExportStaffExcel = async () => {
@@ -1805,12 +1841,12 @@ export default function SalaryBreakdownPage() {
                         setAllStaffCurrentPage(1);
                       }}
                     >
+                      <option value="all">All Records</option>
                       <option value="10">10 records</option>
                       <option value="20">20 records</option>
                       <option value="30">30 records</option>
                       <option value="50">50 records</option>
                       <option value="100">100 records</option>
-                      <option value="all">All Records</option>
                     </select>
                   </div>
                 </div>
@@ -1875,6 +1911,7 @@ export default function SalaryBreakdownPage() {
                   <table className={styles.allStaffTable}>
                     <thead>
                       <tr>
+                        <th style={{ minWidth: '85px', textAlign: 'center' }}>Action</th>
                         <th>ID No</th>
                         <th>Staff Name</th>
                         <th>Department</th>
@@ -1911,9 +1948,34 @@ export default function SalaryBreakdownPage() {
                     </thead>
                     <tbody>
                       {paginatedAllStaff.map((r) => (
-                        <tr key={r.id}>
+                        <tr 
+                          key={r.id}
+                          className={styles.clickableStaffRow}
+                          onClick={() => handleViewStaffBreakdown(r.id)}
+                          title={`Click anywhere on this row to view salary breakdown for ${r.name}`}
+                        >
+                          <td style={{ textAlign: 'center' }} onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}>
+                            <button
+                              type="button"
+                              className={styles.viewStaffBreakdownBtn}
+                              onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}
+                              title={`View full salary breakdown for ${r.name}`}
+                            >
+                              <Eye size={12} /> Breakdown
+                            </button>
+                          </td>
                           <td style={{ fontWeight: 600 }}>{r.id}</td>
-                          <td><strong>{r.name}</strong></td>
+                          <td>
+                            <button
+                              type="button"
+                              className={styles.staffLinkBtn}
+                              onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}
+                              title={`Click to view monthly salary breakdown for ${r.name}`}
+                            >
+                              <Eye size={13} style={{ color: 'var(--primary, #4f46e5)', opacity: 0.8 }} />
+                              <strong>{r.name}</strong>
+                            </button>
+                          </td>
                           <td>{r.department}</td>
                           <td>{r.designation}</td>
                           <td className={styles.tdMoney}>{formatCurrency(r.basic_salary)}</td>
@@ -1961,7 +2023,7 @@ export default function SalaryBreakdownPage() {
                     </tbody>
                     <tfoot>
                       <tr className={styles.tableTotalRow}>
-                        <td colSpan={4} style={{ textAlign: 'center' }}>TOTAL ({allStaffRecords.length} staff)</td>
+                        <td colSpan={5} style={{ textAlign: 'center' }}>TOTAL ({allStaffRecords.length} staff)</td>
                         <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.basic_salary, 0))}</td>
                         <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.housing_allowance, 0))}</td>
                         <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.transport_allowance, 0))}</td>
@@ -2091,6 +2153,403 @@ export default function SalaryBreakdownPage() {
                 type="button" 
                 className={`${styles.btn} ${styles.btnOutline}`} 
                 onClick={() => setShowAllStaffModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. INDIVIDUAL STAFF BREAKDOWN POPUP MODAL (CLICKED FROM ALL STAFF SHEET) */}
+      {/* ========================================================================= */}
+      {showStaffBreakdownModal && (
+        <div className={`${styles.modalOverlay} ${styles.nestedModalOverlay}`} onClick={() => setShowStaffBreakdownModal(false)}>
+          <div className={`${styles.modalContent} ${styles.staffBreakdownModalContent}`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>
+                <FileText size={20} style={{ color: 'var(--primary, #6366f1)' }} />
+                Monthly Salary Breakdown — {modalStaffBreakdown?.staff?.name || 'Staff'} ({MONTHS.find(m => m.id === selectedMonth)?.name} {selectedYear})
+              </h2>
+              <button 
+                type="button" 
+                className={styles.closeBtn}
+                onClick={() => setShowStaffBreakdownModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {loadingStaffBreakdownModal ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '280px', gap: '1rem' }}>
+                  <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary, #6366f1)' }} />
+                  <p style={{ color: 'var(--text-secondary)' }}>Loading staff salary breakdown...</p>
+                </div>
+              ) : modalStaffBreakdown?.staff ? (
+                <div className={`${styles.sheetPaper} ${styles.paperContainer}`}>
+                  {/* Company Header */}
+                  <div className={styles.companyHeader}>
+                    <h2>ISALU HOSPITALS LIMITED</h2>
+                    <div className={styles.sheetSubtitle}>MONTHLY PAYROLL BREAKDOWN SHEET</div>
+                    <div className={styles.sheetPeriodMeta}>
+                      <span>Period: <strong>{modalStaffBreakdown.period?.period_str}</strong></span>
+                      <span>Status: <strong>{modalStaffBreakdown.period?.is_computed ? 'Finalized Payroll' : 'Pre-Compute Estimate'}</strong></span>
+                      <span>Date Generated: <strong>{new Date().toLocaleDateString('en-GB')}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Staff Information Box */}
+                  <div className={styles.sheetStaffBox}>
+                    <div className={styles.sheetField}>
+                      <span className={styles.sheetFieldLabel}>Staff Name:</span>
+                      <span className={styles.sheetFieldValue}>{modalStaffBreakdown.staff.name}</span>
+                    </div>
+                    <div className={styles.sheetField}>
+                      <span className={styles.sheetFieldLabel}>Staff ID:</span>
+                      <span className={styles.sheetFieldValue}>{modalStaffBreakdown.staff.id}</span>
+                    </div>
+                    <div className={styles.sheetField}>
+                      <span className={styles.sheetFieldLabel}>Department:</span>
+                      <span className={styles.sheetFieldValue}>{modalStaffBreakdown.staff.department}</span>
+                    </div>
+                    <div className={styles.sheetField}>
+                      <span className={styles.sheetFieldLabel}>Designation:</span>
+                      <span className={styles.sheetFieldValue}>{modalStaffBreakdown.staff.designation}</span>
+                    </div>
+                    {modalStaffBreakdown.staff.bank_name && (
+                      <div className={styles.sheetField}>
+                        <span className={styles.sheetFieldLabel}>Bank:</span>
+                        <span className={styles.sheetFieldValue}>{modalStaffBreakdown.staff.bank_name}</span>
+                      </div>
+                    )}
+                    {modalStaffBreakdown.staff.account_number && (
+                      <div className={styles.sheetField}>
+                        <span className={styles.sheetFieldLabel}>Account No:</span>
+                        <span className={styles.sheetFieldValue}>{modalStaffBreakdown.staff.account_number}</span>
+                      </div>
+                    )}
+                    <div className={styles.sheetField}>
+                      <span className={styles.sheetFieldLabel}>Paid Days:</span>
+                      <span className={styles.sheetFieldValue} style={{ fontWeight: 700 }}>
+                        {modalStaffBreakdown.period?.paid_days ?? modalStaffBreakdown.summary?.paid_days ?? 30} / 30 Days
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Top Metric Cards */}
+                  <div className={styles.metricsGrid} style={{ marginTop: '1rem', marginBottom: '1.25rem' }}>
+                    {/* Gross Salary */}
+                    <div className={styles.metricCard}>
+                      <div className={`${styles.metricIcon} ${styles.metricIconGross}`}>
+                        <TrendingUp size={24} />
+                      </div>
+                      <div className={styles.metricContent}>
+                        <div className={styles.metricLabel}>Total Gross Salary</div>
+                        <div className={`${styles.metricValue} ${styles.metricValueGross}`}>
+                          ₦{formatCurrency(modalStaffBreakdown.summary?.gross_pay)}
+                        </div>
+                        {((modalStaffBreakdown.earnings?.custom_allowances && modalStaffBreakdown.earnings.custom_allowances.length > 0) || (modalStaffBreakdown.earnings?.bonuses && modalStaffBreakdown.earnings.bonuses.length > 0)) && (
+                          <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                            {modalStaffBreakdown.earnings.custom_allowances && modalStaffBreakdown.earnings.custom_allowances.map((ca) => (
+                              <span key={ca.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#059669', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                                + ₦{formatCurrency(ca.amount)} {ca.title || 'Allowance'}
+                              </span>
+                            ))}
+                            {modalStaffBreakdown.earnings.bonuses && modalStaffBreakdown.earnings.bonuses.map((b) => (
+                              <span key={b.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#d97706', background: 'rgba(245, 158, 11, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(245, 158, 11, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                                + ₦{formatCurrency(b.amount)} {b.title || 'Bonus'}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Total Deductions */}
+                    <div className={styles.metricCard}>
+                      <div className={`${styles.metricIcon} ${styles.metricIconDeductions}`}>
+                        <TrendingDown size={24} />
+                      </div>
+                      <div className={styles.metricContent}>
+                        <div className={styles.metricLabel}>Total Monthly Deductions</div>
+                        <div className={`${styles.metricValue} ${styles.metricValueDeductions}`}>
+                          - ₦{formatCurrency(modalStaffBreakdown.summary?.total_deductions)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Net Pay */}
+                    <div className={styles.metricCard} style={(modalStaffBreakdown.summary?.net_pay ?? 0) < 0 ? { borderColor: '#ef4444' } : {}}>
+                      <div className={`${styles.metricIcon} ${styles.metricIconNet}`} style={(modalStaffBreakdown.summary?.net_pay ?? 0) < 0 ? { background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' } : {}}>
+                        <NairaSign size={24} />
+                      </div>
+                      <div className={styles.metricContent}>
+                        <div className={styles.metricLabel}>Estimated Net Take-Home Pay</div>
+                        <div className={`${styles.metricValue} ${styles.metricValueNet}`} style={(modalStaffBreakdown.summary?.net_pay ?? 0) < 0 ? { color: '#ef4444' } : {}}>
+                          {formatNaira(modalStaffBreakdown.summary?.net_pay)}
+                        </div>
+                        {(modalStaffBreakdown.summary?.net_pay ?? 0) < 0 && (
+                          <div style={{ marginTop: '0.35rem', fontSize: '0.74rem', fontWeight: 600, color: '#dc2626', background: 'rgba(239, 68, 68, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertCircle size={13} /> Deficit Balance: Total deductions exceed salary
+                          </div>
+                        )}
+                        {((modalStaffBreakdown.earnings?.custom_allowances && modalStaffBreakdown.earnings.custom_allowances.length > 0) || (modalStaffBreakdown.earnings?.bonuses && modalStaffBreakdown.earnings.bonuses.length > 0)) && (
+                          <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                            {modalStaffBreakdown.earnings.custom_allowances && modalStaffBreakdown.earnings.custom_allowances.map((ca) => (
+                              <span key={ca.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#059669', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                                + ₦{formatCurrency(ca.amount)} {ca.title || 'Allowance'}
+                              </span>
+                            ))}
+                            {modalStaffBreakdown.earnings.bonuses && modalStaffBreakdown.earnings.bonuses.map((b) => (
+                              <span key={b.id} style={{ fontSize: '0.73rem', fontWeight: 600, color: '#d97706', background: 'rgba(245, 158, 11, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(245, 158, 11, 0.25)', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                                + ₦{formatCurrency(b.amount)} {b.title || 'Bonus'}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dual Column Structure */}
+                  <div className={styles.sheetGrid}>
+                    {/* Earnings */}
+                    <div className={styles.sheetSection}>
+                      <div className={styles.sheetSectionHeader}>
+                        <span>EARNINGS & ALLOWANCES</span>
+                        <span>AMOUNT (₦)</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Basic Salary</span>
+                        <span>{formatCurrency(modalStaffBreakdown.earnings?.basic_salary)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Housing Allowance</span>
+                        <span>{formatCurrency(modalStaffBreakdown.earnings?.housing_allowance)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Transport Allowance</span>
+                        <span>{formatCurrency(modalStaffBreakdown.earnings?.transport_allowance)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Medical Allowance</span>
+                        <span>{formatCurrency(modalStaffBreakdown.earnings?.medical_allowance)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Utility Allowance</span>
+                        <span>{formatCurrency(modalStaffBreakdown.earnings?.utility_allowance)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Meal Allowance</span>
+                        <span>{formatCurrency(modalStaffBreakdown.earnings?.meal_allowance)}</span>
+                      </div>
+                      {modalStaffBreakdown.earnings?.earning_variables && modalStaffBreakdown.earnings.earning_variables.map((ev, i) => (
+                        <div key={i} className={styles.sheetRow}>
+                          <span>{ev.name}</span>
+                          <span>{formatCurrency(ev.amount)}</span>
+                        </div>
+                      ))}
+                      {modalStaffBreakdown.earnings?.custom_allowances && modalStaffBreakdown.earnings.custom_allowances.map((ca) => (
+                        <div key={ca.id} className={styles.sheetRow}>
+                          <span>{ca.title} (Allowance)</span>
+                          <span>{formatCurrency(ca.amount)}</span>
+                        </div>
+                      ))}
+                      {modalStaffBreakdown.earnings?.bonuses && modalStaffBreakdown.earnings.bonuses.map((b) => (
+                        <div key={b.id} className={styles.sheetRow}>
+                          <span>{b.title} (Bonus)</span>
+                          <span>{formatCurrency(b.amount)}</span>
+                        </div>
+                      ))}
+                      <div className={`${styles.sheetRow} ${styles.sheetTotalRow}`}>
+                        <span>GROSS SALARY</span>
+                        <span>₦{formatCurrency(modalStaffBreakdown.summary?.gross_pay)}</span>
+                      </div>
+                    </div>
+
+                    {/* Deductions */}
+                    <div className={styles.sheetSection}>
+                      <div className={styles.sheetSectionHeader} style={{ background: '#7f1d1d', color: '#ffffff' }}>
+                        <span>ITEMIZED DEDUCTIONS</span>
+                        <span>AMOUNT (₦)</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>PAYE Tax</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.paye_tax?.amount ?? modalStaffBreakdown.deductions?.paye_tax?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Pension (Employee Contribution)</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.pension?.amount ?? modalStaffBreakdown.deductions?.pension?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Retention Savings</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.retention?.amount ?? modalStaffBreakdown.deductions?.retention?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>IOU Repayment</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.iou?.amount ?? modalStaffBreakdown.deductions?.iou?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Medical Loan</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.medical_loan?.amount ?? modalStaffBreakdown.deductions?.medical_loan?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Cooperative Loan</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.coop_loan?.amount ?? modalStaffBreakdown.deductions?.coop_loan?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Cooperative Savings</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.coop_savings?.amount ?? modalStaffBreakdown.deductions?.coop_savings?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Coop. Asset Financing</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.coop_asset_finance?.amount ?? modalStaffBreakdown.deductions?.coop_asset_finance?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Surcharges / Penalties</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.surcharges?.amount ?? modalStaffBreakdown.deductions?.surcharges?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Absence Penalty</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.absence_penalty?.amount ?? modalStaffBreakdown.deductions?.absence_penalty?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Leave of Absence (Unpaid Days)</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.leave_of_absence?.amount ?? modalStaffBreakdown.deductions?.leave_of_absence?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Regular Loan Repayment</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.regular_loan?.amount ?? modalStaffBreakdown.deductions?.regular_loan?.monthly_deduction)}</span>
+                      </div>
+                      <div className={styles.sheetRow}>
+                        <span>Other Deductions</span>
+                        <span>{formatCurrency(modalStaffBreakdown.deductions?.other_deductions?.amount ?? modalStaffBreakdown.deductions?.other_deductions?.monthly_deduction)}</span>
+                      </div>
+                      <div className={`${styles.sheetRow} ${styles.sheetTotalRow}`} style={{ color: '#dc2626' }}>
+                        <span>TOTAL DEDUCTIONS</span>
+                        <span>- ₦{formatCurrency(modalStaffBreakdown.summary?.total_deductions)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Pay Callout */}
+                  <div className={styles.sheetNetRow} style={{ marginTop: '1rem', padding: '0.85rem 1.25rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontSize: '0.85rem', color: '#64748b', display: 'block' }}>ESTIMATED NET TAKE-HOME PAY</span>
+                      <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Gross Income minus Total Deductions</span>
+                    </div>
+                    <span style={{ fontSize: '1.4rem', fontWeight: 800, color: (modalStaffBreakdown.summary?.net_pay ?? 0) < 0 ? '#dc2626' : '#059669' }}>
+                      {formatNaira(modalStaffBreakdown.summary?.net_pay)}
+                    </span>
+                  </div>
+
+                  {/* Balances & Outstanding Overview */}
+                  <div className={styles.balancesOverviewCard} style={{ marginTop: '1.25rem' }}>
+                    <div className={styles.balancesOverviewHeader}>
+                      <h3 className={styles.balancesOverviewTitle}>
+                        <PiggyBank size={20} style={{ color: '#059669' }} />
+                        <span>Savings & Outstanding Balances Summary</span>
+                      </h3>
+                      <span className={styles.balancesOverviewSub}>
+                        Real-time snapshot of cooperative savings accumulation & active loan balances
+                      </span>
+                    </div>
+
+                    <div className={styles.balancesOverviewGrid}>
+                      {/* 1. Cooperative Savings Balance */}
+                      <div className={`${styles.overviewCardItem} ${styles.overviewCardSavings}`}>
+                        <div className={`${styles.overviewIconWrap} ${styles.overviewIconSavings}`}>
+                          <Wallet size={22} />
+                        </div>
+                        <div className={styles.overviewItemInfo}>
+                          <div className={styles.overviewItemLabel}>Cooperative Savings Balance</div>
+                          <div className={styles.overviewItemValueSavings}>
+                            ₦{formatCurrency(modalStaffBreakdown.deductions?.coop_savings?.saving_balance ?? modalStaffBreakdown.deductions?.coop_savings?.balance ?? modalStaffBreakdown.deductions?.coop_savings?.balance_remaining ?? modalStaffBreakdown.balances?.coop_savings_balance ?? 0)}
+                          </div>
+                          <div className={styles.overviewItemDetail}>
+                            {modalStaffBreakdown.deductions?.coop_savings?.amount > 0 ? (
+                              <span style={{ color: '#047857', fontWeight: 600 }}>
+                                + ₦{formatCurrency(modalStaffBreakdown.deductions.coop_savings.amount)}/mo deduction
+                              </span>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>Cumulative savings balance</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Cooperative Loan Balance */}
+                      <div className={styles.overviewCardItem}>
+                        <div className={`${styles.overviewIconWrap} ${styles.overviewIconLoan}`}>
+                          <CreditCard size={22} />
+                        </div>
+                        <div className={styles.overviewItemInfo}>
+                          <div className={styles.overviewItemLabel}>Cooperative Loan Balance</div>
+                          <div className={styles.overviewItemValue}>
+                            ₦{formatCurrency(modalStaffBreakdown.deductions?.coop_loan?.balance_remaining ?? modalStaffBreakdown.balances?.coop_loan_balance ?? 0)}
+                          </div>
+                          <div className={styles.overviewItemDetail}>
+                            {modalStaffBreakdown.deductions?.coop_loan?.amount > 0 ? (
+                              <span>- ₦{formatCurrency(modalStaffBreakdown.deductions.coop_loan.amount)}/mo repayment</span>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>No active coop loan balance</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. Cooperative Asset Finance */}
+                      <div className={styles.overviewCardItem}>
+                        <div className={`${styles.overviewIconWrap} ${styles.overviewIconAsset}`}>
+                          <ShoppingBag size={22} />
+                        </div>
+                        <div className={styles.overviewItemInfo}>
+                          <div className={styles.overviewItemLabel}>Coop Asset Finance Balance</div>
+                          <div className={styles.overviewItemValue}>
+                            ₦{formatCurrency(modalStaffBreakdown.deductions?.coop_asset_finance?.balance_remaining ?? modalStaffBreakdown.balances?.coop_asset_finance_balance ?? 0)}
+                          </div>
+                          <div className={styles.overviewItemDetail}>
+                            {modalStaffBreakdown.deductions?.coop_asset_finance?.amount > 0 ? (
+                              <span>- ₦{formatCurrency(modalStaffBreakdown.deductions.coop_asset_finance.amount)}/mo deduction</span>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>No active asset finance</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 4. Medical Loan Balance */}
+                      <div className={styles.overviewCardItem}>
+                        <div className={`${styles.overviewIconWrap} ${styles.overviewIconMedical}`}>
+                          <HeartPulse size={22} />
+                        </div>
+                        <div className={styles.overviewItemInfo}>
+                          <div className={styles.overviewItemLabel}>Medical Loan Balance</div>
+                          <div className={styles.overviewItemValue}>
+                            ₦{formatCurrency(modalStaffBreakdown.deductions?.medical_loan?.balance_remaining ?? modalStaffBreakdown.balances?.medical_loan_balance ?? 0)}
+                          </div>
+                          <div className={styles.overviewItemDetail}>
+                            {modalStaffBreakdown.deductions?.medical_loan?.amount > 0 ? (
+                              <span>- ₦{formatCurrency(modalStaffBreakdown.deductions.medical_loan.amount)}/mo repayment</span>
+                            ) : (
+                              <span style={{ color: '#64748b' }}>No active medical loan</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button 
+                type="button" 
+                className={`${styles.btn} ${styles.btnOutline}`} 
+                onClick={() => setShowStaffBreakdownModal(false)}
               >
                 Close
               </button>
