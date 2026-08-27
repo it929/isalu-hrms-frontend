@@ -187,6 +187,7 @@ export default function LoanDeductionSetupPage() {
       if (res.data.status === 'success') {
         setStaffNetPay({
           amount: res.data.net_pay,
+          grossPay: res.data.gross_pay,
           month: res.data.month,
           year: res.data.year,
           isEstimated: res.data.is_estimated
@@ -576,23 +577,43 @@ export default function LoanDeductionSetupPage() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '0.75rem',
                           fontSize: '0.9rem',
                           marginTop: '0.5rem'
                         }}
                       >
-                        <span style={{ color: '#9ca3af' }}>Current Net Pay:</span>
                         {loadingNetPay ? (
-                          <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', width: '100%', justifyContent: 'center' }}>
+                            <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
+                            <span>Fetching salary details...</span>
+                          </div>
                         ) : (
-                          <span style={{ fontWeight: 'bold', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <NairaSign size={14} />
-                            {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: '#9ca3af' }}>Gross Salary:</span>
+                                <span style={{ fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                  <NairaSign size={14} />
+                                  {staffNetPay ? fmt(staffNetPay.grossPay) : '0.00'}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: '#9ca3af' }}>Current Net Pay:</span>
+                                <span style={{ fontWeight: 'bold', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                  <NairaSign size={14} />
+                                  {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
+                                </span>
+                              </div>
+                            </div>
+
                             {staffNetPay?.month && (
-                              <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af', marginLeft: '4px' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af' }}>
                                 ({staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
                               </span>
                             )}
-                          </span>
+                          </>
                         )}
                       </motion.div>
                     )}
