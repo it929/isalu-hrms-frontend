@@ -180,9 +180,11 @@ export default function ApplyLeavePage() {
     if (pageData) {
       const isSuperAdmin = pageData.isSuperAdmin ?? false;
       const isAdminStaff = pageData.isAdminStaff ?? false;
+      const isAuditStaff = pageData.isAuditStaff ?? false;
       const currentEmployee = pageData.employee ?? null;
 
-      if (!(isSuperAdmin || isAdminStaff) && currentEmployee) {
+      // Audit Head is also executive — do NOT pre-lock their form to their own ID
+      if (!(isSuperAdmin || isAdminStaff || isAuditStaff) && currentEmployee) {
         setForm(prev => ({
           ...prev,
           employee_id: currentEmployee.ID,
@@ -249,9 +251,10 @@ export default function ApplyLeavePage() {
 
   const handleCancelEdit = () => {
     setEditRecordId(null);
+    const isExec = pageData && (pageData.isSuperAdmin || pageData.isAdminStaff || pageData.isAuditStaff);
     setForm({
       leave_type: '',
-      employee_id: pageData && !(pageData.isSuperAdmin || pageData.isAdminStaff) && pageData.employee
+      employee_id: !isExec && pageData?.employee
         ? pageData.employee.ID
         : '',
       start_date: '',
@@ -392,17 +395,21 @@ export default function ApplyLeavePage() {
   };
 
   // ── Destructure page data ──────────────────────────────────────────────────
-  const leaveTypes   = pageData?.leaveTypes   ?? [];
-  const employees    = pageData?.employees    ?? [];
-  const isSuperAdmin = pageData?.isSuperAdmin ?? false;
-  const isHod        = pageData?.isHod        ?? false;
-  const isAdminStaff = pageData?.isAdminStaff ?? false;
-  const currentEmployee = pageData?.employee  ?? null;
+  const leaveTypes    = pageData?.leaveTypes   ?? [];
+  const employees     = pageData?.employees    ?? [];
+  const isSuperAdmin  = pageData?.isSuperAdmin ?? false;
+  const isHod         = pageData?.isHod        ?? false;
+  const isAdminStaff  = pageData?.isAdminStaff ?? false;
+  const isAuditStaff  = pageData?.isAuditStaff ?? false;
+  const currentEmployee = pageData?.employee   ?? null;
+
+  // Audit Head can view all records just like Super Admin and HR Head
+  const isExecutive   = isSuperAdmin || isAdminStaff || isAuditStaff;
 
   const canHodAct   = isHod || isSuperAdmin || isAdminStaff;
   const canAdminAct = isAdminStaff || isSuperAdmin;
 
-  const selectedEmpObj = (isSuperAdmin || isAdminStaff)
+  const selectedEmpObj = isExecutive
     ? employees.find(e => String(e.ID) === String(form.employee_id))
     : currentEmployee;
 
@@ -424,7 +431,7 @@ export default function ApplyLeavePage() {
       name: lt.leaveType,
     }));
 
-  const employeeOptions = (isSuperAdmin || isAdminStaff)
+  const employeeOptions = isExecutive
     ? employees.map(emp => ({
         id:   emp.ID,
         name: `${emp.surname} ${emp.first_name} ${emp.othernames}`.trim() + (emp.office_shift == 1 ? ' (Admin)' : ' (Shift)'),
@@ -492,8 +499,9 @@ export default function ApplyLeavePage() {
   };
 
   const filteredRecords = leaveRecords.filter(rec => {
-    // 0. Non-admin staff strictly sees only their own leave applications
-    if (!(isSuperAdmin || isAdminStaff) && currentEmployee) {
+    // 0. Non-executive staff strictly sees only their own leave applications
+    // Audit Head (isAuditStaff) is now treated as executive and sees all records
+    if (!isExecutive && currentEmployee) {
       if (String(rec.staffId) !== String(currentEmployee.ID)) {
         return false;
       }
@@ -591,7 +599,7 @@ export default function ApplyLeavePage() {
                 onChange={handleChange}
                 searchable={true}
                 required
-                disabled={formLoading || !(isSuperAdmin || isAdminStaff)}
+                disabled={formLoading || !isExecutive}
               />
             </div>
 

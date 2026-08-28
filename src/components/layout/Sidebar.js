@@ -52,6 +52,7 @@ function buildHeaders() {
 
 function getModuleIcon(name) {
   const lower = name.toLowerCase();
+  if (lower.includes('apprais') || lower.includes('perform') || lower.includes('kpi')) return <TrendingUp size={20} />;
   if (lower.includes('payroll') || lower.includes('salary')) return <NairaSign size={20} />;
   if (lower.includes('hr') || lower.includes('human') || lower.includes('employee')) return <Users size={20} />;
   if (lower.includes('role') || lower.includes('permission') || lower.includes('security') || lower.includes('assign')) return <ShieldCheck size={20} />;
@@ -62,6 +63,7 @@ function getModuleIcon(name) {
 
 function getSubModuleIcon(name) {
   const lower = name.toLowerCase();
+  if (lower.includes('apprais') || lower.includes('perform') || lower.includes('cycle') || lower.includes('kpi')) return <TrendingUp size={16} />;
   if (lower.includes('resignation')) return <LogOut size={16} />;
   if (lower.includes('pension') || lower.includes('retention') || lower.includes('tax')) return <Landmark size={16} />;
   if (lower.includes('loan') || lower.includes('iou') || lower.includes('salary') || lower.includes('deduct') || lower.includes('refund')) return <NairaSign size={16} />;
@@ -72,6 +74,7 @@ function getSubModuleIcon(name) {
   if (lower.includes('lga') || lower.includes('state') || lower.includes('map') || lower.includes('location')) return <MapPin size={16} />;
   return <Layers size={16} />;
 }
+
 
 export default function Sidebar() {
   const pathname = usePathname();

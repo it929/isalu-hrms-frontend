@@ -1,0 +1,390 @@
+.container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.bannerCard {
+  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+  color: #ffffff;
+  border-radius: 1rem;
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.25);
+}
+
+.bannerInfo h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.bannerInfo p {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.bannerMeta {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.metaItem {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  backdrop-filter: blur(4px);
+}
+
+.metaLabel {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  display: block;
+}
+
+.metaValue {
+  font-weight: 600;
+}
+
+.scoreMeter {
+  background: #f8fafc;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.scoreLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.scoreValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.categoryBlock {
+  margin-bottom: 2rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.categoryHeader {
+  background: #f1f5f9;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.categoryTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.categoryWeight {
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 1rem;
+}
+
+.criteriaList {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: #ffffff;
+}
+
+.criteriaItem {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.criteriaItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  gap: 1rem;
+}
+
+.itemTitle {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.itemDesc {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.ratingScale {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ratingBtn {
+  flex: 1;
+  min-width: 90px;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.ratingBtn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.ratingBtn.selected {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.ratingNumber {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.ratingText {
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.commentInput {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  margin-top: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: #1e293b;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.commentInput:focus {
+  border-color: #3b82f6;
+}
+
+.sectionBlock {
+  margin-top: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.formGroup {
+  margin-bottom: 1.25rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.4rem;
+}
+
+.textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  color: #1e293b;
+  font-family: inherit;
+  min-height: 90px;
+  resize: vertical;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.actionFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btnSecondary {
+  padding: 0.75rem 1.5rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btnSecondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.btnPrimary {
+  padding: 0.75rem 1.75rem;
+  background: #2563eb;
+  border: none;
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+  transition: all 0.2s;
+}
+
+.btnPrimary:hover {
+  background: #1d4ed8;
+}
+
+.btnPrimary:disabled, .btnSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgePending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.badgeAppraiser {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.badgeApproved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+}
+
+.emptyState svg {
+  margin-bottom: 1rem;
+  color: #94a3b8;
+}
+
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #1e293b;
+  color: #ffffff;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 9999;
+}
+
+.toastSuccess {
+  border-left: 4px solid #10b981;
+}
+
+.toastError {
+  border-left: 4px solid #ef4444;
+}

@@ -1,0 +1,241 @@
+.container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: #ffffff;
+  border-radius: 0.85rem;
+  border: 1px solid #e2e8f0;
+  padding: 1.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.statCard h4 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0 0 0.25rem 0;
+}
+
+.statCard p {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.filterCard {
+  background: #ffffff;
+  border-radius: 0.85rem;
+  border: 1px solid #e2e8f0;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  flex: 1;
+  min-width: 260px;
+}
+
+.searchBox input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.filterSelect {
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  font-size: 0.85rem;
+  color: #334155;
+  outline: none;
+}
+
+.tableCard {
+  background: #ffffff;
+  border-radius: 0.85rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.table th {
+  background: #f8fafc;
+  padding: 1rem 1.25rem;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.gradeBadge {
+  display: inline-flex;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.gradeA { background: #dcfce7; color: #15803d; }
+.gradeB { background: #e0e7ff; color: #4338ca; }
+.gradeC { background: #fef3c7; color: #b45309; }
+.gradeD { background: #fee2e2; color: #b91c1c; }
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.btnCalibrate {
+  padding: 0.45rem 0.85rem;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.4rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btnPushAction {
+  padding: 0.45rem 0.85rem;
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.4rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.5rem;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: #ffffff;
+  border-radius: 1rem;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 10;
+}
+
+.modalBody {
+  padding: 1.75rem;
+}
+
+.modalFooter {
+  padding: 1.25rem 1.75rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  position: sticky;
+  bottom: 0;
+  background: #ffffff;
+  z-index: 10;
+}
+
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #1e293b;
+  color: #ffffff;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 9999;
+}
