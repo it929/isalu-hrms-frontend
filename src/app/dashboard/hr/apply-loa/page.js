@@ -17,6 +17,8 @@ import {
   X,
   Edit,
   Printer,
+  FileSpreadsheet,
+  Download,
 } from 'lucide-react';
 import CustomSelect from '../../../../components/ui/CustomSelect';
 import NairaSign from '@/components/ui/NairaSign';
@@ -57,6 +59,67 @@ function statusBadge(status) {
     case 4:  return { label: 'HR Rejected',   cls: styles.badgeRejected    };
     default: return { label: 'Pending',       cls: styles.badgePending     };
   }
+}
+
+function getTierBadge(status, type) {
+  const label = type === 'hod' ? 'HOD:' : 'HR:';
+
+  let levelStatus = 0; // 0 = pending, 1 = approved, 2 = rejected
+  if (type === 'hod') {
+    if (status === 1 || status === 2 || status === 4) {
+      levelStatus = 1; // HOD approved
+    } else if (status === 3) {
+      levelStatus = 2; // HOD rejected
+    } else {
+      levelStatus = 0; // pending
+    }
+  } else if (type === 'hr') {
+    if (status === 2) {
+      levelStatus = 1; // HR approved
+    } else if (status === 4 || status === 3) {
+      levelStatus = 2; // HR rejected
+    } else {
+      levelStatus = 0; // pending
+    }
+  }
+
+  if (levelStatus === 1) {
+    return (
+      <span className={styles.tierBadgeItem}>
+        <span className={styles.tierLabel}>{label}</span>
+        <span
+          className={`${styles.badge} ${styles.badgeHodApproved}`}
+          style={{ padding: '0.12rem 0.55rem', fontSize: '0.68rem', fontWeight: '700', letterSpacing: '0.02em' }}
+        >
+          APPROVED
+        </span>
+      </span>
+    );
+  }
+  if (levelStatus === 2) {
+    return (
+      <span className={styles.tierBadgeItem}>
+        <span className={styles.tierLabel}>{label}</span>
+        <span
+          className={`${styles.badge} ${styles.badgeRejected}`}
+          style={{ padding: '0.12rem 0.55rem', fontSize: '0.68rem', fontWeight: '700', letterSpacing: '0.02em' }}
+        >
+          REJECTED
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className={styles.tierBadgeItem}>
+      <span className={styles.tierLabel}>{label}</span>
+      <span
+        className={`${styles.badge} ${styles.badgePending}`}
+        style={{ padding: '0.12rem 0.55rem', fontSize: '0.68rem', fontWeight: '700', letterSpacing: '0.02em' }}
+      >
+        PENDING
+      </span>
+    </span>
+  );
 }
 
 function formatDate(dateStr) {
@@ -110,6 +173,7 @@ export default function ApplyLoaPage() {
   const [searchQuery, setSearchQuery]         = useState('');
   const [itemsPerPage, setItemsPerPage]       = useState('10');
   const [currentPage, setCurrentPage]         = useState(1);
+  const [exportingCsv, setExportingCsv]       = useState(false);
 
   const [staffNetPay, setStaffNetPay] = useState(null);
   const [loadingNetPay, setLoadingNetPay] = useState(false);
@@ -340,8 +404,25 @@ export default function ApplyLoaPage() {
   const currentEmployee = pageData?.employee  ?? null;
 
   const canSelectStaff = isSuperAdmin || isAdminStaff || isAuditStaff || isFinanceStaff;
-  const canHodAct   = isHod || isSuperAdmin || isAdminStaff;
+  const canHodAct   = isHod || isSuperAdmin;
   const canAdminAct = isAdminStaff || isSuperAdmin;
+
+  const canHodApproveRec = useCallback((rec) => {
+    if (!rec || rec.status !== 0) return false;
+    if (isSuperAdmin) return true;
+    if (isHod && currentEmployee?.departmentID && (String(rec.department_id) === String(currentEmployee.departmentID) || String(rec.department) === String(currentEmployee.department))) {
+      return true;
+    }
+    if (pageData?.isDelegatedHod && pageData?.delegated_department_id && (String(rec.department_id) === String(pageData.delegated_department_id) || String(rec.department) === String(pageData.delegated_department))) {
+      return true;
+    }
+    return false;
+  }, [isSuperAdmin, isHod, currentEmployee, pageData]);
+
+  const canAdminApproveRec = useCallback((rec) => {
+    if (!rec || rec.status !== 1) return false;
+    return isAdminStaff || isSuperAdmin;
+  }, [isAdminStaff, isSuperAdmin]);
 
   const formatName = (emp) => {
     if (!emp) return '';
@@ -370,7 +451,7 @@ export default function ApplyLoaPage() {
 
   const hasNotUploadedEducation = selectedEmpObj && selectedEmpObj.has_uploaded_education === false;
 
-  // Deduction calculation for LOA based on exact days in the month (e.g. 28, 29, 30, or 31 days)
+  // Deduction calculation for LOA based on exact days in each month (e.g. Jan 31 days vs Feb 28/29 days)
   const loaCalculation = useMemo(() => {
     if (!form.start_date || !form.end_date) return null;
     const start = new Date(form.start_date);
@@ -380,44 +461,90 @@ export default function ApplyLoaPage() {
     const diffTime = Math.abs(end - start);
     const durationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-    const year = start.getFullYear();
-    const month = start.getMonth() + 1;
-    const daysInMonth = new Date(year, month, 0).getDate(); // 28, 29, 30, or 31 days
-    const monthName = start.toLocaleString('default', { month: 'long', year: 'numeric' });
-
     const monthlySalary = parseFloat(selectedEmpObj?.monthly_salary) || 0;
-    const dailyRate = (monthlySalary > 0 && daysInMonth > 0) ? (monthlySalary / daysInMonth) : 0;
-    const estimatedDeduction = dailyRate * durationDays;
-
     const availableNetPay = (staffNetPay?.amount !== undefined && staffNetPay?.amount !== null)
       ? parseFloat(staffNetPay.amount)
       : monthlySalary;
 
-    const isExceeded = (availableNetPay > 0 && estimatedDeduction >= availableNetPay) || (availableNetPay <= 0 && durationDays > 0);
-    const estimatedRemainingNet = Math.max(0, availableNetPay - estimatedDeduction);
+    // Cross-month prorated breakdown
+    const monthBreakdowns = [];
+    let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+    let totalEstimatedDeduction = 0;
+
+    while (cur <= endMonth) {
+      const y = cur.getFullYear();
+      const m = cur.getMonth();
+      const daysInThisMonth = new Date(y, m + 1, 0).getDate();
+      const mStart = new Date(y, m, 1);
+      const mEnd = new Date(y, m, daysInThisMonth);
+      const mName = cur.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+      const overlapStart = start > mStart ? start : mStart;
+      const overlapEnd = end < mEnd ? end : mEnd;
+
+      let mDays = 0;
+      if (selectedEmpObj?.office_shift === 1) {
+        let tempD = new Date(overlapStart);
+        while (tempD <= overlapEnd) {
+          const dayOfWeek = tempD.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            mDays++;
+          }
+          tempD.setDate(tempD.getDate() + 1);
+        }
+      } else {
+        const diffMs = Math.abs(overlapEnd - overlapStart);
+        mDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
+      }
+
+      const mDailyRate = (monthlySalary > 0 && daysInThisMonth > 0) ? (monthlySalary / daysInThisMonth) : 0;
+      const mDeduction = mDailyRate * mDays;
+      totalEstimatedDeduction += mDeduction;
+
+      monthBreakdowns.push({
+        monthName: mName,
+        daysInMonth: daysInThisMonth,
+        daysOnLeave: mDays,
+        dailyRate: mDailyRate,
+        deduction: mDeduction
+      });
+
+      cur.setMonth(cur.getMonth() + 1);
+    }
+
+    const firstMonth = monthBreakdowns[0] || {};
+    const isMultiMonth = monthBreakdowns.length > 1;
+
+    const isExceeded = (availableNetPay > 0 && totalEstimatedDeduction >= availableNetPay) || (availableNetPay <= 0 && durationDays > 0);
+    const estimatedRemainingNet = Math.max(0, availableNetPay - totalEstimatedDeduction);
 
     return {
       durationDays,
-      daysInMonth,
-      monthName,
+      daysInMonth: firstMonth.daysInMonth || 30,
+      monthName: isMultiMonth
+        ? `${monthBreakdowns[0].monthName} – ${monthBreakdowns[monthBreakdowns.length - 1].monthName}`
+        : (firstMonth.monthName || ''),
       monthlySalary,
-      dailyRate,
-      estimatedDeduction,
+      dailyRate: firstMonth.dailyRate || 0,
+      estimatedDeduction: totalEstimatedDeduction,
       availableNetPay,
       isExceeded,
       estimatedRemainingNet,
+      isMultiMonth,
+      monthBreakdowns
     };
   }, [form.start_date, form.end_date, selectedEmpObj, staffNetPay]);
 
   const getApprovalLevel = useCallback((rec) => {
-    if (rec.status === 0 && canHodAct) {
+    if (rec.status === 0 && canHodApproveRec(rec)) {
       return 'hod-approve';
     }
-    if (rec.status === 1 && canAdminAct) {
+    if (rec.status === 1 && canAdminApproveRec(rec)) {
       return 'admin-approve';
     }
     return null;
-  }, [canHodAct, canAdminAct]);
+  }, [canHodApproveRec, canAdminApproveRec]);
 
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
@@ -459,6 +586,120 @@ export default function ApplyLoaPage() {
     }
     setShowBulkApproveModal(false);
     setActionLoading(false);
+  };
+
+  const handleExportCsv = async () => {
+    setExportingCsv(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterStatus && filterStatus !== 'all') params.append('status', filterStatus);
+      if (filterStartDate) params.append('start_date', filterStartDate);
+      if (filterEndDate) params.append('end_date', filterEndDate);
+      if (searchQuery) params.append('search', searchQuery);
+
+      const res = await axios.get(`${API_BASE}/hr/apply-loa/export?${params.toString()}`, {
+        headers: buildHeaders(),
+        responseType: 'blob'
+      });
+
+      const filename = `Leave_of_Absence_Records_${new Date().toISOString().split('T')[0]}.csv`;
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        try {
+          link.remove();
+          window.URL.revokeObjectURL(url);
+        } catch { /* ignore */ }
+      }, 150);
+
+      showToast('Leave of Absence spreadsheet (.csv) downloaded successfully!', 'success');
+    } catch (err) {
+      console.error('Failed to export LOA spreadsheet via endpoint, using client export fallback:', err);
+      if (filteredRecords.length > 0) {
+        const rows = [
+          ['ISALU HRMS — LEAVE OF ABSENCE (LOA) APPLICATIONS & DEDUCTION REPORT'],
+          ['Generated on: ' + new Date().toLocaleString() + ' | Total Records: ' + filteredRecords.length],
+          [],
+          [
+            'S/N',
+            'Staff ID',
+            'Staff Name',
+            'Department',
+            'Start Date',
+            'End Date',
+            'Duration (Days)',
+            'Days in Month',
+            'Target Month',
+            'Monthly Gross Salary (NGN)',
+            'Daily Salary Rate (NGN)',
+            'Estimated LOA Deduction (NGN)',
+            'Date Applied',
+            'Status',
+            'Reason for Leave of Absence'
+          ]
+        ];
+
+        let totalDeduction = 0;
+        let totalDays = 0;
+
+        filteredRecords.forEach((r, idx) => {
+          const name = `${r.surname || ''} ${r.first_name || ''} ${r.othernames || ''}`.trim();
+          const badge = statusBadge(r.status);
+          const ded = parseFloat(r.estimated_deduction || 0);
+          const dur = parseInt(r.duration_days || 0, 10);
+          totalDeduction += ded;
+          totalDays += dur;
+
+          rows.push([
+            idx + 1,
+            r.staffId || '',
+            name,
+            r.department || '',
+            formatDate(r.start_date),
+            formatDate(r.end_date),
+            dur,
+            r.days_in_month || '',
+            r.month_name || '',
+            fmt(r.monthly_salary || 0),
+            fmt(r.daily_rate || 0),
+            fmt(ded),
+            formatDate(r.date_applied || r.created_at),
+            badge.label,
+            `"${(r.reason_of_leave || '').replace(/"/g, '""')}"`
+          ]);
+        });
+
+        rows.push([]);
+        rows.push(['TOTAL', '', '', '', '', '', `${totalDays} days`, '', '', '', '', fmt(totalDeduction), '', '', '']);
+
+        const csvContent = '\uFEFF' + rows.map(e => e.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `Leave_of_Absence_Records_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          try {
+            link.remove();
+            window.URL.revokeObjectURL(url);
+          } catch { /* ignore */ }
+        }, 150);
+        showToast('Leave of Absence spreadsheet (.csv) downloaded successfully!', 'success');
+      } else {
+        showToast('No records available to export.', 'error');
+      }
+    } finally {
+      setExportingCsv(false);
+    }
   };
 
   const filteredRecords = loaRecords.filter(rec => {
@@ -685,6 +926,18 @@ export default function ApplyLoaPage() {
                   </div>
                 )}
 
+                {loaCalculation.isMultiMonth && (
+                  <div style={{ marginTop: '0.35rem', borderTop: '1px dashed rgba(59, 130, 246, 0.2)', paddingTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3b82f6' }}>🗓️ Prorated Month-by-Month Deduction Schedule:</span>
+                    {loaCalculation.monthBreakdowns.map((mb, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.02)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                        <span>• {mb.monthName} ({mb.daysOnLeave} day{mb.daysOnLeave !== 1 ? 's' : ''} @ ₦{fmt(mb.dailyRate)}/day on {mb.daysInMonth}d base):</span>
+                        <strong style={{ color: '#38bdf8' }}>₦{fmt(mb.deduction)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {loaCalculation.isExceeded && (
                   <div style={{ marginTop: '0.3rem', color: '#991b1b', background: '#fee2e2', padding: '0.45rem 0.65rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <AlertCircle size={15} style={{ flexShrink: 0 }} />
@@ -742,7 +995,7 @@ export default function ApplyLoaPage() {
             <Clock size={18} style={{ marginRight: '0.5rem', flexShrink: 0 }} />
             Leave of Absence Records
           </span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {selectedIds.length > 0 && (
               <button
                 type="button"
@@ -758,6 +1011,28 @@ export default function ApplyLoaPage() {
             <button
               type="button"
               className={`${styles.cancelBtn} ${styles.noPrint}`}
+              onClick={handleExportCsv}
+              disabled={exportingCsv || filteredRecords.length === 0}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.4rem 0.85rem',
+                fontSize: '0.82rem',
+                background: '#ecfdf5',
+                borderColor: '#10b981',
+                color: '#059669',
+                fontWeight: '600',
+                cursor: exportingCsv || filteredRecords.length === 0 ? 'not-allowed' : 'pointer'
+              }}
+              title="Download Leave of Absence spreadsheet as CSV"
+            >
+              {exportingCsv ? <Loader2 size={15} className="animate-spin" /> : <FileSpreadsheet size={15} />}
+              {exportingCsv ? 'Exporting…' : 'Download Spreadsheet (.csv)'}
+            </button>
+            <button
+              type="button"
+              className={`${styles.cancelBtn} ${styles.noPrint}`}
               onClick={() => window.print()}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.82rem', borderColor: 'var(--border)' }}
             >
@@ -766,6 +1041,7 @@ export default function ApplyLoaPage() {
             </button>
           </div>
         </h2>
+
 
         {/* ── Filters Bar ── */}
         <div className={`${styles.filterBar} ${styles.noPrint}`}>
@@ -947,7 +1223,10 @@ export default function ApplyLoaPage() {
                       <td>{rec.duration_days} day{rec.duration_days !== 1 ? 's' : ''}</td>
                       <td>{rec.date_applied}</td>
                       <td>
-                        <span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span>
+                        <div className={styles.tierBadgeContainer}>
+                          {getTierBadge(rec.status, 'hod')}
+                          {getTierBadge(rec.status, 'hr')}
+                        </div>
                       </td>
                       <td>
                         <div className={styles.actionGroup}>
@@ -971,8 +1250,8 @@ export default function ApplyLoaPage() {
                             </button>
                           )}
 
-                          {/* HOD Actions (status = 0 → Pending) */}
-                          {rec.status === 0 && canHodAct && (
+                          {/* HOD Actions (status = 0 → Pending, strictly HOD or SuperAdmin) */}
+                          {rec.status === 0 && canHodApproveRec(rec) && (
                             <>
                               <button
                                 className={`${styles.iconBtn} ${styles.approveBtn}`}
@@ -991,8 +1270,8 @@ export default function ApplyLoaPage() {
                             </>
                           )}
 
-                          {/* Admin Actions (status = 1 → HOD Approved) */}
-                          {rec.status === 1 && canAdminAct && (
+                          {/* Admin Actions (status = 1 → HOD Approved, strictly HR HEAD or SuperAdmin) */}
+                          {rec.status === 1 && canAdminApproveRec(rec) && (
                             <>
                               <button
                                 className={`${styles.iconBtn} ${styles.approveBtn}`}
@@ -1135,12 +1414,30 @@ export default function ApplyLoaPage() {
                     <span className={styles.detailValue}>{viewRecord.date_applied}</span>
                   </div>
                   <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>Status</span>
-                    <span className={`${styles.badge} ${statusBadge(viewRecord.status).cls}`}>
-                      {statusBadge(viewRecord.status).label}
-                    </span>
+                    <span className={styles.detailLabel}>Approval Status</span>
+                    <div className={styles.tierBadgeContainer} style={{ minWidth: '135px' }}>
+                      {getTierBadge(viewRecord.status, 'hod')}
+                      {getTierBadge(viewRecord.status, 'hr')}
+                    </div>
                   </div>
                 </div>
+
+                {/* Cross-Month Breakdown (if multi-month) */}
+                {viewRecord.month_breakdowns && viewRecord.month_breakdowns.length > 1 && (
+                  <div style={{ margin: '0.75rem 0', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '6px', padding: '0.6rem 0.8rem' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#3b82f6', display: 'block', marginBottom: '0.35rem' }}>
+                      🗓️ Cross-Month Prorated Deduction Schedule
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      {viewRecord.month_breakdowns.map((mb, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#94a3b8' }}>
+                          <span>• {mb.month_name} ({mb.days_on_leave} day{mb.days_on_leave !== 1 ? 's' : ''} on {mb.days_in_month}d month):</span>
+                          <strong style={{ color: 'var(--text-primary)' }}>₦{fmt(mb.deduction)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Reason panel */}
                 <div className={styles.reasonBox}>

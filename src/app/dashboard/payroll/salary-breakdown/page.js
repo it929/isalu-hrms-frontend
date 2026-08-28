@@ -198,6 +198,15 @@ export default function SalaryBreakdownPage() {
   const [modalStaffBreakdown, setModalStaffBreakdown] = useState(null);
   const [loadingStaffBreakdownModal, setLoadingStaffBreakdownModal] = useState(false);
 
+  // Variance Modal State
+  const [allStaffActiveTab, setAllStaffActiveTab] = useState('sheet'); // 'sheet' or 'variance'
+  const [varianceData, setVarianceData] = useState(null);
+  const [loadingVariance, setLoadingVariance] = useState(false);
+  const [exportingVariance, setExportingVariance] = useState(false);
+  const [varianceSubTab, setVarianceSubTab] = useState('summary'); // 'summary' | 'components' | 'staff'
+  const [varianceStaffFilter, setVarianceStaffFilter] = useState('all'); // 'all' | 'increased' | 'decreased' | 'new_joiner' | 'exited' | 'unchanged'
+  const [varianceStaffSearch, setVarianceStaffSearch] = useState('');
+
   useEffect(() => {
     setAllStaffCurrentPage(1);
   }, [allStaffSearch, allStaffDeptFilter, allStaffPerPage]);
@@ -307,15 +316,85 @@ export default function SalaryBreakdownPage() {
 
       if (res.data?.status === 'success') {
         setAllStaffData(res.data);
+        if (res.data?.variance_summary) {
+          setVarianceData(prev => prev ? { ...prev, executive_summary: { ...prev.executive_summary, ...res.data.variance_summary } } : null);
+        }
       } else {
         showToast(res.data?.message || 'Failed to load all staff payroll sheet.', 'error');
       }
+
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to load all staff payroll sheet.', 'error');
     } finally {
       setLoadingAllStaff(false);
     }
   }, [selectedMonth, selectedYear, showToast]);
+
+  // Fetch Payroll Variance Data comparing previous and current month
+  const fetchVarianceData = useCallback(async (deptId = '', searchQ = '') => {
+    setLoadingVariance(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('month', selectedMonth);
+      params.append('year', selectedYear);
+      if (deptId) params.append('department_id', deptId);
+      if (searchQ) params.append('search', searchQ);
+
+      const res = await axios.get(`${API_BASE}/payroll/salary-breakdown/variance?${params.toString()}`, {
+        headers: buildHeaders()
+      });
+
+      if (res.data?.status === 'success' && res.data?.data) {
+        setVarianceData(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load variance analysis', err);
+    } finally {
+      setLoadingVariance(false);
+    }
+  }, [selectedMonth, selectedYear]);
+
+  const handleExportVarianceReport = async () => {
+    setExportingVariance(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('month', selectedMonth);
+      params.append('year', selectedYear);
+      if (allStaffDeptFilter) params.append('department_id', allStaffDeptFilter);
+      if (allStaffSearch) params.append('search', allStaffSearch);
+
+      const res = await axios.get(`${API_BASE}/payroll/salary-breakdown/variance/export?${params.toString()}`, {
+        headers: buildHeaders(),
+        responseType: 'blob'
+      });
+
+      const monthName = MONTHS.find(m => m.id === selectedMonth)?.name || selectedMonth;
+      const selectedDept = allStaffData?.departments?.find(d => String(d.id) === String(allStaffDeptFilter))?.name;
+      const deptSuffix = selectedDept ? `_${selectedDept.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+      const filename = `Payroll_Variance_Summary_${monthName}_${selectedYear}${deptSuffix}.csv`;
+
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        try {
+          link.remove();
+          window.URL.revokeObjectURL(url);
+        } catch { /* ignore */ }
+      }, 150);
+
+      showToast(`Payroll Variance Summary CSV ${selectedDept ? `for ${selectedDept} ` : ''}downloaded successfully!`, 'success');
+    } catch (err) {
+      showToast('Failed to download variance summary report.', 'error');
+    } finally {
+      setExportingVariance(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -347,25 +426,31 @@ export default function SalaryBreakdownPage() {
     fetchBreakdown(selectedStaffId, month, year);
     if (showAllStaffModal) {
       fetchAllStaffSheet(allStaffDeptFilter, allStaffSearch);
+      fetchVarianceData(allStaffDeptFilter, allStaffSearch);
     }
   };
 
-  const handleOpenAllStaffModal = () => {
+  const handleOpenAllStaffModal = (defaultTab = 'sheet') => {
     setShowAllStaffModal(true);
+    setAllStaffActiveTab(defaultTab);
     setAllStaffPerPage('all');
     setAllStaffCurrentPage(1);
     fetchAllStaffSheet(allStaffDeptFilter, allStaffSearch);
+    fetchVarianceData(allStaffDeptFilter, allStaffSearch);
   };
 
   const handleAllStaffSearchChange = (val) => {
     setAllStaffSearch(val);
     fetchAllStaffSheet(allStaffDeptFilter, val);
+    fetchVarianceData(allStaffDeptFilter, val);
   };
 
   const handleAllStaffDeptChange = (deptId) => {
     setAllStaffDeptFilter(deptId);
     fetchAllStaffSheet(deptId, allStaffSearch);
+    fetchVarianceData(deptId, allStaffSearch);
   };
+
 
   const handleViewStaffBreakdown = async (staffId) => {
     if (!staffId) return;
@@ -1011,50 +1096,6 @@ export default function SalaryBreakdownPage() {
                     </div>
                   ))
                 )}
-
-                {/* Configured Staff Allowances */}
-                {earnings?.custom_allowances && earnings.custom_allowances.length > 0 && (
-                  earnings.custom_allowances.map((ca) => (
-                    <div key={ca.id} className={styles.listItem}>
-                      <div className={styles.itemLeft}>
-                        <span className={styles.itemName}>{ca.title}</span>
-                        <span className={styles.itemSubtext}>
-                          {ca.frequency === 'one_time' ? 'One-Time' : 'Recurring'} Allowance
-                        </span>
-                      </div>
-                      <div className={styles.itemRight}>
-                        <span className={`${styles.itemAmount} ${styles.itemAmountEarning}`}>
-                          ₦{formatCurrency(ca.amount)}
-                        </span>
-                        <span className={`${styles.badge} ${styles.badgeSuccess}`} style={{ textTransform: 'capitalize' }}>
-                          {ca.category ? ca.category.replace(/_/g, ' ') : 'Allowance'}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                {/* Configured Staff Bonuses */}
-                {earnings?.bonuses && earnings.bonuses.length > 0 && (
-                  earnings.bonuses.map((b) => (
-                    <div key={b.id} className={styles.listItem}>
-                      <div className={styles.itemLeft}>
-                        <span className={styles.itemName}>{b.title}</span>
-                        <span className={styles.itemSubtext}>
-                          {b.frequency === 'one_time' ? 'One-Time' : 'Recurring'} Bonus
-                        </span>
-                      </div>
-                      <div className={styles.itemRight}>
-                        <span className={`${styles.itemAmount} ${styles.itemAmountEarning}`}>
-                          ₦{formatCurrency(b.amount)}
-                        </span>
-                        <span className={`${styles.badge}`} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.25)', textTransform: 'capitalize' }}>
-                          {b.category ? b.category.replace(/_/g, ' ') : 'Bonus'}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
             </div>
 
@@ -1338,6 +1379,61 @@ export default function SalaryBreakdownPage() {
               </div>
             </div>
           </div>
+
+          {/* Standalone Non-Gross Additions (Allowances & Bonuses) */}
+          {((earnings?.custom_allowances && earnings.custom_allowances.length > 0) ||
+            (earnings?.bonuses && earnings.bonuses.length > 0) ||
+            ((earnings?.total_custom_allowances || 0) + (earnings?.total_bonuses || 0) > 0)) && (
+            <div className={styles.balancesOverviewCard} style={{ border: '1px solid #bfdbfe', background: '#f8fafc' }}>
+              <div className={styles.balancesOverviewHeader}>
+                <h3 className={styles.balancesOverviewTitle}>
+                  <TrendingUp size={20} style={{ color: '#2563eb' }} />
+                  <span>Standalone Additions (Non-Gross Allowances & Bonuses)</span>
+                </h3>
+                <span className={styles.balancesOverviewSub} style={{ fontWeight: 700, color: '#2563eb' }}>
+                  Total Standalone Additions: + ₦{formatCurrency((earnings?.total_custom_allowances || 0) + (earnings?.total_bonuses || 0))}
+                </span>
+              </div>
+              <div className={styles.listGroup}>
+                {earnings?.custom_allowances && earnings.custom_allowances.map((ca) => (
+                  <div key={ca.id} className={styles.listItem} style={{ background: '#ffffff' }}>
+                    <div className={styles.itemLeft}>
+                      <span className={styles.itemName}>{ca.title}</span>
+                      <span className={styles.itemSubtext}>
+                        {ca.frequency === 'one_time' ? 'One-Time' : 'Recurring'} Custom Allowance
+                      </span>
+                    </div>
+                    <div className={styles.itemRight}>
+                      <span className={`${styles.itemAmount} ${styles.itemAmountEarning}`} style={{ color: '#059669', fontSize: '1rem' }}>
+                        + ₦{formatCurrency(ca.amount)}
+                      </span>
+                      <span className={`${styles.badge} ${styles.badgeSuccess}`} style={{ textTransform: 'capitalize' }}>
+                        {ca.category ? ca.category.replace(/_/g, ' ') : 'Allowance'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {earnings?.bonuses && earnings.bonuses.map((b) => (
+                  <div key={b.id} className={styles.listItem} style={{ background: '#ffffff' }}>
+                    <div className={styles.itemLeft}>
+                      <span className={styles.itemName}>{b.title}</span>
+                      <span className={styles.itemSubtext}>
+                        {b.frequency === 'one_time' ? 'One-Time' : 'Recurring'} Bonus
+                      </span>
+                    </div>
+                    <div className={styles.itemRight}>
+                      <span className={`${styles.itemAmount} ${styles.itemAmountEarning}`} style={{ color: '#d97706', fontSize: '1rem' }}>
+                        + ₦{formatCurrency(b.amount)}
+                      </span>
+                      <span className={`${styles.badge}`} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.25)', textTransform: 'capitalize' }}>
+                        {b.category ? b.category.replace(/_/g, ' ') : 'Bonus'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Balances & Outstanding Overview */}
           <div className={styles.balancesOverviewCard}>
@@ -1789,16 +1885,27 @@ export default function SalaryBreakdownPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 2. ALL STAFF CONSOLIDATED PAYROLL SHEET MODAL */}
+      {/* 2. ALL STAFF CONSOLIDATED PAYROLL SHEET & VARIANCE SUMMARY MODAL */}
       {/* ========================================================================= */}
       {showAllStaffModal && (
         <div className={styles.modalOverlay} onClick={() => setShowAllStaffModal(false)}>
           <div className={`${styles.modalContent} ${styles.allStaffModalContent}`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>
-                <Users size={22} style={{ color: 'var(--primary, #6366f1)' }} />
-                All Staff Monthly Payroll Sheet ({MONTHS.find(m => m.id === selectedMonth)?.name} {selectedYear})
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <h2 className={styles.modalTitle}>
+                  {allStaffActiveTab === 'sheet' ? (
+                    <>
+                      <Users size={22} style={{ color: 'var(--primary, #6366f1)' }} />
+                      All Staff Monthly Payroll Sheet ({MONTHS.find(m => m.id === selectedMonth)?.name} {selectedYear})
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp size={22} style={{ color: '#0284c7' }} />
+                      Monthly Payroll Variance Summary ({varianceData?.previous_period?.period_str || 'Previous Month'} vs {varianceData?.current_period?.period_str || `${MONTHS.find(m => m.id === selectedMonth)?.name} ${selectedYear}`})
+                    </>
+                  )}
+                </h2>
+              </div>
               <button 
                 type="button" 
                 className={styles.closeBtn}
@@ -1808,350 +1915,704 @@ export default function SalaryBreakdownPage() {
               </button>
             </div>
 
-            <div className={styles.modalBody}>
-              {/* Controls Bar: Search, Department Filter, Export Buttons */}
-              <div className={styles.allStaffControls}>
-                <div className={styles.filterInputs}>
-                  <div className={styles.searchBox}>
-                    <Search size={16} className={styles.searchIcon} />
-                    <input 
-                      type="text"
-                      className={styles.searchInput}
-                      placeholder="Filter staff by name or ID..."
-                      value={allStaffSearch}
-                      onChange={(e) => handleAllStaffSearchChange(e.target.value)}
-                    />
+            {/* TAB SELECTOR */}
+            <div className={styles.modalTabsContainer}>
+              <button
+                type="button"
+                className={`${styles.modalTabBtn} ${allStaffActiveTab === 'sheet' ? styles.modalTabBtnActive : ''}`}
+                onClick={() => setAllStaffActiveTab('sheet')}
+              >
+                <FileSpreadsheet size={16} />
+                All Staff Payroll Sheet
+              </button>
+
+              <button
+                type="button"
+                className={`${styles.modalTabBtn} ${allStaffActiveTab === 'variance' ? styles.modalTabBtnActive : ''}`}
+                onClick={() => {
+                  setAllStaffActiveTab('variance');
+                  if (!varianceData) fetchVarianceData(allStaffDeptFilter, allStaffSearch);
+                }}
+              >
+                <TrendingUp size={16} />
+                Variance Summary (Previous vs Current Month)
+                {varianceData?.executive_summary?.total_net_pay?.diff !== undefined && (
+                  <span className={`${styles.varianceDeltaBadge} ${varianceData.executive_summary.total_net_pay.diff >= 0 ? styles.diffPositive : styles.diffNegative}`}>
+                    {varianceData.executive_summary.total_net_pay.diff >= 0 ? '+' : ''}
+                    ₦{formatCurrency(varianceData.executive_summary.total_net_pay.diff)}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {allStaffActiveTab === 'variance' ? (
+              /* ========================================================================= */
+              /* VARIANCE SUMMARY VIEW */
+              /* ========================================================================= */
+              <div className={styles.varianceContainer}>
+                {/* Variance Banner */}
+                <div className={styles.varianceBanner}>
+                  <div>
+                    <h3>
+                      <TrendingUp size={20} style={{ color: '#38bdf8' }} />
+                      Payroll Variance Analysis ({varianceData?.previous_period?.period_str || 'Previous Month'} ➔ {varianceData?.current_period?.period_str || 'Current Month'})
+                    </h3>
+                    <p>
+                      Reconciliation of employee headcounts, total gross compensation, statutory/loan deductions, and net payroll payouts.
+                    </p>
                   </div>
 
-                  {allStaffData?.departments && (
-                    <select
-                      className={styles.deptFilterSelect}
-                      value={allStaffDeptFilter}
-                      onChange={(e) => handleAllStaffDeptChange(e.target.value)}
+                  <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSuccess}`}
+                      onClick={handleExportVarianceReport}
+                      disabled={exportingVariance || loadingVariance}
                     >
-                      <option value="">All Departments</option>
-                      {allStaffData.departments.map(d => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
-                  )}
-
-                  <div className={styles.perPageGroup}>
-                    <span className={styles.perPageLabel}>Show:</span>
-                    <select
-                      className={styles.perPageSelect}
-                      value={allStaffPerPage}
-                      onChange={(e) => {
-                        setAllStaffPerPage(e.target.value);
-                        setAllStaffCurrentPage(1);
-                      }}
-                    >
-                      <option value="all">All Records</option>
-                      <option value="10">10 records</option>
-                      <option value="20">20 records</option>
-                      <option value="30">30 records</option>
-                      <option value="50">50 records</option>
-                      <option value="100">100 records</option>
-                    </select>
+                      {exportingVariance ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+                      {exportingVariance ? 'Exporting...' : 'Download Variance Report (.csv)'}
+                    </button>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <button
-                    type="button"
-                    className={`${styles.btn} ${styles.btnSuccess}`}
-                    onClick={handleExportAllStaffExcel}
-                    disabled={exportingExcel || loadingAllStaff}
-                  >
-                    {exportingExcel ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
-                    {exportingExcel ? 'Exporting...' : 'Download Spreadsheet (.csv)'}
-                  </button>
+                {loadingVariance ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '280px', gap: '1rem' }}>
+                    <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary, #6366f1)' }} />
+                    <p style={{ color: 'var(--text-secondary)' }}>Analyzing payroll deltas and variance drivers...</p>
+                  </div>
+                ) : varianceData ? (
+                  <>
+                    {/* Executive KPI Variance Cards */}
+                    <div className={styles.varianceKpiGrid}>
+                      {/* 1. Staff Count */}
+                      <div className={styles.varianceKpiCard}>
+                        <div className={styles.varianceKpiHeader}>
+                          <span className={styles.varianceKpiLabel}>Total Active Staff</span>
+                          <span className={`${styles.varianceDeltaBadge} ${varianceData.executive_summary.total_staff.diff > 0 ? styles.diffPositive : (varianceData.executive_summary.total_staff.diff < 0 ? styles.diffNegative : styles.diffNeutral)}`}>
+                            {varianceData.executive_summary.total_staff.diff >= 0 ? '+' : ''}{varianceData.executive_summary.total_staff.diff} ({varianceData.executive_summary.total_staff.percent_change}%)
+                          </span>
+                        </div>
+                        <div className={styles.varianceKpiVal}>
+                          {varianceData.executive_summary.total_staff.current}
+                        </div>
+                        <div className={styles.varianceKpiSubtext}>
+                          <span>Previous: <strong>{varianceData.executive_summary.total_staff.previous}</strong></span>
+                        </div>
+                      </div>
 
-                  <button
-                    type="button"
-                    className={`${styles.btn} ${styles.btnOutline}`}
-                    onClick={handleExportCSV}
-                    disabled={loadingAllStaff}
-                  >
-                    <Download size={16} />
-                    Export CSV
-                  </button>
-                </div>
-              </div>
+                      {/* 2. Total Gross */}
+                      <div className={styles.varianceKpiCard}>
+                        <div className={styles.varianceKpiHeader}>
+                          <span className={styles.varianceKpiLabel}>Total Gross Income</span>
+                          <span className={`${styles.varianceDeltaBadge} ${varianceData.executive_summary.total_gross.diff > 0 ? styles.diffPositive : (varianceData.executive_summary.total_gross.diff < 0 ? styles.diffNegative : styles.diffNeutral)}`}>
+                            {varianceData.executive_summary.total_gross.diff >= 0 ? '+' : ''}₦{formatCurrency(varianceData.executive_summary.total_gross.diff)} ({varianceData.executive_summary.total_gross.percent_change}%)
+                          </span>
+                        </div>
+                        <div className={styles.varianceKpiVal} style={{ color: '#0284c7' }}>
+                          ₦{formatCurrency(varianceData.executive_summary.total_gross.current)}
+                        </div>
+                        <div className={styles.varianceKpiSubtext}>
+                          <span>Previous: <strong>₦{formatCurrency(varianceData.executive_summary.total_gross.previous)}</strong></span>
+                        </div>
+                      </div>
 
-              {/* Status and KPIs */}
-              <div className={styles.allStaffSummaryRow}>
-                <div className={styles.miniKpiCard}>
-                  <span className={styles.miniKpiLabel}>Total Staff Active</span>
-                  <span className={styles.miniKpiVal}>{allStaffData?.summary?.total_staff ?? '—'}</span>
-                </div>
-                <div className={styles.miniKpiCard}>
-                  <span className={styles.miniKpiLabel}>Total Gross Income</span>
-                  <span className={styles.miniKpiVal} style={{ color: '#0284c7' }}>
-                    ₦{formatCurrency(allStaffData?.summary?.total_gross)}
-                  </span>
-                </div>
-                <div className={styles.miniKpiCard}>
-                  <span className={styles.miniKpiLabel}>Total Deductions</span>
-                  <span className={styles.miniKpiVal} style={{ color: '#dc2626' }}>
-                    - ₦{formatCurrency(allStaffData?.summary?.total_deductions)}
-                  </span>
-                </div>
-                <div className={styles.miniKpiCard}>
-                  <span className={styles.miniKpiLabel}>Estimated Net Pay</span>
-                  <span className={styles.miniKpiVal} style={{ color: (allStaffData?.summary?.total_net_pay ?? 0) < 0 ? '#dc2626' : '#059669' }}>
-                    {formatNaira(allStaffData?.summary?.total_net_pay)}
-                  </span>
-                </div>
-              </div>
+                      {/* 3. Total Deductions */}
+                      <div className={styles.varianceKpiCard}>
+                        <div className={styles.varianceKpiHeader}>
+                          <span className={styles.varianceKpiLabel}>Total Deductions</span>
+                          <span className={`${styles.varianceDeltaBadge} ${varianceData.executive_summary.total_deductions.diff > 0 ? styles.diffNegative : (varianceData.executive_summary.total_deductions.diff < 0 ? styles.diffPositive : styles.diffNeutral)}`}>
+                            {varianceData.executive_summary.total_deductions.diff >= 0 ? '+' : ''}₦{formatCurrency(varianceData.executive_summary.total_deductions.diff)} ({varianceData.executive_summary.total_deductions.percent_change}%)
+                          </span>
+                        </div>
+                        <div className={styles.varianceKpiVal} style={{ color: '#dc2626' }}>
+                          - ₦{formatCurrency(varianceData.executive_summary.total_deductions.current)}
+                        </div>
+                        <div className={styles.varianceKpiSubtext}>
+                          <span>Previous: <strong>- ₦{formatCurrency(varianceData.executive_summary.total_deductions.previous)}</strong></span>
+                        </div>
+                      </div>
 
-              {/* Table */}
-              {loadingAllStaff ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '280px', gap: '1rem' }}>
-                  <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary, #6366f1)' }} />
-                  <p style={{ color: 'var(--text-secondary)' }}>Compiling all staff monthly payroll sheet...</p>
-                </div>
-              ) : allStaffData?.data && allStaffData.data.length > 0 ? (
-                <div className={`${styles.tableWrapper} ${styles.paperContainer} ${styles.printCard}`}>
-                  <table className={styles.allStaffTable}>
-                    <thead>
-                      <tr>
-                        <th style={{ minWidth: '85px', textAlign: 'center' }}>Action</th>
-                        <th>ID No</th>
-                        <th>Staff Name</th>
-                        <th>Department</th>
-                        <th>Designation</th>
-                        <th className={styles.thMoney}>Basic (₦)</th>
-                        <th className={styles.thMoney}>Housing (₦)</th>
-                        <th className={styles.thMoney}>Transport (₦)</th>
-                        <th className={styles.thMoney}>Medical (₦)</th>
-                        <th className={styles.thMoney}>Utility (₦)</th>
-                        <th className={styles.thMoney}>Meal (₦)</th>
-                        <th className={styles.thMoney}>Variable (₦)</th>
-                        <th className={styles.thMoney}>Allowance (₦)</th>
-                        <th className={styles.thMoney}>Bonus (₦)</th>
-                        <th className={styles.thMoney}>Gross Pay (₦)</th>
-                        <th className={styles.thMoney}>Declared Sal. (₦)</th>
-                        <th className={styles.thMoney}>PAYE Tax (₦)</th>
-                        <th className={styles.thMoney}>Pension (₦)</th>
-                        <th className={styles.thMoney}>Retention (₦)</th>
-                        <th className={styles.thMoney}>IOU (₦)</th>
-                        <th className={styles.thMoney}>Med. Loan (₦)</th>
-                        <th className={styles.thMoney}>Coop. Loan (₦)</th>
-                        <th className={styles.thMoney}>Coop. Sav. (₦)</th>
-                        <th className={styles.thMoney}>Asset Fin. (₦)</th>
-                        <th className={styles.thMoney}>Surcharges (₦)</th>
-                        <th className={styles.thMoney}>Absence Pen. (₦)</th>
-                        <th className={styles.thMoney}>LOA Ded. (₦)</th>
-                        <th className={styles.thMoney}>Loan (₦)</th>
-                        <th className={styles.thMoney}>Other Ded. (₦)</th>
-                        <th className={styles.thMoney}>Total Ded. (₦)</th>
-                        <th className={styles.thMoney}>Net Pay (₦)</th>
-                        <th>Bank</th>
-                        <th>Account No</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedAllStaff.map((r) => (
-                        <tr 
-                          key={r.id}
-                          className={styles.clickableStaffRow}
-                          onClick={() => handleViewStaffBreakdown(r.id)}
-                          title={`Click anywhere on this row to view salary breakdown for ${r.name}`}
+                      {/* 4. Estimated Net Pay */}
+                      <div className={styles.varianceKpiCard}>
+                        <div className={styles.varianceKpiHeader}>
+                          <span className={styles.varianceKpiLabel}>Estimated Net Pay</span>
+                          <span className={`${styles.varianceDeltaBadge} ${varianceData.executive_summary.total_net_pay.diff >= 0 ? styles.diffPositive : styles.diffNegative}`}>
+                            {varianceData.executive_summary.total_net_pay.diff >= 0 ? '+' : ''}₦{formatCurrency(varianceData.executive_summary.total_net_pay.diff)} ({varianceData.executive_summary.total_net_pay.percent_change}%)
+                          </span>
+                        </div>
+                        <div className={styles.varianceKpiVal} style={{ color: varianceData.executive_summary.total_net_pay.current < 0 ? '#dc2626' : '#059669' }}>
+                          ₦{formatCurrency(varianceData.executive_summary.total_net_pay.current)}
+                        </div>
+                        <div className={styles.varianceKpiSubtext}>
+                          <span>Previous: <strong>₦{formatCurrency(varianceData.executive_summary.total_net_pay.previous)}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sub-view Navigation Bar */}
+                    <div className={styles.varianceSubNav}>
+                      <div className={styles.varianceSubTabs}>
+                        <button
+                          type="button"
+                          className={`${styles.varianceSubTabBtn} ${varianceSubTab === 'summary' ? styles.varianceSubTabBtnActive : ''}`}
+                          onClick={() => setVarianceSubTab('summary')}
                         >
-                          <td style={{ textAlign: 'center' }} onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}>
-                            <button
-                              type="button"
-                              className={styles.viewStaffBreakdownBtn}
-                              onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}
-                              title={`View full salary breakdown for ${r.name}`}
-                            >
-                              <Eye size={12} /> Breakdown
-                            </button>
-                          </td>
-                          <td style={{ fontWeight: 600 }}>{r.id}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className={styles.staffLinkBtn}
-                              onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}
-                              title={`Click to view monthly salary breakdown for ${r.name}`}
-                            >
-                              <Eye size={13} style={{ color: 'var(--primary, #4f46e5)', opacity: 0.8 }} />
-                              <strong>{r.name}</strong>
-                            </button>
-                          </td>
-                          <td>{r.department}</td>
-                          <td>{r.designation}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.basic_salary)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.housing_allowance)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.transport_allowance)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.medical_allowance)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.utility_allowance)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.meal_allowance)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.variable_allowances)}</td>
-                          <td className={styles.tdMoney} style={{ color: '#059669', fontWeight: 600 }}>
-                            {formatCurrency(r.custom_allowances || 0)}
-                          </td>
-                          <td className={styles.tdMoney} style={{ color: '#d97706', fontWeight: 600 }}>
-                            {formatCurrency(r.bonuses || 0)}
-                          </td>
-                          <td className={styles.tdMoney} style={{ fontWeight: 700, color: '#0369a1' }}>
-                            {formatCurrency(r.gross_pay)}
-                          </td>
-                          <td className={styles.tdMoney} style={{ fontWeight: 600, color: '#475569' }}>
-                            {formatCurrency(r.declare_salary ?? r.gross_pay)}
-                          </td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.paye_tax)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.pension)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.retention)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.iou)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.medical_loan)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.coop_loan)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.coop_savings)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.coop_asset_finance)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.surcharges)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.absence_penalty)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.leave_of_absence)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.regular_loan)}</td>
-                          <td className={styles.tdMoney}>{formatCurrency(r.other_deductions)}</td>
-                          <td className={styles.tdMoney} style={{ fontWeight: 700, color: '#dc2626' }}>
-                            - {formatCurrency(r.total_deductions)}
-                          </td>
-                          <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`} style={r.net_pay < 0 ? { color: '#dc2626', fontWeight: 700 } : {}}>
-                            {formatNaira(r.net_pay)}
-                          </td>
-                          <td>{r.bank_name}</td>
-                          <td>{r.account_number}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className={styles.tableTotalRow}>
-                        <td colSpan={5} style={{ textAlign: 'center' }}>TOTAL ({allStaffRecords.length} staff)</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.basic_salary, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.housing_allowance, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.transport_allowance, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.medical_allowance, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.utility_allowance, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.meal_allowance, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.variable_allowances, 0))}</td>
-                        <td className={styles.tdMoney} style={{ color: '#059669', fontWeight: 600 }}>
-                          {formatCurrency(allStaffRecords.reduce((a, c) => a + (c.custom_allowances || 0), 0))}
-                        </td>
-                        <td className={styles.tdMoney} style={{ color: '#d97706', fontWeight: 600 }}>
-                          {formatCurrency(allStaffRecords.reduce((a, c) => a + (c.bonuses || 0), 0))}
-                        </td>
-                        <td className={styles.tdMoney} style={{ color: '#0369a1' }}>
-                          ₦{formatCurrency(allStaffData.summary?.total_gross)}
-                        </td>
-                        <td className={styles.tdMoney} style={{ color: '#475569' }}>
-                          ₦{formatCurrency(allStaffRecords.reduce((a, c) => a + (c.declare_salary || c.gross_pay || 0), 0))}
-                        </td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.paye_tax, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.pension, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.retention, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.iou, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.medical_loan, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.coop_loan, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.coop_savings, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.coop_asset_finance, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.surcharges, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.absence_penalty, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.leave_of_absence, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.regular_loan, 0))}</td>
-                        <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.other_deductions, 0))}</td>
-                        <td className={styles.tdMoney} style={{ color: '#dc2626' }}>
-                          - ₦{formatCurrency(allStaffData.summary?.total_deductions)}
-                        </td>
-                        <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`} style={(allStaffData.summary?.total_net_pay ?? 0) < 0 ? { color: '#dc2626', fontWeight: 700 } : {}}>
-                          {formatNaira(allStaffData.summary?.total_net_pay)}
-                        </td>
-                        <td colSpan={2}></td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                          <Layers size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                          Component Breakdown
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.varianceSubTabBtn} ${varianceSubTab === 'staff' ? styles.varianceSubTabBtnActive : ''}`}
+                          onClick={() => setVarianceSubTab('staff')}
+                        >
+                          <Users size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                          Staff-Level Variance Register ({varianceData.staff_variances?.length || 0})
+                        </button>
+                      </div>
 
-                  {/* Pagination Footer */}
-                  {allStaffRecords.length > 0 && (
-                    <div className={styles.pagination}>
-                      <span className={styles.paginationText}>
-                        Showing {allStaffRecords.length === 0 ? 0 : (allStaffPerPage === 'all' ? 1 : (allStaffCurrentPage - 1) * parseInt(allStaffPerPage, 10) + 1)} to {allStaffPerPage === 'all' ? allStaffRecords.length : Math.min(allStaffCurrentPage * parseInt(allStaffPerPage, 10), allStaffRecords.length)} of {allStaffRecords.length} entries {allStaffPerPage !== 'all' && totalAllStaffPages > 1 && `(Page ${allStaffCurrentPage} of ${totalAllStaffPages})`}
-                      </span>
-                      {allStaffPerPage !== 'all' && totalAllStaffPages > 1 && (
-                        <div className={styles.paginationButtons}>
+                      {varianceSubTab === 'staff' && (
+                        <div className={styles.varianceFilterPills}>
                           <button
                             type="button"
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
-                            disabled={allStaffCurrentPage === 1}
-                            onClick={() => setAllStaffCurrentPage(1)}
+                            className={`${styles.filterPill} ${varianceStaffFilter === 'all' ? styles.filterPillActive : ''}`}
+                            onClick={() => setVarianceStaffFilter('all')}
                           >
-                            First
+                            All ({varianceData.counts?.total_compared || 0})
                           </button>
                           <button
                             type="button"
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
-                            disabled={allStaffCurrentPage === 1}
-                            onClick={() => setAllStaffCurrentPage(c => Math.max(1, c - 1))}
+                            className={`${styles.filterPill} ${varianceStaffFilter === 'increased' ? styles.filterPillActive : ''}`}
+                            onClick={() => setVarianceStaffFilter('increased')}
                           >
-                            Prev
-                          </button>
-
-                          {Array.from({ length: Math.min(5, totalAllStaffPages) }, (_, i) => {
-                            let pageNum;
-                            if (totalAllStaffPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (allStaffCurrentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (allStaffCurrentPage >= totalAllStaffPages - 2) {
-                              pageNum = totalAllStaffPages - 4 + i;
-                            } else {
-                              pageNum = allStaffCurrentPage - 2 + i;
-                            }
-                            return (
-                              <button
-                                key={pageNum}
-                                type="button"
-                                className={`${styles.btn} ${allStaffCurrentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
-                                style={{ minWidth: '30px', padding: '0.375rem 0.5rem', fontSize: '0.75rem' }}
-                                onClick={() => setAllStaffCurrentPage(pageNum)}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          })}
-
-                          <button
-                            type="button"
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
-                            disabled={allStaffCurrentPage === totalAllStaffPages}
-                            onClick={() => setAllStaffCurrentPage(c => Math.min(totalAllStaffPages, c + 1))}
-                          >
-                            Next
+                            Net Increased ({varianceData.counts?.increased || 0})
                           </button>
                           <button
                             type="button"
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
-                            disabled={allStaffCurrentPage === totalAllStaffPages}
-                            onClick={() => setAllStaffCurrentPage(totalAllStaffPages)}
+                            className={`${styles.filterPill} ${varianceStaffFilter === 'decreased' ? styles.filterPillActive : ''}`}
+                            onClick={() => setVarianceStaffFilter('decreased')}
                           >
-                            Last
+                            Net Decreased ({varianceData.counts?.decreased || 0})
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.filterPill} ${varianceStaffFilter === 'new_joiner' ? styles.filterPillActive : ''}`}
+                            onClick={() => setVarianceStaffFilter('new_joiner')}
+                          >
+                            New Joiners ({varianceData.counts?.new_joiners || 0})
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.filterPill} ${varianceStaffFilter === 'exited' ? styles.filterPillActive : ''}`}
+                            onClick={() => setVarianceStaffFilter('exited')}
+                          >
+                            Exited ({varianceData.counts?.exited || 0})
                           </button>
                         </div>
                       )}
                     </div>
-                  )}
+
+                    {/* Sub Tab 1: Component Breakdown Table */}
+                    {varianceSubTab === 'summary' && (
+                      <div className={styles.varianceTableCard}>
+                        <table className={styles.varianceTable}>
+                          <thead>
+                            <tr>
+                              <th>Payroll Metric / Component</th>
+                              <th>Category</th>
+                              <th style={{ textAlign: 'right' }}>Previous Month ({varianceData.previous_period?.period_str})</th>
+                              <th style={{ textAlign: 'right' }}>Current Month ({varianceData.current_period?.period_str})</th>
+                              <th style={{ textAlign: 'right' }}>Variance (Diff ₦)</th>
+                              <th style={{ textAlign: 'right' }}>% Change</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {varianceData.component_breakdown?.map((c) => {
+                              const isNetOrGross = ['gross_pay', 'net_pay', 'total_deductions'].includes(c.key);
+                              const isPositiveDiff = c.is_deduction ? c.diff <= 0 : c.diff >= 0;
+                              return (
+                                <tr key={c.key} style={isNetOrGross ? { background: '#f8fafc', fontWeight: 700 } : {}}>
+                                  <td style={{ fontWeight: isNetOrGross ? 700 : 600, color: isNetOrGross ? '#1e293b' : '#334155' }}>
+                                    {c.label}
+                                  </td>
+                                  <td>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: '0.25rem', background: c.is_deduction ? '#fee2e2' : '#eff6ff', color: c.is_deduction ? '#b91c1c' : '#1e40af' }}>
+                                      {c.is_deduction ? 'Deduction' : 'Earning'}
+                                    </span>
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                    ₦{formatCurrency(c.previous)}
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                                    ₦{formatCurrency(c.current)}
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: isPositiveDiff ? '#16a34a' : '#dc2626' }}>
+                                    {c.diff > 0 ? '+' : ''}₦{formatCurrency(c.diff)}
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                    <span className={`${styles.varianceDeltaBadge} ${isPositiveDiff ? styles.diffPositive : styles.diffNegative}`}>
+                                      {c.diff > 0 ? '↑' : (c.diff < 0 ? '↓' : '—')} {Math.abs(c.percent_change)}%
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Sub Tab 2: Staff-Level Variance Register */}
+                    {varianceSubTab === 'staff' && (
+                      <div className={styles.varianceTableCard}>
+                        {/* Search in staff table */}
+                        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                          <Search size={16} color="#94a3b8" />
+                          <input
+                            type="text"
+                            placeholder="Filter staff by name, ID or department in variance list..."
+                            value={varianceStaffSearch}
+                            onChange={(e) => setVarianceStaffSearch(e.target.value)}
+                            style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '0.85rem' }}
+                          />
+                        </div>
+
+                        <table className={styles.varianceTable}>
+                          <thead>
+                            <tr>
+                              <th>Staff Member</th>
+                              <th>Department</th>
+                              <th>Status</th>
+                              <th style={{ textAlign: 'right' }}>Prev Net</th>
+                              <th style={{ textAlign: 'right' }}>Curr Net</th>
+                              <th style={{ textAlign: 'right' }}>Net Variance</th>
+                              <th style={{ textAlign: 'right' }}>Gross Diff</th>
+                              <th style={{ textAlign: 'right' }}>Deduct Diff</th>
+                              <th>Key Reason(s) / Changes</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {varianceData.staff_variances
+                              ?.filter(s => {
+                                if (varianceStaffFilter !== 'all' && s.status_type !== varianceStaffFilter) return false;
+                                if (varianceStaffSearch) {
+                                  const q = varianceStaffSearch.toLowerCase();
+                                  const nameMatch = (s.name || '').toLowerCase().includes(q);
+                                  const idMatch = String(s.id).includes(q);
+                                  const deptMatch = (s.department || '').toLowerCase().includes(q);
+                                  if (!nameMatch && !idMatch && !deptMatch) return false;
+                                }
+                                return true;
+                              })
+                              .map(s => {
+                                const isPositive = s.net_diff >= 0;
+                                return (
+                                  <tr 
+                                    key={s.id} 
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => handleViewStaffBreakdown(s.id)}
+                                    title={`Click to view monthly salary breakdown for ${s.name}`}
+                                  >
+                                    <td>
+                                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{s.name}</div>
+                                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>ID: {s.id} • {s.designation}</div>
+                                    </td>
+                                    <td>{s.department}</td>
+                                    <td>
+                                      <span className={`${styles.varianceDeltaBadge} ${
+                                        s.status_type === 'increased' ? styles.diffPositive :
+                                        s.status_type === 'decreased' ? styles.diffNegative :
+                                        s.status_type === 'new_joiner' ? styles.diffPositive :
+                                        styles.diffNeutral
+                                      }`} style={{ textTransform: 'capitalize' }}>
+                                        {s.status_type.replace(/_/g, ' ')}
+                                      </span>
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                      ₦{formatCurrency(s.prev_net)}
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                                      ₦{formatCurrency(s.curr_net)}
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: isPositive ? '#16a34a' : '#dc2626' }}>
+                                      {s.net_diff > 0 ? '+' : ''}₦{formatCurrency(s.net_diff)}
+                                      <div style={{ fontSize: '0.725rem', fontWeight: 500 }}>({s.percent_net_change}%)</div>
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: s.gross_diff >= 0 ? '#16a34a' : '#dc2626' }}>
+                                      {s.gross_diff > 0 ? '+' : ''}₦{formatCurrency(s.gross_diff)}
+                                    </td>
+                                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: s.deductions_diff > 0 ? '#dc2626' : '#16a34a' }}>
+                                      {s.deductions_diff > 0 ? '+' : ''}₦{formatCurrency(s.deductions_diff)}
+                                    </td>
+                                    <td>
+                                      {s.reasons?.map((r, i) => (
+                                        <span key={i} className={styles.reasonTag}>
+                                          {r}
+                                        </span>
+                                      ))}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                    No variance data available for this cycle.
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ========================================================================= */
+              /* STANDARD MONTHLY PAYROLL SHEET VIEW */
+              /* ========================================================================= */
+              <div className={styles.modalBody}>
+                {/* Controls Bar: Search, Department Filter, Export Buttons */}
+                <div className={styles.allStaffControls}>
+                  <div className={styles.filterInputs}>
+                    <div className={styles.searchBox}>
+                      <Search size={16} className={styles.searchIcon} />
+                      <input 
+                        type="text"
+                        className={styles.searchInput}
+                        placeholder="Filter staff by name or ID..."
+                        value={allStaffSearch}
+                        onChange={(e) => handleAllStaffSearchChange(e.target.value)}
+                      />
+                    </div>
+
+                    {allStaffData?.departments && (
+                      <select
+                        className={styles.deptFilterSelect}
+                        value={allStaffDeptFilter}
+                        onChange={(e) => handleAllStaffDeptChange(e.target.value)}
+                      >
+                        <option value="">All Departments</option>
+                        {allStaffData.departments.map(d => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    <div className={styles.perPageGroup}>
+                      <span className={styles.perPageLabel}>Show:</span>
+                      <select
+                        className={styles.perPageSelect}
+                        value={allStaffPerPage}
+                        onChange={(e) => {
+                          setAllStaffPerPage(e.target.value);
+                          setAllStaffCurrentPage(1);
+                        }}
+                      >
+                        <option value="all">All Records</option>
+                        <option value="10">10 records</option>
+                        <option value="20">20 records</option>
+                        <option value="30">30 records</option>
+                        <option value="50">50 records</option>
+                        <option value="100">100 records</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSuccess}`}
+                      onClick={handleExportAllStaffExcel}
+                      disabled={exportingExcel || loadingAllStaff}
+                    >
+                      {exportingExcel ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+                      {exportingExcel ? 'Exporting...' : 'Download Spreadsheet (.csv)'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnOutline}`}
+                      onClick={handleExportCSV}
+                      disabled={loadingAllStaff}
+                    >
+                      <Download size={16} />
+                      Export CSV
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                  No staff records found for the selected period.
+
+                {/* Status and KPIs */}
+                <div className={styles.allStaffSummaryRow}>
+                  <div className={styles.miniKpiCard}>
+                    <span className={styles.miniKpiLabel}>Total Staff Active</span>
+                    <span className={styles.miniKpiVal}>{allStaffData?.summary?.total_staff ?? '—'}</span>
+                  </div>
+                  <div className={styles.miniKpiCard}>
+                    <span className={styles.miniKpiLabel}>Total Gross Income</span>
+                    <span className={styles.miniKpiVal} style={{ color: '#0284c7' }}>
+                      ₦{formatCurrency(allStaffData?.summary?.total_gross)}
+                    </span>
+                  </div>
+                  <div className={styles.miniKpiCard}>
+                    <span className={styles.miniKpiLabel}>Total Deductions</span>
+                    <span className={styles.miniKpiVal} style={{ color: '#dc2626' }}>
+                      - ₦{formatCurrency(allStaffData?.summary?.total_deductions)}
+                    </span>
+                  </div>
+                  <div className={styles.miniKpiCard}>
+                    <span className={styles.miniKpiLabel}>Estimated Net Pay</span>
+                    <span className={styles.miniKpiVal} style={{ color: (allStaffData?.summary?.total_net_pay ?? 0) < 0 ? '#dc2626' : '#059669' }}>
+                      {formatNaira(allStaffData?.summary?.total_net_pay)}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* Table */}
+                {loadingAllStaff ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '280px', gap: '1rem' }}>
+                    <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary, #6366f1)' }} />
+                    <p style={{ color: 'var(--text-secondary)' }}>Compiling all staff monthly payroll sheet...</p>
+                  </div>
+                ) : allStaffData?.data && allStaffData.data.length > 0 ? (
+                  <div className={`${styles.tableWrapper} ${styles.paperContainer} ${styles.printCard}`}>
+                    <table className={styles.allStaffTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ minWidth: '85px', textAlign: 'center' }}>Action</th>
+                          <th>ID No</th>
+                          <th>Staff Name</th>
+                          <th>Department</th>
+                          <th>Designation</th>
+                          <th className={styles.thMoney}>Basic (₦)</th>
+                          <th className={styles.thMoney}>Housing (₦)</th>
+                          <th className={styles.thMoney}>Transport (₦)</th>
+                          <th className={styles.thMoney}>Medical (₦)</th>
+                          <th className={styles.thMoney}>Utility (₦)</th>
+                          <th className={styles.thMoney}>Meal (₦)</th>
+                          <th className={styles.thMoney}>Variable (₦)</th>
+                          <th className={styles.thMoney}>Allowance (₦)</th>
+                          <th className={styles.thMoney}>Bonus (₦)</th>
+                          <th className={styles.thMoney}>Gross Pay (₦)</th>
+                          <th className={styles.thMoney}>Declared Sal. (₦)</th>
+                          <th className={styles.thMoney}>PAYE Tax (₦)</th>
+                          <th className={styles.thMoney}>Pension (₦)</th>
+                          <th className={styles.thMoney}>Retention (₦)</th>
+                          <th className={styles.thMoney}>IOU (₦)</th>
+                          <th className={styles.thMoney}>Med. Loan (₦)</th>
+                          <th className={styles.thMoney}>Coop. Loan (₦)</th>
+                          <th className={styles.thMoney}>Coop. Sav. (₦)</th>
+                          <th className={styles.thMoney}>Asset Fin. (₦)</th>
+                          <th className={styles.thMoney}>Surcharges (₦)</th>
+                          <th className={styles.thMoney}>Absence Pen. (₦)</th>
+                          <th className={styles.thMoney}>LOA Ded. (₦)</th>
+                          <th className={styles.thMoney}>Loan (₦)</th>
+                          <th className={styles.thMoney}>Other Ded. (₦)</th>
+                          <th className={styles.thMoney}>Total Ded. (₦)</th>
+                          <th className={styles.thMoney}>Net Pay (₦)</th>
+                          <th>Bank</th>
+                          <th>Account No</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedAllStaff.map((r) => (
+                          <tr 
+                            key={r.id}
+                            className={styles.clickableStaffRow}
+                            onClick={() => handleViewStaffBreakdown(r.id)}
+                            title={`Click anywhere on this row to view salary breakdown for ${r.name}`}
+                          >
+                            <td style={{ textAlign: 'center' }} onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}>
+                              <button
+                                type="button"
+                                className={styles.viewStaffBreakdownBtn}
+                                onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}
+                                title={`View full salary breakdown for ${r.name}`}
+                              >
+                                <Eye size={12} /> Breakdown
+                              </button>
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{r.id}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className={styles.staffLinkBtn}
+                                onClick={(e) => { e.stopPropagation(); handleViewStaffBreakdown(r.id); }}
+                                title={`Click to view monthly salary breakdown for ${r.name}`}
+                              >
+                                <Eye size={13} style={{ color: 'var(--primary, #4f46e5)', opacity: 0.8 }} />
+                                <strong>{r.name}</strong>
+                              </button>
+                            </td>
+                            <td>{r.department}</td>
+                            <td>{r.designation}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.basic_salary)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.housing_allowance)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.transport_allowance)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.medical_allowance)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.utility_allowance)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.meal_allowance)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.variable_allowances)}</td>
+                            <td className={styles.tdMoney} style={{ color: '#059669', fontWeight: 600 }}>
+                              {formatCurrency(r.custom_allowances || 0)}
+                            </td>
+                            <td className={styles.tdMoney} style={{ color: '#d97706', fontWeight: 600 }}>
+                              {formatCurrency(r.bonuses || 0)}
+                            </td>
+                            <td className={styles.tdMoney} style={{ fontWeight: 700, color: '#0369a1' }}>
+                              {formatCurrency(r.gross_pay)}
+                            </td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.declare_salary)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.paye_tax)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.pension)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.retention)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.iou)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.medical_loan)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.coop_loan)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.coop_savings)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.coop_asset_finance)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.surcharges)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.absence_penalty)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.leave_of_absence)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.regular_loan)}</td>
+                            <td className={styles.tdMoney}>{formatCurrency(r.other_deductions)}</td>
+                            <td className={styles.tdMoney} style={{ color: '#dc2626', fontWeight: 600 }}>
+                              - {formatCurrency(r.total_deductions)}
+                            </td>
+                            <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`} style={r.net_pay < 0 ? { color: '#dc2626', fontWeight: 700 } : {}}>
+                              {formatNaira(r.net_pay)}
+                            </td>
+                            <td>{r.bank_name}</td>
+                            <td>{r.account_number}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className={styles.allStaffTotalRow}>
+                          <td colSpan={5} style={{ fontWeight: 700, textAlign: 'left', paddingLeft: '1rem' }}>
+                            TOTALS ({allStaffRecords.length} STAFF)
+                          </td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.basic_salary, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.housing_allowance, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.transport_allowance, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.medical_allowance, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.utility_allowance, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.meal_allowance, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.variable_allowances, 0))}</td>
+                          <td className={styles.tdMoney} style={{ color: '#059669', fontWeight: 600 }}>
+                            {formatCurrency(allStaffRecords.reduce((a, c) => a + (c.custom_allowances || 0), 0))}
+                          </td>
+                          <td className={styles.tdMoney} style={{ color: '#d97706', fontWeight: 600 }}>
+                            {formatCurrency(allStaffRecords.reduce((a, c) => a + (c.bonuses || 0), 0))}
+                          </td>
+                          <td className={styles.tdMoney} style={{ color: '#0284c7' }}>
+                            ₦{formatCurrency(allStaffData.summary?.total_gross)}
+                          </td>
+                          <td className={styles.tdMoney}>
+                            {formatCurrency(allStaffRecords.reduce((a, c) => a + (c.declare_salary || 0), 0))}
+                          </td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.paye_tax, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.pension, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.retention, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.iou, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.medical_loan, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.coop_loan, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.coop_savings, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.coop_asset_finance, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.surcharges, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.absence_penalty, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.leave_of_absence, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.regular_loan, 0))}</td>
+                          <td className={styles.tdMoney}>{formatCurrency(allStaffRecords.reduce((a, c) => a + c.other_deductions, 0))}</td>
+                          <td className={styles.tdMoney} style={{ color: '#dc2626' }}>
+                            - ₦{formatCurrency(allStaffData.summary?.total_deductions)}
+                          </td>
+                          <td className={`${styles.tdMoney} ${styles.tdNetPayCol}`} style={(allStaffData.summary?.total_net_pay ?? 0) < 0 ? { color: '#dc2626', fontWeight: 700 } : {}}>
+                            {formatNaira(allStaffData.summary?.total_net_pay)}
+                          </td>
+                          <td colSpan={2}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+
+                    {/* Pagination Footer */}
+                    {allStaffRecords.length > 0 && (
+                      <div className={styles.pagination}>
+                        <span className={styles.paginationText}>
+                          Showing {allStaffRecords.length === 0 ? 0 : (allStaffPerPage === 'all' ? 1 : (allStaffCurrentPage - 1) * parseInt(allStaffPerPage, 10) + 1)} to {allStaffPerPage === 'all' ? allStaffRecords.length : Math.min(allStaffCurrentPage * parseInt(allStaffPerPage, 10), allStaffRecords.length)} of {allStaffRecords.length} entries {allStaffPerPage !== 'all' && totalAllStaffPages > 1 && `(Page ${allStaffCurrentPage} of ${totalAllStaffPages})`}
+                        </span>
+                        {allStaffPerPage !== 'all' && totalAllStaffPages > 1 && (
+                          <div className={styles.paginationButtons}>
+                            <button
+                              type="button"
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                              disabled={allStaffCurrentPage === 1}
+                              onClick={() => setAllStaffCurrentPage(1)}
+                            >
+                              First
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                              disabled={allStaffCurrentPage === 1}
+                              onClick={() => setAllStaffCurrentPage(c => Math.max(1, c - 1))}
+                            >
+                              Prev
+                            </button>
+
+                            {Array.from({ length: Math.min(5, totalAllStaffPages) }, (_, i) => {
+                              let pageNum;
+                              if (totalAllStaffPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (allStaffCurrentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (allStaffCurrentPage >= totalAllStaffPages - 2) {
+                                pageNum = totalAllStaffPages - 4 + i;
+                              } else {
+                                pageNum = allStaffCurrentPage - 2 + i;
+                              }
+                              return (
+                                <button
+                                  key={pageNum}
+                                  type="button"
+                                  className={`${styles.btn} ${allStaffCurrentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
+                                  style={{ minWidth: '30px', padding: '0.375rem 0.5rem', fontSize: '0.75rem' }}
+                                  onClick={() => setAllStaffCurrentPage(pageNum)}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+
+                            <button
+                              type="button"
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                              disabled={allStaffCurrentPage === totalAllStaffPages}
+                              onClick={() => setAllStaffCurrentPage(c => Math.min(totalAllStaffPages, c + 1))}
+                            >
+                              Next
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                              disabled={allStaffCurrentPage === totalAllStaffPages}
+                              onClick={() => setAllStaffCurrentPage(totalAllStaffPages)}
+                            >
+                              Last
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                    No staff records found for the selected period.
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className={styles.modalFooter}>
               <button 

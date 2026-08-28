@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, ChevronDown, X, Calendar, Info, Check, Building2, Percent, Printer } from 'lucide-react';
@@ -330,6 +330,34 @@ export default function ApplyIouPage() {
     setReason('');
   };
 
+  // Deadline check: The deadline to apply for IOU is 25th of the month
+  const isPastIouDeadline = useMemo(() => {
+    if (limitDetails?.is_past_deadline) return true;
+    if (!iouDate) return false;
+    const d = new Date(iouDate);
+    if (isNaN(d.getTime())) return false;
+
+    const selectedDay = d.getDate();
+    const selectedYear = d.getFullYear();
+    const selectedMonth = d.getMonth();
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentDay = today.getDate();
+
+    // 1. If selected application date itself is after the 25th of that month
+    if (selectedDay > 25) return true;
+
+    // 2. If applying for the current month and today is past the 25th
+    if (selectedYear === currentYear && selectedMonth === currentMonth && currentDay > 25) return true;
+
+    // 3. If applying for a past month
+    if (selectedYear < currentYear || (selectedYear === currentYear && selectedMonth < currentMonth)) return true;
+
+    return false;
+  }, [limitDetails, iouDate]);
+
   // Submit/Apply for IOU
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -379,6 +407,12 @@ export default function ApplyIouPage() {
     if (availableNetPay !== null && (availableNetPay <= 0 || requestedAmt >= availableNetPay)) {
       const monthStr = limitDetails.month_name || 'this month';
       showToast(`Cannot apply for IOU: This employee available net pay for ${monthStr} can not be negative.`, 'error');
+      return;
+    }
+
+    // 25th of the Month Deadline check
+    if (isPastIouDeadline) {
+      showToast(`The deadline to apply for IOU for ${limitDetails.month_name || 'this month'} is the 25th of the month. Applications for this month are closed.`, 'error');
       return;
     }
 
@@ -1037,6 +1071,29 @@ export default function ApplyIouPage() {
 
             </div>
 
+            {/* 25th of the Month Deadline Alert Banner */}
+            {isPastIouDeadline && (
+              <div style={{
+                background: '#fee2e2',
+                border: '1px solid #fca5a5',
+                color: '#991b1b',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                fontSize: '0.84rem',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                marginTop: '1rem',
+                marginBottom: '0.5rem'
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <span>
+                  <strong>IOU Application Closed:</strong> The deadline to apply for IOU for {limitDetails.month_name || 'this month'} was the <strong>25th</strong>. Applications for this month can no longer be submitted.
+                </span>
+              </div>
+            )}
+
             {/* Actions buttons */}
             {!isFormDisabled && (
               <div className={styles.formActions}>
@@ -1051,7 +1108,8 @@ export default function ApplyIouPage() {
                 <button
                   type="submit"
                   className={`${styles.btn} ${styles.btnPrimary}`}
-                  disabled={saving || (totalPlannedAmount > maxIouLimit) || (selectedStaff && selectedStaff.has_uploaded_education === false)}
+                  disabled={saving || (totalPlannedAmount > maxIouLimit) || (selectedStaff && selectedStaff.has_uploaded_education === false) || isPastIouDeadline}
+                  title={isPastIouDeadline ? `Deadline passed (25th of ${limitDetails.month_name || 'the month'})` : ''}
                 >
                   {saving ? (
                     <>
@@ -1061,7 +1119,7 @@ export default function ApplyIouPage() {
                   ) : (
                     <>
                       <Plus size={16} />
-                      {editId ? 'Update Application' : 'Submit Request'}
+                      {editId ? 'Update Application' : (isPastIouDeadline ? 'Deadline Passed (25th)' : 'Submit Request')}
                     </>
                   )}
                 </button>
