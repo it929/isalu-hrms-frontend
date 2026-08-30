@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer, Sparkles, ExternalLink, Receipt } from 'lucide-react';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -604,9 +605,22 @@ export default function ApplyResignationPage() {
       )}
 
       {/* Header */}
-      <div className={`${styles.header} ${styles.noPrint}`}>
-        <h1 className={styles.title}>Apply for Resignation</h1>
-        <p className={styles.subtitle}>Submit staff resignation request for processing and tiered approvals.</p>
+      <div className={`${styles.header} ${styles.noPrint}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 className={styles.title}>Apply for Resignation</h1>
+          <p className={styles.subtitle}>Submit staff resignation request for processing and tiered approvals.</p>
+        </div>
+        <div>
+          <Link
+            href="/dashboard/payroll/resignation-settlement"
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <Receipt size={16} style={{ color: '#ec4899' }} />
+            <span>Approved Resignations & Settlement</span>
+            <ExternalLink size={14} />
+          </Link>
+        </div>
       </div>
 
       {/* Form Card */}

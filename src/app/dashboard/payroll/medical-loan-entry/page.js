@@ -24,7 +24,13 @@ import {
   Sparkles,
   ExternalLink,
   Receipt,
-  Info
+  Info,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  ChevronDown,
+  ChevronUp,
+  Pencil
 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
@@ -153,9 +159,23 @@ export default function MedicalLoanEntryPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Edit Modal States
+  const [editEntry, setEditEntry] = useState(null);       // entry being edited
+  const [editLoanDate, setEditLoanDate] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
   // Client-side pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState('10');
+
+  // Bulk Upload States
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkDragActive, setBulkDragActive] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null); // { imported, skipped, warnings }
+  const bulkFileInputRef = useRef(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -349,17 +369,139 @@ export default function MedicalLoanEntryPage() {
     }
   };
 
+  // Open edit modal pre-filled with entry data
+  const handleEdit = (entry) => {
+    setEditEntry(entry);
+    setEditLoanDate(entry.loan_date || '');
+    setEditAmount(String(entry.amount || ''));
+    setEditReason(entry.reason || '');
+  };
+
+  const handleUpdateEntry = async (e) => {
+    e.preventDefault();
+    if (!editEntry) return;
+
+    const amt = parseFloat(editAmount);
+    if (isNaN(amt) || amt <= 0) {
+      showToast('Please enter a valid loan amount.', 'error');
+      return;
+    }
+    if (!editLoanDate) {
+      showToast('Please specify the loan date.', 'error');
+      return;
+    }
+    if (!editReason.trim()) {
+      showToast('Please provide a reason / medical purpose.', 'error');
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const res = await axios.put(
+        `${API_BASE}/payroll/medical-loan-entries/${editEntry.id}`,
+        { loan_date: editLoanDate, amount: amt, reason: editReason.trim() },
+        { headers: buildHeaders() }
+      );
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Entry updated successfully.');
+        setEditEntry(null);
+        fetchEntries(true);
+        if (selectedStaff && selectedStaff.id === editEntry.staffId) {
+          fetchStaffBalanceInfo(selectedStaff.id);
+        }
+      } else {
+        showToast(res.data.message || 'Failed to update entry.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Server error updating entry.', 'error');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // Quick amount chip helper
   const handleQuickAmount = (val) => {
     setAmount(val.toString());
+  };
+
+  // ── Bulk Upload Handlers ──────────────────────────────────────────────────
+  const handleBulkDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') setBulkDragActive(true);
+    else if (e.type === 'dragleave') setBulkDragActive(false);
+  };
+
+  const handleBulkDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBulkDragActive(false);
+    if (e.dataTransfer.files?.[0]) await handleBulkFileUpload(e.dataTransfer.files[0]);
+  };
+
+  const handleBulkFileChange = async (e) => {
+    if (e.target.files?.[0]) await handleBulkFileUpload(e.target.files[0]);
+    // reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const handleBulkFileUpload = async (file) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+      showToast('Invalid file. Please upload Excel (.xlsx, .xls) or CSV.', 'error');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('File too large. Maximum size is 5 MB.', 'error');
+      return;
+    }
+
+    setBulkUploading(true);
+    setBulkResult(null);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/medical-loan-entries/bulk`, formData, {
+        headers: { ...buildHeaders(), 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Bulk import completed.');
+        setBulkResult(res.data);
+        fetchEntries(true);
+      } else {
+        showToast(res.data.message || 'Bulk import failed.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Server error during bulk import.', 'error');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = ['staffId', 'loan_date', 'amount', 'reason'];
+    const samples = [
+      ['101', '2026-08-15', '50000', 'Surgical procedure – General Hospital'],
+      ['102', '2026-08-20', '30000', 'Pharmacy prescription – malaria treatment'],
+    ];
+    const csvContent = [headers.join(','), ...samples.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'medical_loan_entry_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   const filteredStaff = dropdownSearch.trim() === ''
     ? staffList
     : staffList.filter(s =>
         s.name.toLowerCase().includes(dropdownSearch.toLowerCase()) ||
-        String(s.id).includes(dropdownSearch) ||
-        (s.fileNo && String(s.fileNo).toLowerCase().includes(dropdownSearch.toLowerCase()))
+        String(s.id).includes(dropdownSearch)
       );
 
   const filteredEntries = entries.filter(e => {
@@ -371,7 +513,6 @@ export default function MedicalLoanEntryPage() {
     return (
       e.name?.toLowerCase().includes(q) ||
       String(e.staffId).includes(q) ||
-      String(e.fileNo || '').toLowerCase().includes(q) ||
       e.reason?.toLowerCase().includes(q)
     );
   });
@@ -433,6 +574,22 @@ export default function MedicalLoanEntryPage() {
             <span>View Deduction Setup Matrix</span>
             <ExternalLink size={14} />
           </Link>
+          {/* Bulk Upload Toggle Button */}
+          <button
+            type="button"
+            onClick={() => { setShowBulkUpload(v => !v); setBulkResult(null); }}
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem',
+              background: showBulkUpload ? 'rgba(236,72,153,0.1)' : undefined,
+              borderColor: showBulkUpload ? '#ec4899' : undefined,
+              color: showBulkUpload ? '#ec4899' : undefined,
+            }}
+          >
+            <Upload size={15} />
+            <span>Bulk Upload</span>
+            {showBulkUpload ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
         </div>
       </div>
 
@@ -483,6 +640,133 @@ export default function MedicalLoanEntryPage() {
         </div>
       </div>
 
+      {/* ── Bulk Upload Section ───────────────────────────────────────── */}
+      {showBulkUpload && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className={styles.card}
+          style={{ marginBottom: '1.5rem', border: '1.5px solid rgba(236,72,153,0.35)' }}
+        >
+          <div className={styles.cardHeader} style={{ background: 'linear-gradient(to right, rgba(236,72,153,0.07), transparent)' }}>
+            <h2 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileSpreadsheet size={18} style={{ color: '#ec4899' }} />
+              Bulk Upload — Medical Loan Entries
+            </h2>
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
+            >
+              <Download size={15} style={{ color: '#ec4899' }} />
+              Download CSV Template
+            </button>
+          </div>
+
+          <div className={styles.cardBody}>
+            {/* Instructions */}
+            <div style={{
+              background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
+              borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.25rem',
+              fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.6'
+            }}>
+              <strong style={{ color: '#60a5fa' }}>📋 Required CSV Columns:</strong>&nbsp;
+              <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>staffId</code>,&nbsp;
+              <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>loan_date</code> (YYYY-MM-DD),&nbsp;
+              <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>amount</code>,&nbsp;
+              <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>reason</code>.
+              Deduction balances are recalculated automatically for each staff after import.
+            </div>
+
+            {/* Drop Zone */}
+            <div
+              onDragEnter={handleBulkDrag}
+              onDragLeave={handleBulkDrag}
+              onDragOver={handleBulkDrag}
+              onDrop={handleBulkDrop}
+              onClick={() => !bulkUploading && bulkFileInputRef.current?.click()}
+              style={{
+                border: `2px dashed ${bulkDragActive ? '#ec4899' : 'var(--border)'}`,
+                borderRadius: '12px',
+                padding: '2.5rem 1.5rem',
+                textAlign: 'center',
+                cursor: bulkUploading ? 'not-allowed' : 'pointer',
+                background: bulkDragActive ? 'rgba(236,72,153,0.07)' : 'var(--surface-hover, rgba(255,255,255,0.02))',
+                transition: 'all 0.2s ease',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+              }}
+            >
+              <input
+                type="file"
+                ref={bulkFileInputRef}
+                accept=".xlsx,.xls,.csv"
+                style={{ display: 'none' }}
+                onChange={handleBulkFileChange}
+                disabled={bulkUploading}
+              />
+              {bulkUploading ? (
+                <Loader2 size={36} className="animate-spin" style={{ color: '#ec4899' }} />
+              ) : (
+                <Upload size={36} style={{ color: bulkDragActive ? '#ec4899' : '#64748b' }} />
+              )}
+              <div>
+                <p style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', margin: 0 }}>
+                  {bulkUploading ? 'Processing file…' : 'Drag & drop your CSV / Excel file here'}
+                </p>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0 0' }}>
+                  or click to browse — supports .csv, .xlsx, .xls (max 5 MB)
+                </p>
+              </div>
+            </div>
+
+            {/* Result Panel */}
+            {bulkResult && (
+              <div style={{ marginTop: '1.25rem' }}>
+                <div style={{
+                  display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem'
+                }}>
+                  <div style={{
+                    flex: 1, minWidth: '140px', background: 'rgba(16,185,129,0.1)',
+                    border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px',
+                    padding: '0.75rem 1rem', textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#10b981' }}>{bulkResult.imported}</div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Entries Imported</div>
+                  </div>
+                  <div style={{
+                    flex: 1, minWidth: '140px', background: 'rgba(245,158,11,0.1)',
+                    border: '1px solid rgba(245,158,11,0.3)', borderRadius: '10px',
+                    padding: '0.75rem 1rem', textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f59e0b' }}>{bulkResult.skipped}</div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>Rows Skipped</div>
+                  </div>
+                </div>
+
+                {bulkResult.warnings?.length > 0 && (
+                  <div style={{
+                    background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+                    borderRadius: '8px', padding: '0.75rem 1rem', maxHeight: '180px', overflowY: 'auto'
+                  }}>
+                    <p style={{ fontWeight: 600, fontSize: '0.82rem', color: '#f87171', marginBottom: '0.5rem' }}>
+                      ⚠️ Import Warnings ({bulkResult.warnings.length})
+                    </p>
+                    <ul style={{ margin: 0, padding: '0 0 0 1.2rem', listStyle: 'disc' }}>
+                      {bulkResult.warnings.map((w, i) => (
+                        <li key={i} style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '3px' }}>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       {/* Main Form & Dynamic Calculation Section */}
       <div className={styles.card} style={{ marginBottom: '2rem' }}>
         <div className={styles.cardHeader} style={{ background: 'linear-gradient(to right, rgba(236, 72, 153, 0.05), transparent)' }}>
@@ -504,7 +788,7 @@ export default function MedicalLoanEntryPage() {
                     <input
                       type="text"
                       className={styles.input}
-                      placeholder="Type staff name, ID, or file number..."
+                      placeholder="Type staff name or ID..."
                       value={dropdownSearch}
                       onChange={(e) => {
                         setDropdownSearch(e.target.value);
@@ -525,7 +809,7 @@ export default function MedicalLoanEntryPage() {
                               onClick={() => handleSelectStaff(staff)}
                             >
                               <span className={styles.staffName}>{staff.name}</span>
-                              <span className={styles.dropdownItemSub}>ID: {staff.id} {staff.fileNo ? `| File: ${staff.fileNo}` : ''}</span>
+                              <span className={styles.dropdownItemSub}>ID: {staff.id}</span>
                             </li>
                           ))
                         ) : (
@@ -669,7 +953,7 @@ export default function MedicalLoanEntryPage() {
                         <div style={{ padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.1)', borderRadius: '8px', fontSize: '0.825rem' }}>
                           <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedStaff.name}</div>
                           <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                            {staffBalanceInfo?.staff?.department || 'Department N/A'} {selectedStaff.fileNo ? `• File: ${selectedStaff.fileNo}` : ''}
+                            {staffBalanceInfo?.staff?.department || 'Department N/A'}
                           </div>
                         </div>
 
@@ -777,7 +1061,7 @@ export default function MedicalLoanEntryPage() {
             <input
               type="text"
               className={`${styles.input} ${styles.inputWithIcon}`}
-              placeholder="Search entries by staff name, ID, file number, or reason..."
+              placeholder="Search entries by staff name, ID, or reason..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -821,7 +1105,6 @@ export default function MedicalLoanEntryPage() {
                     <th>Balance (Before → After)</th>
                     <th>Monthly Deduction</th>
                     <th>Recorded By</th>
-                    <th style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -830,7 +1113,7 @@ export default function MedicalLoanEntryPage() {
                       <td>
                         <div className={styles.staffCell}>
                           <span className={styles.staffName}>{e.name}</span>
-                          <span className={styles.staffFile}>ID: {e.staffId} {e.fileNo ? `| File: ${e.fileNo}` : ''}</span>
+                          <span className={styles.staffFile}>ID: {e.staffId}</span>
                         </div>
                       </td>
                       <td>{e.department || 'N/A'}</td>
@@ -863,11 +1146,12 @@ export default function MedicalLoanEntryPage() {
                       <td style={{ textAlign: 'center' }}>
                         <button
                           type="button"
-                          className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
-                          onClick={() => handleDelete(e)}
-                          title="Delete Entry and Revert Balance"
+                          className={`${styles.actionBtn}`}
+                          onClick={() => handleEdit(e)}
+                          title="Edit Entry"
+                          style={{ color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.08)' }}
                         >
-                          <Trash2 size={14} />
+                          <Pencil size={14} />
                         </button>
                       </td>
                     </tr>
@@ -958,46 +1242,96 @@ export default function MedicalLoanEntryPage() {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
-      {confirmDelete && (
+
+      {/* ── Edit Entry Modal ─────────────────────────────────────────────── */}
+      {editEntry && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+          <div className={styles.modalBox} style={{ maxWidth: '480px', width: '100%' }}>
             <div className={styles.confirmBox}>
-              <div className={`${styles.confirmIcon} ${styles.confirmIconRed}`}>
-                <AlertCircle size={32} />
+              <div className={`${styles.confirmIcon}`} style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
+                <Pencil size={28} />
               </div>
-              <h3 className={styles.cardTitle} style={{ marginBottom: '0.5rem' }}>
-                Delete Medical Loan Entry
+              <h3 className={styles.cardTitle} style={{ marginBottom: '0.25rem' }}>
+                Edit Medical Loan Entry
               </h3>
-              <p className={styles.confirmMsg}>
-                Are you sure you want to delete this medical loan entry of <strong>₦{fmt(confirmDelete.amount)}</strong> for <strong>{confirmDelete.name}</strong>?
-                <br />
-                <span style={{ fontSize: '0.8rem', color: '#f59e0b', display: 'block', marginTop: '0.5rem' }}>
-                  ⚠️ Deleting this entry will automatically subtract ₦{fmt(confirmDelete.amount)} from the staff member&apos;s remaining deduction balance and adjust their monthly deduction.
-                </span>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1.25rem' }}>
+                {editEntry.name} &mdash; ID: {editEntry.staffId}
               </p>
-              <div className={styles.confirmActions}>
-                <button
-                  type="button"
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => setConfirmDelete(null)}
-                  disabled={actionLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.confirmActionBtn} ${styles.dangerBtn}`}
-                  onClick={handleConfirmDelete}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? <Loader2 size={16} className="animate-spin" /> : 'Yes, Delete & Revert Balance'}
-                </button>
-              </div>
+
+              <form onSubmit={handleUpdateEntry} style={{ width: '100%', textAlign: 'left' }}>
+                {/* Date */}
+                <div className={styles.formGroup} style={{ marginBottom: '1rem' }}>
+                  <label className={styles.label}>Date Loan Taken *</label>
+                  <input
+                    type="date"
+                    className={styles.input}
+                    value={editLoanDate}
+                    onChange={(e) => setEditLoanDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Amount */}
+                <div className={styles.formGroup} style={{ marginBottom: '1rem' }}>
+                  <label className={styles.label}>Loan Amount (₦) *</label>
+                  <div className={styles.inputGroup}>
+                    <NairaSign size={16} className={styles.inputIcon} />
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      className={`${styles.input} ${styles.inputWithIcon}`}
+                      placeholder="e.g. 50000"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div className={styles.formGroup} style={{ marginBottom: '1.25rem' }}>
+                  <label className={styles.label}>Reason / Medical Purpose *</label>
+                  <textarea
+                    className={styles.input}
+                    rows={3}
+                    placeholder="Specify the medical diagnosis, hospital, pharmacy prescription..."
+                    value={editReason}
+                    onChange={(e) => setEditReason(e.target.value)}
+                    required
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+
+                <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginBottom: '1rem', lineHeight: '1.4' }}>
+                  ⚠️ Updating the amount will automatically recalculate this staff member&apos;s deduction balance and monthly deduction.
+                </div>
+
+                <div className={styles.confirmActions}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={() => setEditEntry(null)}
+                    disabled={editSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    disabled={editSaving}
+                    style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', borderColor: '#2563eb' }}
+                  >
+                    {editSaving ? <Loader2 size={15} className="animate-spin" /> : <Pencil size={15} />}
+                    {editSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
       )}
+
 
       {/* Toast Notification */}
       {toast && (

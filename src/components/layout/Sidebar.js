@@ -30,6 +30,8 @@ import {
   Layers,
   Loader2,
   Sparkles,
+  Search,
+  X
 } from 'lucide-react';
 import NairaSign from '../ui/NairaSign';
 import styles from './Sidebar.module.css';
@@ -92,6 +94,7 @@ export default function Sidebar() {
   const [isHod, setIsHod] = useState(false);
   const [isActualHod, setIsActualHod] = useState(false);
   const [isHr, setIsHr] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [openDropdowns, setOpenDropdowns] = useState({});
   const [rolesOpen, setRolesOpen] = useState(pathname.startsWith('/dashboard/roles'));
 
@@ -187,19 +190,25 @@ export default function Sidebar() {
     loadSidebar();
   }, []);
 
-  // Auto-expand active module based on current pathname
+  // Auto-expand active module based on current pathname or search query
   useEffect(() => {
     if (sidebarData.length > 0) {
       const newOpen = {};
+      const q = searchQuery.toLowerCase().trim();
       sidebarData.forEach(mod => {
-        const hasActiveSub = getSubmodulesList(mod.submodules).some(sub => pathname === sub.path);
-        if (hasActiveSub) {
+        const subList = getSubmodulesList(mod.submodules);
+        const hasActiveSub = subList.some(sub => pathname === sub.path);
+        const hasSearchMatch = q !== '' && (
+          mod.modulename.toLowerCase().includes(q) ||
+          subList.some(sub => sub.name.toLowerCase().includes(q))
+        );
+        if (hasActiveSub || hasSearchMatch) {
           newOpen[mod.moduleID] = true;
         }
       });
       setOpenDropdowns(prev => ({ ...prev, ...newOpen }));
     }
-  }, [pathname, sidebarData]);
+  }, [pathname, sidebarData, searchQuery]);
 
   const toggleDropdown = (moduleID) => {
     setOpenDropdowns(prev => ({
@@ -208,9 +217,27 @@ export default function Sidebar() {
     }));
   };
 
+  // Filter modules & submodules when search query is typed
+  const q = searchQuery.toLowerCase().trim();
+  const filteredSidebarData = sidebarData.map(mod => {
+    const subList = getSubmodulesList(mod.submodules);
+    if (!q) return { ...mod, filteredSubmodules: subList };
+
+    const modMatches = mod.modulename.toLowerCase().includes(q);
+    if (modMatches) {
+      return { ...mod, filteredSubmodules: subList };
+    }
+
+    const matchedSubs = subList.filter(s => s.name.toLowerCase().includes(q) || (s.path && s.path.toLowerCase().includes(q)));
+    return { ...mod, filteredSubmodules: matchedSubs };
+  }).filter(mod => {
+    if (!q) return true;
+    return mod.filteredSubmodules.length > 0;
+  });
+
   // Group modules by link_type
   const groupedModules = {};
-  sidebarData.forEach(item => {
+  filteredSidebarData.forEach(item => {
     if (item.moduleID === 56 || getSubmodulesList(item.submodules).some(s => s.path?.includes('dashboard/roles/reports'))) {
       return;
     }
@@ -225,14 +252,40 @@ export default function Sidebar() {
   const hasDocGen = isAdmin || sidebarData.some(m => getSubmodulesList(m.submodules).some(s => s.path?.includes('document-generator')));
   const hasReports = isAdmin || sidebarData.some(m => m.moduleID === 56 || getSubmodulesList(m.submodules).some(s => s.path?.includes('dashboard/roles/reports')));
   const hasRoleMgmt = isAdmin || sidebarData.some(m => m.moduleID === 'security_roles' || getSubmodulesList(m.submodules).some(s => s.id === 999));
-  const hasSecurityGroup = hasAiAnalyst || hasDocGen || hasReports || hasRoleMgmt;
+  const hasSecurityGroup = (hasAiAnalyst || hasDocGen || hasReports || hasRoleMgmt) && (!q || 'security & roles'.includes(q) || 'reports'.includes(q) || 'ai analyst'.includes(q));
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
       <nav className={styles.nav}>
+        {/* Quick Search Bar */}
+        {!isCollapsed && !loading && (
+          <div className={styles.searchWrapper}>
+            <div className={styles.searchBox}>
+              <Search size={14} className={styles.searchIcon} />
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="Search submodules..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className={styles.clearSearchBtn}
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <ul className={styles.menuList}>
           {/* Top items */}
-          {topMenuItems.map((item) => {
+          {(!q || 'dashboard'.includes(q)) && topMenuItems.map((item) => {
             const isActive = pathname === item.path;
             return (
               <li key={item.path}>
@@ -259,8 +312,8 @@ export default function Sidebar() {
                 )}
                 <ul className={styles.groupList}>
                   {mods.map((mod) => {
-                    const isOpen = !!openDropdowns[mod.moduleID];
-                    const subList = getSubmodulesList(mod.submodules);
+                    const isOpen = q ? true : !!openDropdowns[mod.moduleID];
+                    const subList = mod.filteredSubmodules || getSubmodulesList(mod.submodules);
                     const hasActiveSub = subList.some(sub => pathname === sub.path);
                     return (
                       <li key={mod.moduleID}>
@@ -270,7 +323,10 @@ export default function Sidebar() {
                           aria-expanded={isOpen}
                         >
                           <span className={styles.icon}>{getModuleIcon(mod.modulename)}</span>
-                          <span className={styles.text}>{mod.modulename}</span>
+                          <span className={styles.text}>
+                            {mod.modulename}
+                            {q && <span style={{ fontSize: '0.7rem', opacity: 0.6, marginLeft: '4px' }}>({subList.length})</span>}
+                          </span>
                           <span className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}>
                             <ChevronDown size={16} />
                           </span>
@@ -281,7 +337,7 @@ export default function Sidebar() {
                             {subList.map((sub) => {
                               const isSubActive = pathname === sub.path;
                               return (
-                                <li key={sub.path}>
+                                <li key={sub.path || sub.name}>
                                   <Link
                                     href={sub.path}
                                     className={`${styles.subMenuItem} ${isSubActive ? styles.subMenuItemActive : ''}`}
@@ -301,9 +357,9 @@ export default function Sidebar() {
               </div>
             ))
           )}
- 
-          {/* Salary Breakdown Item - Placed directly at the top/above Security & Roles section */}
-          {!loading && (
+
+          {/* Salary Breakdown Item */}
+          {!loading && (!q || 'salary breakdown'.includes(q)) && (
             <li>
               <Link
                 href="/dashboard/payroll/salary-breakdown"
@@ -314,6 +370,7 @@ export default function Sidebar() {
               </Link>
             </li>
           )}
+
 
           {/* SECURITY & ROLES section - renders AI Analyst, AI Document Generator, Role Management and Reports */}
           {hasSecurityGroup && !loading && (
