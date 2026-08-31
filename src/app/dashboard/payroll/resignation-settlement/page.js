@@ -21,7 +21,9 @@ import {
   Percent,
   ShieldCheck,
   Eye,
-  ExternalLink
+  ExternalLink,
+  Mail,
+  Download
 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
@@ -306,6 +308,60 @@ export default function ResignationSettlementPage() {
     } catch (err) {
       showToast(err.response?.data?.message || 'Finance action error.', 'error');
       setFinanceDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const [emailSending, setEmailSending] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Send / Resend Settlement Breakdown Slip Email with PDF
+  const handleSendEmailSlip = async () => {
+    if (!selectedRecordId) return;
+    setEmailSending(true);
+    try {
+      const res = await axios.post(
+        `${API_BASE}/payroll/resignations/settlement/${selectedRecordId}/send-email`,
+        {},
+        { headers: buildHeaders() }
+      );
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Exit settlement slip & PDF emailed successfully.');
+      } else {
+        showToast(res.data.message || 'Failed to email settlement slip.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error emailing settlement slip.', 'error');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  // Direct Download Settlement Slip PDF
+  const handleDownloadPdfSlip = async () => {
+    if (!selectedRecordId) return;
+    setDownloadingPdf(true);
+    try {
+      const res = await axios.get(
+        `${API_BASE}/payroll/resignations/settlement/${selectedRecordId}/download-pdf`,
+        {
+          headers: buildHeaders(),
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      const fileNo = settlementData?.staff?.file_no || selectedRecordId;
+      link.setAttribute('download', `Exit_Settlement_Slip_${fileNo}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast('Official Exit Settlement PDF slip downloaded successfully.');
+    } catch (err) {
+      showToast('Error downloading settlement PDF slip.', 'error');
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -990,12 +1046,34 @@ export default function ResignationSettlementPage() {
                     </button>
                   )}
 
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={handleDownloadPdfSlip}
+                    disabled={downloadingPdf}
+                    title="Download official Exit Settlement Breakdown Slip in PDF format"
+                  >
+                    {downloadingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                    <span>{downloadingPdf ? 'Downloading PDF...' : 'Download PDF Slip'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={handleSendEmailSlip}
+                    disabled={emailSending}
+                    title="Send or resend Exit Settlement Breakdown Slip (with attached PDF) to staff email"
+                  >
+                    {emailSending ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                    <span>{emailSending ? 'Sending...' : 'Email Slip to Staff (PDF)'}</span>
+                  </button>
+
                   <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleCloseModal}>
                     Close
                   </button>
                   <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={handlePrintSlip}>
                     <Printer size={16} />
-                    <span>Print Official Settlement Slip</span>
+                    <span>Print Slip</span>
                   </button>
                 </div>
               </>
@@ -1111,6 +1189,21 @@ export default function ResignationSettlementPage() {
                   </>
                 )}
               </p>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                color: '#2563eb'
+              }}>
+                <Mail size={15} style={{ flexShrink: 0 }} />
+                <span>The complete Exit Settlement Breakdown slip will be automatically emailed to the staff member upon confirmation.</span>
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>

@@ -183,11 +183,11 @@ export default function ApplyLeavePage() {
       const isAuditStaff = pageData.isAuditStaff ?? false;
       const currentEmployee = pageData.employee ?? null;
 
-      // Audit Head is also executive — do NOT pre-lock their form to their own ID
-      if (!(isSuperAdmin || isAdminStaff || isAuditStaff) && currentEmployee) {
+      // Regular staff auto-prepopulates with own ID; HOD also defaults to own ID as initial default
+      if (!isSuperAdmin && !isAdminStaff && !isAuditStaff && currentEmployee) {
         setForm(prev => ({
           ...prev,
-          employee_id: currentEmployee.ID,
+          employee_id: prev.employee_id || currentEmployee.ID,
         }));
       }
     }
@@ -405,12 +405,13 @@ export default function ApplyLeavePage() {
 
   // Audit Head can view all records just like Super Admin and HR Head
   const isExecutive   = isSuperAdmin || isAdminStaff || isAuditStaff;
+  const canSelectStaff = isExecutive || (isHod && employees.length > 0);
 
   const canHodAct   = isHod || isSuperAdmin || isAdminStaff;
   const canAdminAct = isAdminStaff || isSuperAdmin;
 
-  const selectedEmpObj = isExecutive
-    ? employees.find(e => String(e.ID) === String(form.employee_id))
+  const selectedEmpObj = canSelectStaff
+    ? (employees.find(e => String(e.ID) === String(form.employee_id)) || currentEmployee)
     : currentEmployee;
 
   const selectedEmpGender = (selectedEmpObj?.gender || currentEmployee?.gender || '').toLowerCase().trim();
@@ -431,7 +432,7 @@ export default function ApplyLeavePage() {
       name: lt.leaveType,
     }));
 
-  const employeeOptions = isExecutive
+  const employeeOptions = canSelectStaff
     ? employees.map(emp => ({
         id:   emp.ID,
         name: `${emp.surname} ${emp.first_name} ${emp.othernames}`.trim() + (emp.office_shift == 1 ? ' (Admin)' : ' (Shift)'),
@@ -499,9 +500,9 @@ export default function ApplyLeavePage() {
   };
 
   const filteredRecords = leaveRecords.filter(rec => {
-    // 0. Non-executive staff strictly sees only their own leave applications
-    // Audit Head (isAuditStaff) is now treated as executive and sees all records
-    if (!isExecutive && currentEmployee) {
+    // 0. Non-executive and non-HOD staff strictly sees only their own leave applications
+    // HOD of department sees all staff in their department (supplied by API)
+    if (!isExecutive && !isHod && currentEmployee) {
       if (String(rec.staffId) !== String(currentEmployee.ID)) {
         return false;
       }
@@ -599,7 +600,7 @@ export default function ApplyLeavePage() {
                 onChange={handleChange}
                 searchable={true}
                 required
-                disabled={formLoading || !isExecutive}
+                disabled={formLoading || !canSelectStaff}
               />
             </div>
 
