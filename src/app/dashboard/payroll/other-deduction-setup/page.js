@@ -398,6 +398,11 @@ export default function OtherDeductionSetupPage() {
       return;
     }
 
+    if (!remarks || !remarks.trim()) {
+      showToast('Please enter the Remarks (Reason / Description) for this penalty deduction.', 'error');
+      return;
+    }
+
     const monthlyAmt = parseFloat(monthlyDeduction);
     if (staffNetPay && staffNetPay.amount !== null && !isNaN(parseFloat(staffNetPay.amount))) {
       const currentAvailableNet = parseFloat(staffNetPay.amount);
@@ -493,7 +498,7 @@ export default function OtherDeductionSetupPage() {
 
   // Delete configuration
   const handleDelete = (id) => {
-    setConfirmAction({ type: 'delete', id, label: 'Delete Other Deduction Setup' });
+    setConfirmAction({ type: 'delete', id, label: 'Delete Penalty Deduction Setup' });
   };
 
   const handleConfirmAction = async () => {
@@ -631,8 +636,8 @@ export default function OtherDeductionSetupPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Other Deduction Setup</h1>
-        <p className={styles.subtitle}>Configure other deductions from employee salaries, supporting both one-time deductions and monthly spreading, as well as bulk spreadsheet importing.</p>
+        <h1 className={styles.title}>Penalty Deduction Setup</h1>
+        <p className={styles.subtitle}>Configure penalty deductions from employee salaries, supporting both one-time deductions and monthly spreading, as well as bulk spreadsheet importing.</p>
       </div>
 
       {isConfigurator && (
@@ -640,7 +645,7 @@ export default function OtherDeductionSetupPage() {
           {/* Setup Form */}
           <div className={styles.card} style={{ marginBottom: 0 }}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>{editSetupId ? 'Modify Other Deduction Setup' : 'Create Other Deduction Setup'}</h2>
+              <h2 className={styles.cardTitle}>{editSetupId ? 'Modify Penalty Deduction Setup' : 'Create Penalty Deduction Setup'}</h2>
             </div>
             <div className={styles.cardBody}>
               <form onSubmit={handleSubmit}>
@@ -954,7 +959,7 @@ export default function OtherDeductionSetupPage() {
 
                       {/* Remarks Field */}
                       <div className={styles.formGroup}>
-                        <label className={styles.label}>Remarks (Reason / Description)</label>
+                        <label className={styles.label}>Remarks (Reason / Description) *</label>
                         <input
                           type="text"
                           className={styles.input}
@@ -962,6 +967,7 @@ export default function OtherDeductionSetupPage() {
                           value={remarks}
                           onChange={(e) => setRemarks(e.target.value)}
                           maxLength={500}
+                          required
                         />
                       </div>
                     </motion.div>
@@ -1101,7 +1107,7 @@ export default function OtherDeductionSetupPage() {
 
                       {/* Remarks Field */}
                       <div className={styles.formGroup}>
-                        <label className={styles.label}>Remarks (Reason / Description)</label>
+                        <label className={styles.label}>Remarks (Reason / Description) *</label>
                         <input
                           type="text"
                           className={styles.input}
@@ -1109,6 +1115,7 @@ export default function OtherDeductionSetupPage() {
                           value={remarks}
                           onChange={(e) => setRemarks(e.target.value)}
                           maxLength={500}
+                          required
                         />
                       </div>
                     </motion.div>
@@ -1483,7 +1490,7 @@ export default function OtherDeductionSetupPage() {
                 {confirmAction.label}
               </h3>
               <p className={styles.confirmMsg}>
-                Are you sure you want to delete this other deduction configuration? This action cannot be undone.
+                Are you sure you want to delete this penalty deduction configuration? This action cannot be undone.
               </p>
               <div className={styles.confirmActions}>
                 <button

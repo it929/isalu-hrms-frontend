@@ -266,6 +266,12 @@ export default function ApplyLeavePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isAnnualLeaveSelected && !isSelectedEmpAnnualEligible) {
+      showToast('Cannot apply: Staff must have worked for at least 1 full year in the company before becoming eligible for Annual Leave.', 'error');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const isEdit = !!editRecordId;
@@ -416,6 +422,10 @@ export default function ApplyLeavePage() {
 
   const selectedEmpGender = (selectedEmpObj?.gender || currentEmployee?.gender || '').toLowerCase().trim();
   const isSelectedEmpMale = selectedEmpGender === 'male' || selectedEmpGender === 'm';
+
+  const selectedLeaveTypeObj = leaveTypes.find(lt => String(lt.id) === String(form.leave_type));
+  const isAnnualLeaveSelected = selectedLeaveTypeObj && ((selectedLeaveTypeObj.leaveType || '').toLowerCase().includes('annual') || String(selectedLeaveTypeObj.id) === '5');
+  const isSelectedEmpAnnualEligible = selectedEmpObj ? selectedEmpObj.is_leave_eligible !== false : true;
 
   // ── CustomSelect option shapes ─────────────────────────────────────────────
   const leaveTypeOptions = leaveTypes
@@ -664,6 +674,32 @@ export default function ApplyLeavePage() {
             </div>
 
           </div>
+
+          {/* 1-Year Annual Leave Requirement Alert Banner */}
+          {isAnnualLeaveSelected && !isSelectedEmpAnnualEligible && (
+            <div style={{
+              margin: '1rem 0',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              color: '#92400e',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.5rem'
+            }}>
+              <AlertCircle size={17} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <strong>Annual Leave 1-Year Service Requirement:</strong> Staff must have worked for at least one (1) full year in the company before becoming eligible to apply for Annual Leave.
+                {selectedEmpObj?.employment_date && (
+                  <div style={{ fontSize: '0.78rem', color: '#b45309', marginTop: '3px' }}>
+                    Employment Date: <strong>{selectedEmpObj.employment_date}</strong> • Eligible From: <strong>{selectedEmpObj.eligible_from}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Submit */}
           <div className={styles.submitRow} style={{ gap: '0.75rem' }}>

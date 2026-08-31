@@ -58,6 +58,7 @@ export default function CoopLoanDeductionSetupPage() {
     isHod: false,
     isAdminStaff: false,
     isAuditStaff: false,
+    isFinanceStaff: false,
     employee: null,
   });
 
@@ -142,6 +143,7 @@ export default function CoopLoanDeductionSetupPage() {
           isHod: res.data.isHod || false,
           isAdminStaff: res.data.isAdminStaff || false,
           isAuditStaff: res.data.isAuditStaff || false,
+          isFinanceStaff: res.data.isFinanceStaff || false,
           employee: res.data.employee || null,
         });
         if (typeof window !== 'undefined') sessionStorage.setItem(cacheKeySetups, JSON.stringify(freshData));
@@ -374,9 +376,9 @@ export default function CoopLoanDeductionSetupPage() {
 
   // Toggle status
   const handleToggleStatus = async (id, currentStatus) => {
-    // Only super admin can manually deactivate/inactive
-    if (currentStatus === 1 && !userCtx.isSuperAdmin) {
-      showToast('Permission denied: Only Super Administrators are authorized to manually deactivate Cooperative Loan Deduction Setup.', 'warning');
+    // Only Super Admin and Finance Head can activate/deactivate
+    if (!canActivateDeactivate) {
+      showToast('Permission denied: Only Super Administrators and Finance Head are authorized to activate and deactivate Cooperative Loan Deduction Setup.', 'warning');
       return;
     }
 
@@ -536,6 +538,7 @@ export default function CoopLoanDeductionSetupPage() {
   };
 
   const isConfigurator = true;
+  const canActivateDeactivate = userCtx.isSuperAdmin || userCtx.isFinanceStaff;
 
   if (!mounted) {
     return (
@@ -746,6 +749,8 @@ export default function CoopLoanDeductionSetupPage() {
                     className={styles.select}
                     value={isActive}
                     onChange={(e) => setIsActive(parseInt(e.target.value))}
+                    disabled={!canActivateDeactivate}
+                    title={!canActivateDeactivate ? "Only Super Admin and Finance Head can change status" : ""}
                   >
                     <option value={1}>Active</option>
                     <option value={0}>Deactivated</option>
@@ -915,8 +920,15 @@ export default function CoopLoanDeductionSetupPage() {
                         <button
                           type="button"
                           className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
-                          onClick={() => isConfigurator && handleToggleStatus(s.id, s.is_active)}
-                          style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
+                          onClick={() => {
+                            if (canActivateDeactivate) {
+                              handleToggleStatus(s.id, s.is_active);
+                            } else {
+                              showToast('Permission denied: Only Super Administrators and Finance Head are authorized to activate and deactivate Cooperative Loan Deduction Setup.', 'warning');
+                            }
+                          }}
+                          style={{ border: 'none', cursor: canActivateDeactivate ? 'pointer' : 'not-allowed' }}
+                          title={canActivateDeactivate ? (s.is_active === 1 ? 'Click to Deactivate' : 'Click to Activate') : 'Status (Super Admin & Finance Head Only)'}
                         >
                           {s.is_active === 1 ? 'Active' : 'Inactive'}
                         </button>

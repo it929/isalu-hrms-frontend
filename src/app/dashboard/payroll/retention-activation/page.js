@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Check,
   X,
+  Edit2,
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -51,6 +52,13 @@ export default function RetentionActivationPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdminStaff, setIsAdminStaff] = useState(false);
+
+  // Edit Deducted Months Modal State
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [editMonths, setEditMonths] = useState(0);
+  const [editStartMonth, setEditStartMonth] = useState('');
+  const [updatingMonths, setUpdatingMonths] = useState(false);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,6 +95,7 @@ export default function RetentionActivationPage() {
         const freshData = res.data.data || [];
         setStaffRecords(freshData);
         setIsSuperAdmin(Boolean(res.data.isSuperAdmin));
+        setIsAdminStaff(Boolean(res.data.isAdminStaff));
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(cacheKey, JSON.stringify(freshData));
         }
@@ -118,17 +127,18 @@ export default function RetentionActivationPage() {
     }
   }, [fetchData]);
 
+  const canManageRetention = isSuperAdmin || isAdminStaff;
+
   // Handle Toggle Retention Status
   const handleToggleRetention = async (staffId, currentStatus) => {
     if (saving) return;
 
-    const newStatus = currentStatus === 1 ? 0 : 1;
-
-    // Only super admin can manually deactivate retention
-    if (newStatus === 0 && !isSuperAdmin) {
-      showToast('Permission denied: Only Super Administrators are authorized to manually deactivate staff retention.', 'warning');
+    if (!canManageRetention) {
+      showToast('Permission denied: Only Super Administrators and HR Head are authorized to activate and deactivate staff retention.', 'warning');
       return;
     }
+
+    const newStatus = currentStatus === 1 ? 0 : 1;
 
     // Optimistic UI update
     const originalRecords = [...staffRecords];
@@ -159,13 +169,57 @@ export default function RetentionActivationPage() {
     }
   };
 
+  const handleOpenEditModal = (row) => {
+    setEditingStaff(row);
+    setEditMonths(row.num_rente_months ?? 0);
+    setEditStartMonth(row.activation_date ? row.activation_date.slice(0, 7) : '');
+  };
+
+  const handleSaveMonths = async (e) => {
+    e?.preventDefault();
+    if (!editingStaff) return;
+
+    if (!canManageRetention) {
+      showToast('Permission denied: Only Super Administrators and HR Head are authorized to update retention deducted months.', 'warning');
+      return;
+    }
+
+    const monthsNum = parseInt(editMonths, 10);
+    if (isNaN(monthsNum) || monthsNum < 0 || monthsNum > 20) {
+      showToast('Please enter a valid number of months between 0 and 20.', 'error');
+      return;
+    }
+
+    setUpdatingMonths(true);
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/retention-activation/update-months`, {
+        staff_id: editingStaff.id,
+        num_rente_months: monthsNum,
+        start_month: editStartMonth || null,
+      }, {
+        headers: buildHeaders()
+      });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Deducted months updated successfully.');
+        setEditingStaff(null);
+        fetchData(true);
+      } else {
+        showToast(res.data.message || 'Failed to update deducted months.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Server error updating deducted months.', 'error');
+    } finally {
+      setUpdatingMonths(false);
+    }
+  };
+
   // Handle Bulk Toggle Retention Status
   const handleBulkToggleRetention = async (targetStatus) => {
     if (selectedIds.length === 0 || saving) return;
 
-    // Only super admin can manually deactivate retention
-    if (targetStatus === 0 && !isSuperAdmin) {
-      showToast('Permission denied: Only Super Administrators are authorized to manually deactivate staff retention.', 'warning');
+    if (!canManageRetention) {
+      showToast('Permission denied: Only Super Administrators and HR Head are authorized to bulk activate and deactivate staff retention.', 'warning');
       return;
     }
 
@@ -228,6 +282,13 @@ export default function RetentionActivationPage() {
 
   // File upload processing
   const handleFileUpload = async (file) => {
+    if (!file) return;
+
+    if (!canManageRetention) {
+      showToast('Permission denied: Only Super Administrators and HR Head are authorized to import staff retention.', 'warning');
+      return;
+    }
+
     const fileType = file.name.split('.').pop().toLowerCase();
     if (!['xlsx', 'xls', 'csv'].includes(fileType)) {
       showToast('Invalid file format. Please upload Excel (.xlsx, .xls) or CSV.', 'error');
@@ -642,25 +703,48 @@ export default function RetentionActivationPage() {
                             )}
                           </td>
                           <td>
-                            {row.reten_act === 1 ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                               <button
                                 type="button"
-                                className={`${styles.actionBtn} ${styles.btnDeactivate}`}
-                                onClick={() => handleToggleRetention(row.id, 1)}
-                                disabled={saving}
+                                className={styles.btnEditMonths}
+                                onClick={() => {
+                                  if (canManageRetention) {
+                                    handleOpenEditModal(row);
+                                  } else {
+                                    showToast('Permission denied: Only Super Administrators and HR Head are authorized to update retention deducted months.', 'warning');
+                                  }
+                                }}
+                                disabled={!canManageRetention}
+                                title={canManageRetention ? "Edit Deducted Retention Months" : "Super Admin and HR Head only"}
+                                style={!canManageRetention ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                               >
-                                Deactivate
+                                <Edit2 size={12} />
+                                Edit Months
                               </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className={`${styles.actionBtn} ${styles.btnActivate}`}
-                                onClick={() => handleToggleRetention(row.id, 0)}
-                                disabled={saving}
-                              >
-                                Activate
-                              </button>
-                            )}
+                              {row.reten_act === 1 ? (
+                                <button
+                                  type="button"
+                                  className={`${styles.actionBtn} ${styles.btnDeactivate}`}
+                                  onClick={() => handleToggleRetention(row.id, 1)}
+                                  disabled={saving || !canManageRetention}
+                                  title={canManageRetention ? "Deactivate Retention" : "Super Admin and HR Head only"}
+                                  style={!canManageRetention ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+                                >
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={`${styles.actionBtn} ${styles.btnActivate}`}
+                                  onClick={() => handleToggleRetention(row.id, 0)}
+                                  disabled={saving || !canManageRetention}
+                                  title={canManageRetention ? "Activate Retention" : "Super Admin and HR Head only"}
+                                  style={!canManageRetention ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+                                >
+                                  Activate
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -813,6 +897,113 @@ export default function RetentionActivationPage() {
             )}
           </div>
         )}
+
+      {/* Edit Deducted Months Modal */}
+      {editingStaff && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>
+                <Edit2 size={18} style={{ color: 'var(--primary)' }} />
+                Adjust Retention Deducted Months
+              </h3>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setEditingStaff(null)}
+                disabled={updatingMonths}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMonths}>
+              <div className={styles.modalBody}>
+                {/* Staff Summary */}
+                <div className={styles.staffSummaryCard}>
+                  <div className={styles.staffSummaryName}>{editingStaff.name}</div>
+                  <div className={styles.staffSummaryMeta}>
+                    <span>Staff ID: <strong>{editingStaff.id}</strong></span>
+                    <span>First Gross: <strong>₦{editingStaff.gross_salary ? editingStaff.gross_salary.toLocaleString('en-NG', { minimumFractionDigits: 2 }) : '0.00'}</strong></span>
+                  </div>
+                  <div className={styles.staffSummaryMeta}>
+                    <span>Monthly 5%: <strong>₦{editingStaff.monthly_retention ? editingStaff.monthly_retention.toLocaleString('en-NG', { minimumFractionDigits: 2 }) : '0.00'}</strong></span>
+                    <span>Target: <strong>₦{editingStaff.total_retention_target ? editingStaff.total_retention_target.toLocaleString('en-NG', { minimumFractionDigits: 2 }) : '0.00'}</strong></span>
+                  </div>
+                </div>
+
+                {/* Deducted Months Input */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    Deducted Months (0 to 20 Months) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    className={styles.input}
+                    value={editMonths}
+                    onChange={(e) => setEditMonths(Math.min(20, Math.max(0, parseInt(e.target.value || 0, 10))))}
+                    required
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Set the number of monthly retention deductions already completed for this employee.
+                  </span>
+                </div>
+
+                {/* Start Month */}
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    Activation / Start Month (Optional)
+                  </label>
+                  <input
+                    type="month"
+                    className={styles.input}
+                    value={editStartMonth}
+                    onChange={(e) => setEditStartMonth(e.target.value)}
+                  />
+                </div>
+
+                {/* Real-time Calculation Preview */}
+                <div className={styles.previewGrid}>
+                  <div className={styles.previewItem}>
+                    <span className={styles.previewLabel}>Calculated Deducted</span>
+                    <span className={styles.previewValue}>
+                      ₦{((parseInt(editMonths || 0, 10)) * (editingStaff.monthly_retention || 0)).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className={styles.previewItem}>
+                    <span className={styles.previewLabel}>Remaining Months</span>
+                    <span className={styles.previewValue} style={{ color: (20 - parseInt(editMonths || 0, 10)) === 0 ? '#16a34a' : '#14532d' }}>
+                      {Math.max(0, 20 - parseInt(editMonths || 0, 10))} of 20 mos {(20 - parseInt(editMonths || 0, 10)) === 0 ? '✓ Completed' : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnSecondary}`}
+                  onClick={() => setEditingStaff(null)}
+                  disabled={updatingMonths}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  disabled={updatingMonths}
+                  style={{ padding: '0.5rem 1.1rem', fontSize: '0.85rem' }}
+                >
+                  {updatingMonths ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
