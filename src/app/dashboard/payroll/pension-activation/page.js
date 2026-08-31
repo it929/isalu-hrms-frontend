@@ -500,7 +500,7 @@ export default function PensionActivationPage() {
                   <Search size={16} className={styles.tableSearchIcon} />
                   <input
                     type="text"
-                    placeholder="Search by name, ID or file no..."
+                    placeholder="Search by name or Staff ID..."
                     className={styles.tableSearchInput}
                     value={searchQuery}
                     onChange={(e) => {
@@ -650,11 +650,6 @@ export default function PensionActivationPage() {
                             <td className={styles.tdPrimary}>#{row.id}</td>
                             <td style={{ fontWeight: 600 }}>
                               {row.name}
-                              {row.fileNo && (
-                                <span style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', fontWeight: 400 }}>
-                                  File: {row.fileNo}
-                                </span>
-                              )}
                             </td>
                             <td>
                               {row.basic_salary > 0 
@@ -788,7 +783,7 @@ export default function PensionActivationPage() {
           >
             <h2 className={styles.cardTitle}>Spreadsheet Pension Import</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', marginTop: '-0.75rem' }}>
-              Upload an Excel file (.xlsx, .xls) or CSV template listing Staff IDs or File Numbers to activate pension for multiple staff members simultaneously.
+              Upload an Excel file (.xlsx, .xls) or CSV template listing Staff IDs to activate pension for multiple staff members simultaneously.
             </p>
 
             {/* Drag & Drop Area */}
