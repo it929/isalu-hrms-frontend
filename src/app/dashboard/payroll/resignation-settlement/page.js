@@ -23,7 +23,9 @@ import {
   Eye,
   ExternalLink,
   Mail,
-  Download
+  Download,
+  Edit2,
+  Save
 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
@@ -118,6 +120,20 @@ export default function ResignationSettlementPage() {
     remarks: '',
     loading: false,
   });
+
+  // Edit Retention Months State
+  const [retentionModal, setRetentionModal] = useState({
+    open: false,
+    staffId: null,
+    staffName: '',
+    resignationId: null,
+    baseSalary: 0,
+    monthlyRate: 0,
+    months: 0,
+    loading: false,
+  });
+
+  const canManageRetention = userPermissions.is_super_admin || userPermissions.is_admin_staff;
 
   // Toast Helper
   const showToast = (message, type = 'success') => {
@@ -362,6 +378,91 @@ export default function ResignationSettlementPage() {
       showToast('Error downloading settlement PDF slip.', 'error');
     } finally {
       setDownloadingPdf(false);
+    }
+  };
+
+  // Open Edit Retention Months Modal
+  const handleOpenEditRetention = (data, e) => {
+    e?.stopPropagation();
+
+    if (!canManageRetention) {
+      showToast('Permission denied: Only Super Administrators and HR Head are authorized to edit retention months.', 'warning');
+      return;
+    }
+
+    const staffId = data.staff?.id || data.staff_id || data.id;
+    const staffName = data.staff?.name || data.name;
+    const resignationId = data.resignation_id || data.id;
+
+    // Load the existing deducted retention months
+    const rawMonths = data.retention_refund?.months_deducted 
+      ?? data.retention_months 
+      ?? data.num_rente_months 
+      ?? 0;
+
+    const months = parseInt(rawMonths, 10) || 0;
+
+    const baseSalary = data.retention_refund?.base_salary 
+      ?? data.retention_base_salary 
+      ?? data.salary_structure?.monthly_gross 
+      ?? data.monthly_gross 
+      ?? 0;
+
+    const monthlyRate = data.retention_refund?.monthly_rate 
+      ?? data.retention_monthly_rate 
+      ?? (baseSalary * 0.05);
+
+    setRetentionModal({
+      open: true,
+      staffId,
+      staffName,
+      resignationId,
+      baseSalary,
+      monthlyRate,
+      months,
+      loading: false,
+    });
+  };
+
+  // Save Edited Retention Months
+  const handleSaveRetentionMonths = async (e) => {
+    e?.preventDefault();
+    if (!retentionModal.staffId) return;
+
+    if (!canManageRetention) {
+      showToast('Permission denied: Only Super Administrators and HR Head are authorized to edit retention months.', 'warning');
+      return;
+    }
+
+    const monthsNum = parseInt(retentionModal.months, 10);
+    if (isNaN(monthsNum) || monthsNum < 0 || monthsNum > 20) {
+      showToast('Please enter a valid number of months between 0 and 20.', 'error');
+      return;
+    }
+
+    setRetentionModal(prev => ({ ...prev, loading: true }));
+    try {
+      const headers = buildHeaders();
+      const res = await axios.post(`${API_BASE}/payroll/resignation-settlement/update-retention-months`, {
+        staff_id: retentionModal.staffId,
+        num_rente_months: monthsNum,
+        resignation_id: retentionModal.resignationId,
+      }, { headers });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Retention deducted months updated successfully.');
+        if (res.data.data?.settlement && selectedRecordId === retentionModal.resignationId) {
+          setSettlementData(res.data.data.settlement);
+        }
+        setRetentionModal({ open: false, staffId: null, staffName: '', resignationId: null, baseSalary: 0, monthlyRate: 0, months: 0, loading: false });
+        fetchApprovedRecords();
+      } else {
+        showToast(res.data.message || 'Failed to update retention months.', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Server error updating retention months.', 'error');
+    } finally {
+      setRetentionModal(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -684,6 +785,19 @@ export default function ResignationSettlementPage() {
                           <span>Breakdown</span>
                         </button>
 
+                        {/* Retention Months Edit Button for Super Admin & HR Head */}
+                        {canManageRetention && (
+                          <button
+                            type="button"
+                            className={styles.actionBtn}
+                            onClick={(e) => handleOpenEditRetention(r, e)}
+                            title="Edit retention deducted months for this staff member"
+                          >
+                            <Edit2 size={13} />
+                            <span>Retention</span>
+                          </button>
+                        )}
+
                         {/* Audit Approve Action Button */}
                         {canAudit && r.audit_status === 0 && (
                           <button
@@ -905,14 +1019,27 @@ export default function ResignationSettlementPage() {
                       ))}
 
                       {/* Retention Fund 100% Refund */}
-                      <div className={styles.sheetRow} style={{ background: 'rgba(16, 185, 129, 0.04)' }}>
-                        <span>
-                          Retention Savings (100% Refund)
-                          <span className={styles.sheetRowNote}>
-                            ({settlementData.retention_refund.months_deducted} mos @ ₦{fmt(settlementData.retention_refund.monthly_rate)})
-                          </span>
-                        </span>
-                        <span style={{ color: '#10b981' }}>+{fmt(settlementData.retention_refund.total_refund_amount)}</span>
+                      <div className={styles.sheetRow} style={{ background: 'rgba(16, 185, 129, 0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div>
+                            <span>Retention Savings (100% Refund)</span>
+                            <span className={styles.sheetRowNote} style={{ display: 'block' }}>
+                              ({settlementData.retention_refund.months_deducted} mos @ ₦{fmt(settlementData.retention_refund.monthly_rate)})
+                            </span>
+                          </div>
+                          {canManageRetention && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenEditRetention(settlementData, e)}
+                              className={styles.btnEditRetentionBadge}
+                              title="Edit retention deducted months"
+                            >
+                              <Edit2 size={11} />
+                              Edit Months
+                            </button>
+                          )}
+                        </div>
+                        <span style={{ color: '#10b981', fontWeight: 600 }}>+{fmt(settlementData.retention_refund.total_refund_amount)}</span>
                       </div>
 
                       {/* Cooperative Savings Accumulated Refund (Asset) */}
@@ -1305,6 +1432,107 @@ export default function ResignationSettlementPage() {
                 </span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Retention Months Modal Dialog ── */}
+      {retentionModal.open && (
+        <div className={styles.modalOverlay} onClick={() => setRetentionModal({ open: false, staffId: null, staffName: '', resignationId: null, baseSalary: 0, monthlyRate: 0, months: 0, loading: false })}>
+          <div className={styles.retentionModalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>
+                <Edit2 size={18} style={{ color: '#10b981' }} />
+                Edit Deducted Retention Months
+              </h3>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setRetentionModal({ open: false, staffId: null, staffName: '', resignationId: null, baseSalary: 0, monthlyRate: 0, months: 0, loading: false })}
+                disabled={retentionModal.loading}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRetentionMonths}>
+              <div className={styles.modalBody}>
+                {/* Staff Summary Card */}
+                <div className={styles.retentionStaffCard}>
+                  <div className={styles.retentionStaffName}>{retentionModal.staffName}</div>
+                  <div className={styles.retentionStaffMeta}>
+                    <span>Staff ID: <strong>{retentionModal.staffId}</strong></span>
+                    <span>Entry Gross Base: <strong>₦{fmt(retentionModal.baseSalary)}</strong></span>
+                  </div>
+                  <div className={styles.retentionStaffMeta}>
+                    <span>Monthly 5% Retention: <strong>₦{fmt(retentionModal.monthlyRate)}</strong></span>
+                    <span>Cap: <strong>20 Months Max</strong></span>
+                  </div>
+                </div>
+
+                {/* Deducted Months Input */}
+                <div className={styles.retentionInputGroup}>
+                  <label>
+                    Deducted Retention Months (0 — 20 Months) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    className={styles.retentionInput}
+                    value={retentionModal.months}
+                    onChange={(e) => setRetentionModal(prev => ({
+                      ...prev,
+                      months: Math.min(20, Math.max(0, parseInt(e.target.value || 0, 10)))
+                    }))}
+                    required
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Enter the number of monthly retention deductions completed for this staff member.
+                  </span>
+                </div>
+
+                {/* Real-time Calculation Preview Grid */}
+                <div className={styles.retentionPreviewGrid}>
+                  <div className={styles.retentionPreviewItem}>
+                    <span className={styles.retentionPreviewLabel}>Monthly Rate</span>
+                    <span className={styles.retentionPreviewValue}>₦{fmt(retentionModal.monthlyRate)}</span>
+                  </div>
+                  <div className={styles.retentionPreviewItem}>
+                    <span className={styles.retentionPreviewLabel}>Months Selected</span>
+                    <span className={styles.retentionPreviewValue}>
+                      {parseInt(retentionModal.months, 10) || 0} of 20 {(parseInt(retentionModal.months, 10) || 0) >= 20 ? '✓' : ''}
+                    </span>
+                  </div>
+                  <div className={styles.retentionPreviewFullRow}>
+                    <span className={styles.retentionPreviewLabel}>Total Retention Refund (100%)</span>
+                    <span className={styles.retentionPreviewValue}>
+                      ₦{fmt((parseInt(retentionModal.months, 10) || 0) * (retentionModal.monthlyRate || 0))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnSecondary}`}
+                  onClick={() => setRetentionModal({ open: false, staffId: null, staffName: '', resignationId: null, baseSalary: 0, monthlyRate: 0, months: 0, loading: false })}
+                  disabled={retentionModal.loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  style={{ background: '#10b981', borderColor: '#10b981', color: '#ffffff' }}
+                  disabled={retentionModal.loading}
+                >
+                  {retentionModal.loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>Save Retention Months</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
