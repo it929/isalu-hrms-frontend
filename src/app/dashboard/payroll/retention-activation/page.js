@@ -171,7 +171,10 @@ export default function RetentionActivationPage() {
 
   const handleOpenEditModal = (row) => {
     setEditingStaff(row);
-    setEditMonths(row.num_rente_months ?? 0);
+    const existingMonths = (row.num_rente_months !== null && row.num_rente_months !== undefined && row.num_rente_months !== '')
+      ? Number(row.num_rente_months)
+      : (row.monthly_retention > 0 ? Math.round((Number(row.total_retention_deducted) || 0) / Number(row.monthly_retention)) : 0);
+    setEditMonths(Math.min(20, Math.max(0, existingMonths)));
     setEditStartMonth(row.activation_date ? row.activation_date.slice(0, 7) : '');
   };
 
