@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload, Download, Printer } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
 
@@ -518,6 +518,72 @@ export default function MedicalLoanDeductionSetupPage() {
 
   const isConfigurator = true;
 
+  // Summary statistics for print/export
+  const totalRecords = filteredSetups.length;
+  const activeCount = filteredSetups.filter(s => s.is_active === 1).length;
+  const inactiveCount = totalRecords - activeCount;
+  const totalLoanSum = filteredSetups.reduce((acc, s) => acc + (parseFloat(s.loan_amount) || 0), 0);
+  const totalMonthlyDeductSum = filteredSetups.reduce((acc, s) => acc + (parseFloat(s.monthly_deduction) || 0), 0);
+  const totalBalanceSum = filteredSetups.reduce((acc, s) => acc + (parseFloat(s.balance_remaining) || 0), 0);
+
+  // Export to CSV
+  const exportToCSV = () => {
+    if (filteredSetups.length === 0) {
+      showToast('No medical loan deduction setups to export.', 'error');
+      return;
+    }
+
+    const headers = [
+      'S/N',
+      'Staff ID',
+      'Staff Name',
+      'Department',
+      'Loan Amount (NGN)',
+      'Duration (Months)',
+      'Monthly Deduction (NGN)',
+      'Balance Remaining (NGN)',
+      'Start Month',
+      'End Month',
+      'Status'
+    ];
+
+    const rows = filteredSetups.map((s, i) => [
+      i + 1,
+      s.staffId || '',
+      `"${(s.name || '').replace(/"/g, '""')}"`,
+      `"${(s.department || 'N/A').replace(/"/g, '""')}"`,
+      parseFloat(s.loan_amount) || 0,
+      s.duration_months || 0,
+      parseFloat(s.monthly_deduction) || 0,
+      parseFloat(s.balance_remaining) || 0,
+      s.start_month || '',
+      s.end_month || '',
+      s.is_active === 1 ? 'Active' : 'Inactive'
+    ]);
+
+    const csvData = [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `medical_loan_deduction_setups_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filteredSetups.length} setup record(s) to CSV.`);
+  };
+
+  // Print Statement / Report
+  const handlePrint = () => {
+    if (filteredSetups.length === 0) {
+      showToast('No records available to print.', 'error');
+      return;
+    }
+    window.print();
+  };
+
   if (!mounted) {
     return (
       <div className={styles.container} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
@@ -527,11 +593,95 @@ export default function MedicalLoanDeductionSetupPage() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Medical Loan Deduction Setup</h1>
-        <p className={styles.subtitle}>Configure medical loan deductions from employee salaries interest-free, supporting individual setups and bulk file importing.</p>
-      </div>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .medicalLoanPrintArea {
+          display: none;
+        }
+
+        @media print {
+          @page {
+            size: landscape;
+            margin: 8mm 6mm 10mm 6mm;
+          }
+
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Hide screen UI */
+          .screen-content,
+          aside,
+          nav,
+          header,
+          footer,
+          button,
+          form,
+          .no-print {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          /* Show Print Layout */
+          .medicalLoanPrintArea {
+            display: block !important;
+            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            z-index: 99999 !important;
+          }
+
+          .medicalLoanPrintArea * {
+            visibility: visible !important;
+          }
+        }
+      `}} />
+
+      <div className={`${styles.container} screen-content`}>
+        <div className={styles.header}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+            <div>
+              <h1 className={styles.title}>Medical Loan Deduction Setup</h1>
+              <p className={styles.subtitle}>Configure medical loan deductions from employee salaries interest-free, supporting individual setups and bulk file importing.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={exportToCSV}
+                disabled={filteredSetups.length === 0}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                style={{ fontSize: '0.85rem' }}
+                title="Export Configurations to CSV"
+              >
+                <Download size={16} />
+                <span>Export CSV ({filteredSetups.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={filteredSetups.length === 0}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                style={{ fontSize: '0.85rem' }}
+                title="Print Medical Loan Setup Report"
+              >
+                <Printer size={16} />
+                <span>Print ({filteredSetups.length})</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
       {isConfigurator && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -821,23 +971,47 @@ export default function MedicalLoanDeductionSetupPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className={styles.perPageGroup}>
-            <span className={styles.perPageLabel}>Show:</span>
-            <select
-              className={styles.perPageSelect}
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(e.target.value);
-                setCurrentPage(1);
-              }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={exportToCSV}
+              disabled={filteredSetups.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+              title="Export Configurations to CSV"
             >
-              <option value="10">10 records</option>
-              <option value="20">20 records</option>
-              <option value="30">30 records</option>
-              <option value="50">50 records</option>
-              <option value="100">100 records</option>
-              <option value="all">All Records</option>
-            </select>
+              <Download size={15} />
+              <span>Export CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={filteredSetups.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+              title="Print Medical Loan Setup Report"
+            >
+              <Printer size={15} />
+              <span>Print</span>
+            </button>
           </div>
         </div>
 
@@ -1043,5 +1217,94 @@ export default function MedicalLoanDeductionSetupPage() {
         </div>
       )}
     </div>
+
+    {/* Printable Report View (Visible only during window.print()) */}
+    <div className="medicalLoanPrintArea">
+      <div style={{ paddingBottom: '10px', borderBottom: '2px solid #0f172a', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '15pt', fontWeight: '800', textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.5px' }}>
+              ISALU HOSPITALS LIMITED
+            </h1>
+            <h2 style={{ margin: '3px 0 0', fontSize: '11pt', fontWeight: '700', color: '#334155' }}>
+              MEDICAL LOAN DEDUCTION SETUP DIRECTORY
+            </h2>
+            <p style={{ margin: '2px 0 0', fontSize: '8pt', color: '#64748b' }}>
+              Official record of staff medical loan deduction schedules and balances
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '8pt', color: '#475569', lineHeight: 1.4 }}>
+            <div><strong>Generated:</strong> {mounted ? new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</div>
+            <div><strong>Scope:</strong> {searchQuery.trim() ? `Search "${searchQuery.trim()}"` : 'All Medical Loan Setups'}</div>
+            <div><strong>Total Records:</strong> {filteredSetups.length}</div>
+          </div>
+        </div>
+
+        {/* Metrics Summary Banner */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 16px', marginTop: '10px', padding: '6px 10px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '8pt' }}>
+          <div>Total Configurations: <strong>{totalRecords}</strong></div>
+          <div>Active Setups: <strong style={{ color: '#059669' }}>{activeCount}</strong></div>
+          <div>Inactive Setups: <strong style={{ color: '#64748b' }}>{inactiveCount}</strong></div>
+          <div>Total Loan Principal: <strong>₦{fmt(totalLoanSum)}</strong></div>
+          <div>Total Monthly Deductions: <strong>₦{fmt(totalMonthlyDeductSum)}</strong></div>
+          <div>Total Balance Outstanding: <strong style={{ color: '#dc2626' }}>₦{fmt(totalBalanceSum)}</strong></div>
+        </div>
+      </div>
+
+      {/* Printable Data Table */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8pt', textAlign: 'left' }}>
+        <thead>
+          <tr style={{ background: '#0f172a', color: '#ffffff' }}>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '30px' }}>S/N</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', width: '65px' }}>Staff ID</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Staff Name</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Department</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Loan Amount</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Duration</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Monthly Deduction</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Balance Remaining</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Start Month</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>End Month</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredSetups.map((s, idx) => (
+            <tr key={s.id} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{idx + 1}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '600' }}>{s.staffId}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '500' }}>{s.name}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1' }}>{s.department || 'N/A'}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(s.loan_amount)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.duration_months} Mos</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(s.monthly_deduction)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: '600' }}>₦{fmt(s.balance_remaining)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.start_month}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.end_month}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '600', color: s.is_active === 1 ? '#059669' : '#dc2626' }}>
+                {s.is_active === 1 ? 'Active' : 'Inactive'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ background: '#f1f5f9', fontWeight: '700' }}>
+            <td colSpan={4} style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL:</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalLoanSum)}</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalMonthlyDeductSum)}</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalBalanceSum)}</td>
+            <td colSpan={3} style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* Print Footer */}
+      <div style={{ marginTop: '14px', paddingTop: '8px', borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', fontSize: '7.5pt', color: '#64748b' }}>
+        <div>Isalu Hospitals Limited &bull; Human Resources & Payroll System</div>
+        <div>Confidential &bull; Page 1 of 1</div>
+      </div>
+    </div>
+  </>
   );
 }
