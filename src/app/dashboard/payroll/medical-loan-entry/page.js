@@ -30,7 +30,8 @@ import {
   FileSpreadsheet,
   ChevronDown,
   ChevronUp,
-  Pencil
+  Pencil,
+  Printer
 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
@@ -534,6 +535,72 @@ export default function MedicalLoanEntryPage() {
   const projectedBalance = currentBalance + parsedAmt;
   const projectedCalc = calculateProjectedDeduction(projectedBalance);
 
+  // Summary statistics for print/export
+  const totalEntriesCount = filteredEntries.length;
+  const totalDisbursedSum = filteredEntries.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0);
+  const avgLoanAmount = totalEntriesCount > 0 ? (totalDisbursedSum / totalEntriesCount) : 0;
+
+  // Export to CSV
+  const exportToCSV = () => {
+    if (filteredEntries.length === 0) {
+      showToast('No medical loan entries to export.', 'error');
+      return;
+    }
+
+    const headers = [
+      'S/N',
+      'Staff ID',
+      'Staff Name',
+      'Department',
+      'Date Taken',
+      'Reason / Purpose',
+      'Amount Taken (NGN)',
+      'Balance Before (NGN)',
+      'Balance After (NGN)',
+      'Monthly Deduction (NGN)',
+      'Recorded By',
+      'Created At'
+    ];
+
+    const rows = filteredEntries.map((e, i) => [
+      i + 1,
+      e.staffId || '',
+      `"${(e.name || '').replace(/"/g, '""')}"`,
+      `"${(e.department || 'N/A').replace(/"/g, '""')}"`,
+      e.loan_date || '',
+      `"${(e.reason || '').replace(/"/g, '""')}"`,
+      parseFloat(e.amount) || 0,
+      parseFloat(e.balance_before) || 0,
+      parseFloat(e.balance_after) || 0,
+      parseFloat(e.monthly_deduction) || 0,
+      `"${(e.creator_name || '').replace(/"/g, '""')}"`,
+      e.created_at || ''
+    ]);
+
+    const csvData = [headers.join(','), ...rows.map(row => row.join(','))].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const monthSuffix = monthFilter ? `_${monthFilter}` : '';
+    link.setAttribute('download', `medical_loan_entries${monthSuffix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filteredEntries.length} loan entry record(s) to CSV.`);
+  };
+
+  // Print Statement / Report
+  const handlePrint = () => {
+    if (filteredEntries.length === 0) {
+      showToast('No medical loan entries available to print.', 'error');
+      return;
+    }
+    window.print();
+  };
+
   if (!mounted) {
     return (
       <div className={styles.container} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
@@ -543,55 +610,133 @@ export default function MedicalLoanEntryPage() {
   }
 
   return (
-    <div className={styles.container} style={{ maxWidth: '1200px' }}>
-      {/* Header */}
-      <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 className={styles.title} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Activity size={28} style={{ color: '#ec4899' }} />
-            Medical Loan Entry
-          </h1>
-          <p className={styles.subtitle}>
-            Record monthly medical loans taken by staff. Entered amounts automatically add to the employee&apos;s remaining balance and recalculate their monthly payroll deduction schedule.
-          </p>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .medicalLoanEntryPrintArea {
+          display: none;
+        }
+
+        @media print {
+          @page {
+            size: landscape;
+            margin: 8mm 6mm 10mm 6mm;
+          }
+
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Hide screen UI */
+          .screen-content,
+          aside,
+          nav,
+          header,
+          footer,
+          button,
+          form,
+          .no-print {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          /* Show Print Layout */
+          .medicalLoanEntryPrintArea {
+            display: block !important;
+            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            z-index: 99999 !important;
+          }
+
+          .medicalLoanEntryPrintArea * {
+            visibility: visible !important;
+          }
+        }
+      `}} />
+
+      <div className={`${styles.container} screen-content`} style={{ maxWidth: '1200px' }}>
+        {/* Header */}
+        <div className={styles.header} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 className={styles.title} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Activity size={28} style={{ color: '#ec4899' }} />
+              Medical Loan Entry
+            </h1>
+            <p className={styles.subtitle}>
+              Record monthly medical loans taken by staff. Entered amounts automatically add to the employee&apos;s remaining balance and recalculate their monthly payroll deduction schedule.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={exportToCSV}
+              disabled={filteredEntries.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              title="Export Entries to CSV"
+            >
+              <Download size={16} />
+              <span>Export CSV ({filteredEntries.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={filteredEntries.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              title="Print Medical Loan Entries Log"
+            >
+              <Printer size={16} />
+              <span>Print ({filteredEntries.length})</span>
+            </button>
+            <Link 
+              href="/dashboard/payroll/medical-loan-records"
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+            >
+              <Calendar size={16} style={{ color: '#ec4899' }} />
+              <span>Search Records</span>
+              <ExternalLink size={14} />
+            </Link>
+            <Link 
+              href="/dashboard/payroll/medical-loan-deduction-setup"
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+            >
+              <Settings size={16} />
+              <span>Deduction Matrix</span>
+              <ExternalLink size={14} />
+            </Link>
+            {/* Bulk Upload Toggle Button */}
+            <button
+              type="button"
+              onClick={() => { setShowBulkUpload(v => !v); setBulkResult(null); }}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem',
+                background: showBulkUpload ? 'rgba(236,72,153,0.1)' : undefined,
+                borderColor: showBulkUpload ? '#ec4899' : undefined,
+                color: showBulkUpload ? '#ec4899' : undefined,
+              }}
+            >
+              <Upload size={15} />
+              <span>Bulk Upload</span>
+              {showBulkUpload ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Link 
-            href="/dashboard/payroll/medical-loan-records"
-            className={`${styles.btn} ${styles.btnSecondary}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
-          >
-            <Calendar size={16} style={{ color: '#ec4899' }} />
-            <span>Search Loan Records (Date to Date)</span>
-            <ExternalLink size={14} />
-          </Link>
-          <Link 
-            href="/dashboard/payroll/medical-loan-deduction-setup"
-            className={`${styles.btn} ${styles.btnSecondary}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
-          >
-            <Settings size={16} />
-            <span>View Deduction Setup Matrix</span>
-            <ExternalLink size={14} />
-          </Link>
-          {/* Bulk Upload Toggle Button */}
-          <button
-            type="button"
-            onClick={() => { setShowBulkUpload(v => !v); setBulkResult(null); }}
-            className={`${styles.btn} ${styles.btnSecondary}`}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem',
-              background: showBulkUpload ? 'rgba(236,72,153,0.1)' : undefined,
-              borderColor: showBulkUpload ? '#ec4899' : undefined,
-              color: showBulkUpload ? '#ec4899' : undefined,
-            }}
-          >
-            <Upload size={15} />
-            <span>Bulk Upload</span>
-            {showBulkUpload ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-        </div>
-      </div>
 
       {/* KPI Stats Grid */}
       <div className={styles.statsGrid} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '1.75rem' }}>
@@ -1066,23 +1211,47 @@ export default function MedicalLoanEntryPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className={styles.perPageGroup}>
-            <span className={styles.perPageLabel}>Show:</span>
-            <select
-              className={styles.perPageSelect}
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(e.target.value);
-                setCurrentPage(1);
-              }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={exportToCSV}
+              disabled={filteredEntries.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+              title="Export Entries to CSV"
             >
-              <option value="10">10 records</option>
-              <option value="20">20 records</option>
-              <option value="30">30 records</option>
-              <option value="50">50 records</option>
-              <option value="100">100 records</option>
-              <option value="all">All Records</option>
-            </select>
+              <Download size={15} />
+              <span>Export CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={filteredEntries.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+              title="Print Medical Loan Entries Log"
+            >
+              <Printer size={15} />
+              <span>Print</span>
+            </button>
           </div>
         </div>
 
@@ -1341,5 +1510,85 @@ export default function MedicalLoanEntryPage() {
         </div>
       )}
     </div>
+
+    {/* Printable Report View (Visible only during window.print()) */}
+    <div className="medicalLoanEntryPrintArea">
+      <div style={{ paddingBottom: '10px', borderBottom: '2px solid #0f172a', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '15pt', fontWeight: '800', textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.5px' }}>
+              ISALU HOSPITALS LIMITED
+            </h1>
+            <h2 style={{ margin: '3px 0 0', fontSize: '11pt', fontWeight: '700', color: '#334155' }}>
+              MEDICAL LOAN ENTRIES DISBURSEMENT LOG
+            </h2>
+            <p style={{ margin: '2px 0 0', fontSize: '8pt', color: '#64748b' }}>
+              Official record of staff medical loans taken, balances, and deduction schedules
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '8pt', color: '#475569', lineHeight: 1.4 }}>
+            <div><strong>Generated:</strong> {mounted ? new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</div>
+            <div><strong>Period:</strong> {monthFilter ? `Month: ${monthFilter}` : 'All Recorded Months'}</div>
+            <div><strong>Total Entries:</strong> {filteredEntries.length}</div>
+          </div>
+        </div>
+
+        {/* Metrics Summary Banner */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 16px', marginTop: '10px', padding: '6px 10px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '8pt' }}>
+          <div>Total Entries: <strong>{totalEntriesCount}</strong></div>
+          <div>Total Disbursed: <strong style={{ color: '#ec4899' }}>₦{fmt(totalDisbursedSum)}</strong></div>
+          <div>Average Loan: <strong>₦{fmt(avgLoanAmount)}</strong></div>
+          <div>Scope Filter: <strong>{monthFilter || 'All Time'}</strong></div>
+        </div>
+      </div>
+
+      {/* Printable Data Table */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8pt', textAlign: 'left' }}>
+        <thead>
+          <tr style={{ background: '#0f172a', color: '#ffffff' }}>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '30px' }}>S/N</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', width: '60px' }}>Staff ID</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Staff Name</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Department</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Date Taken</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Reason / Purpose</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Amount Taken</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Balance (Before → After)</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Monthly Deduction</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Recorded By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredEntries.map((e, idx) => (
+            <tr key={e.id} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{idx + 1}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '600' }}>{e.staffId}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '500' }}>{e.name}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1' }}>{e.department || 'N/A'}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{e.loan_date}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', maxWidth: '200px' }}>{e.reason}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: '600', color: '#ec4899' }}>₦{fmt(e.amount)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(e.balance_before)} → ₦{fmt(e.balance_after)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: '600', color: '#0284c7' }}>₦{fmt(e.monthly_deduction)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1' }}>{e.creator_name || 'System'}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ background: '#f1f5f9', fontWeight: '700' }}>
+            <td colSpan={6} style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL DISBURSED:</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right', color: '#ec4899' }}>₦{fmt(totalDisbursedSum)}</td>
+            <td colSpan={3} style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* Print Footer */}
+      <div style={{ marginTop: '14px', paddingTop: '8px', borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', fontSize: '7.5pt', color: '#64748b' }}>
+        <div>Isalu Hospitals Limited &bull; Human Resources & Payroll System</div>
+        <div>Confidential &bull; Page 1 of 1</div>
+      </div>
+    </div>
+  </>
   );
 }
