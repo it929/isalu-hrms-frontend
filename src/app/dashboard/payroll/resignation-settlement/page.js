@@ -43,7 +43,19 @@ function getUserId() {
 
 function buildHeaders() {
   const uid = getUserId();
-  return uid ? { 'X-User-Id': uid } : {};
+  const headers = {};
+  if (uid) headers['X-User-Id'] = uid;
+  try {
+    const rawRole = localStorage.getItem('hrms_role');
+    if (rawRole) {
+      const parsed = JSON.parse(rawRole);
+      const roleName = parsed?.rolename || parsed?.name || parsed?.role_name || '';
+      if (roleName) {
+        headers['X-User-Role'] = roleName;
+      }
+    }
+  } catch { /* ignore */ }
+  return headers;
 }
 
 function fmt(n) {
@@ -466,8 +478,55 @@ export default function ResignationSettlementPage() {
     }
   };
 
+  // Active role from localStorage
+  const activeRoleName = mounted && typeof window !== 'undefined' ? (() => {
+    try {
+      const role = JSON.parse(localStorage.getItem('hrms_role'));
+      return String(role?.rolename || role?.name || role?.role_name || '').toLowerCase().trim();
+    } catch {
+      return '';
+    }
+  })() : '';
+
+  const isStaffRole = activeRoleName === 'staff';
+
+  const isPrivilegedUser = !isStaffRole && Boolean(
+    (!isStaffRole && userPermissions.is_super_admin) ||
+    userPermissions.is_admin_staff ||
+    userPermissions.is_audit_staff ||
+    userPermissions.is_finance_staff ||
+    activeRoleName === 'super admin' ||
+    activeRoleName === 'super administrator' ||
+    activeRoleName === 'hr head' ||
+    activeRoleName === 'head of hr' ||
+    activeRoleName === 'finance head' ||
+    activeRoleName === 'head of finance' ||
+    activeRoleName === 'audit head' ||
+    activeRoleName === 'head of audit'
+  );
+
+  const isHodUser = !isStaffRole && (userPermissions.is_hod || activeRoleName === 'hod');
+
   // Filtered Records (client-side filters)
   const filteredRecords = records.filter((r) => {
+    // If not privileged (Super Admin, HR Head, Finance Head, Audit Head) and not HOD:
+    // Regular staff strictly see their own record alone
+    if (!isPrivilegedUser && !isHodUser) {
+      const currentEmployee = userPermissions.employee;
+      const empId = currentEmployee?.id;
+      const fallbackStaffId = typeof window !== 'undefined' ? (() => {
+        try {
+          const u = JSON.parse(localStorage.getItem('hrms_user'));
+          return u?.staff_id ?? u?.staffID ?? u?.employee_id ?? (u?.username && /^\d+$/.test(u.username) ? u.username : null);
+        } catch { return null; }
+      })() : null;
+
+      const myStaffId = empId || fallbackStaffId;
+      if (myStaffId && String(r.staff_id) !== String(myStaffId)) {
+        return false;
+      }
+    }
+
     if (settlementFilter === 'payable' && r.settlement_type !== 'payable') return false;
     if (settlementFilter === 'recoverable' && r.settlement_type !== 'recoverable') return false;
 
@@ -482,8 +541,8 @@ export default function ResignationSettlementPage() {
     window.print();
   };
 
-  const canAudit = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_audit_staff;
-  const canFinance = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
+  const canAudit = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_audit_staff || activeRoleName === 'audit head' || activeRoleName === 'head of audit');
+  const canFinance = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff || activeRoleName === 'finance head' || activeRoleName === 'head of finance');
 
   if (!mounted) return null;
 

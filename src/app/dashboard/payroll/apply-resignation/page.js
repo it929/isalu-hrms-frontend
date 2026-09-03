@@ -32,7 +32,19 @@ function getUserId() {
 
 function buildHeaders() {
   const uid = getUserId();
-  return uid ? { 'X-User-Id': uid } : {};
+  const headers = {};
+  if (uid) headers['X-User-Id'] = uid;
+  try {
+    const rawRole = localStorage.getItem('hrms_role');
+    if (rawRole) {
+      const parsed = JSON.parse(rawRole);
+      const roleName = parsed?.rolename || parsed?.name || parsed?.role_name || '';
+      if (roleName) {
+        headers['X-User-Role'] = roleName;
+      }
+    }
+  } catch { /* ignore */ }
+  return headers;
 }
 
 function calculateLastDay(dateStr) {
@@ -202,17 +214,39 @@ export default function ApplyResignationPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [selectedStaff]);
 
-  // Determine if active user can select other staff members (Super Admin, HR Head, HOD)
-  const canSelectStaff = userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isHod || 
-    (mounted && typeof window !== 'undefined' && (() => {
-      try {
-        const role = JSON.parse(localStorage.getItem('hrms_role'));
-        const roleName = role?.name?.toLowerCase() || '';
-        return roleName === 'super admin' || roleName === 'super administrator' || roleName === 'admin' || roleName === 'admin staff' || roleName === 'hr head';
-      } catch {
-        return false;
-      }
-    })());
+  // Check active role from localStorage
+  const activeRoleName = mounted && typeof window !== 'undefined' ? (() => {
+    try {
+      const role = JSON.parse(localStorage.getItem('hrms_role'));
+      return String(role?.rolename || role?.name || role?.role_name || '').toLowerCase().trim();
+    } catch {
+      return '';
+    }
+  })() : '';
+
+  const isStaffRole = activeRoleName === 'staff';
+
+  // Privileged users (HR Head, Finance Head, Audit Head, and Super Admin) see all staff records
+  // If explicitly in Staff role, user is NOT privileged and must see only their own record
+  const isPrivilegedUser = !isStaffRole && Boolean(
+    (!isStaffRole && userCtx.isSuperAdmin) || 
+    userCtx.isAdminStaff || 
+    userCtx.isFinanceStaff || 
+    userCtx.isAuditStaff ||
+    activeRoleName === 'super admin' ||
+    activeRoleName === 'super administrator' ||
+    activeRoleName === 'hr head' ||
+    activeRoleName === 'head of hr' ||
+    activeRoleName === 'finance head' ||
+    activeRoleName === 'head of finance' ||
+    activeRoleName === 'audit head' ||
+    activeRoleName === 'head of audit'
+  );
+
+  const isHodUser = !isStaffRole && (userCtx.isHod || activeRoleName === 'hod');
+
+  // Determine if active user can select other staff members (Super Admin, HR Head, Finance Head, Audit Head, HOD)
+  const canSelectStaff = isPrivilegedUser || isHodUser;
 
   // Prepopulate staff selection if user is not Admin/SuperAdmin
   useEffect(() => {
@@ -440,16 +474,31 @@ export default function ApplyResignationPage() {
 
   // Filter and paginated records
   const filteredRecords = records.filter(r => {
-    if (selectedStaff && String(r.staff_id) !== String(selectedStaff.id)) {
-      return false;
+    // If not privileged (Super Admin, HR Head, Finance Head, Audit Head) and not HOD:
+    // Regular staff strictly see their own record alone
+    if (!isPrivilegedUser && !isHodUser) {
+      const currentEmployee = userCtx.employee;
+      const empId = currentEmployee ? (currentEmployee.ID ?? currentEmployee.id) : null;
+
+      const fallbackStaffId = typeof window !== 'undefined' ? (() => {
+        try {
+          const u = JSON.parse(localStorage.getItem('hrms_user'));
+          return u?.staff_id ?? u?.staffID ?? u?.employee_id ?? (u?.username && /^\d+$/.test(u.username) ? u.username : null);
+        } catch { return null; }
+      })() : null;
+
+      const myStaffId = empId || fallbackStaffId;
+      if (myStaffId && String(r.staff_id) !== String(myStaffId)) {
+        return false;
+      }
     }
     
     // 1. Search Query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const nameMatch = r.name.toLowerCase().includes(q);
+      const nameMatch = r.name ? r.name.toLowerCase().includes(q) : false;
       const staffIdMatch = r.staff_id && r.staff_id.toString().includes(q);
-      const reasonMatch = r.reason.toLowerCase().includes(q);
+      const reasonMatch = r.reason ? r.reason.toLowerCase().includes(q) : false;
       const deptMatch = r.department && r.department.toLowerCase().includes(q);
       if (!nameMatch && !staffIdMatch && !reasonMatch && !deptMatch) {
         return false;
@@ -501,7 +550,7 @@ export default function ApplyResignationPage() {
   // Helper check to determine if a tier approval button should show
   const canRecommendHOD = (row) => {
     if (row.status !== 0 || row.hod_status !== 0) return false;
-    if (canSelectStaff) return true;
+    if (userCtx.isSuperAdmin || userCtx.isAdminStaff) return true;
     if (userCtx.isHod && userCtx.employee) {
       const empId = userCtx.employee.ID ?? userCtx.employee.id;
       return row.department === userCtx.employee.department || String(row.staff_id) === String(empId);
@@ -511,7 +560,7 @@ export default function ApplyResignationPage() {
 
   const canRecommendHR = (row) => {
     if (row.status !== 0 || row.hod_status !== 1 || row.admin_status !== 0) return false;
-    return canSelectStaff;
+    return userCtx.isSuperAdmin || userCtx.isAdminStaff;
   };
 
   const isRowActionable = (row) => {
@@ -949,8 +998,8 @@ export default function ApplyResignationPage() {
                     const rowPending = row.status === 0;
                     const empId = userCtx.employee ? (userCtx.employee.ID ?? userCtx.employee.id) : null;
                     const isOwnRow = empId && String(row.staff_id) === String(empId);
-                    const canEditRow = rowPending && (canSelectStaff || isOwnRow);
-                    const canDeleteRow = rowPending && (canSelectStaff || isOwnRow);
+                    const canEditRow = rowPending && (userCtx.isSuperAdmin || userCtx.isAdminStaff || isOwnRow);
+                    const canDeleteRow = rowPending && (userCtx.isSuperAdmin || userCtx.isAdminStaff || isOwnRow);
 
                     return (
                       <tr key={row.id}>
