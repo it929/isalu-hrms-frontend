@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload, AlertOctagon, TrendingUp, CreditCard, Coins, ShieldAlert, X, Building2 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
-import styles from '../apply-coop-loan/page.module.css';
+import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -27,6 +27,27 @@ function fmt(n) {
   const num = parseFloat(n);
   if (isNaN(num)) return '0.00';
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtMonth(ym) {
+  if (!ym) return '—';
+  const parts = String(ym).split('-');
+  if (parts.length === 2) {
+    const year = parts[0];
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${months[monthIdx]} ${year}`;
+    }
+  }
+  return ym;
+}
+
+function getCurrentMonthStr() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 export default function OtherDeductionSetupPage() {
@@ -74,8 +95,8 @@ export default function OtherDeductionSetupPage() {
   const [durationMonths, setDurationMonths] = useState('');
   const [monthlyDeduction, setMonthlyDeduction] = useState('');
   const [balanceRemaining, setBalanceRemaining] = useState('');
-  const [startMonth, setStartMonth] = useState(''); // Format: YYYY-MM
-  const [endMonth, setEndMonth] = useState(''); // Format: YYYY-MM
+  const [startMonth, setStartMonth] = useState(getCurrentMonthStr); // Format: YYYY-MM
+  const [endMonth, setEndMonth] = useState(getCurrentMonthStr); // Format: YYYY-MM
   const [remarks, setRemarks] = useState('');
   const [isActive, setIsActive] = useState(1);
 
@@ -279,11 +300,16 @@ export default function OtherDeductionSetupPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const fetchStaffNetPay = useCallback(async (staffId) => {
+  const fetchStaffNetPay = useCallback(async (staffId, monthStr) => {
     setLoadingNetPay(true);
     try {
       const headers = buildHeaders();
-      const res = await axios.get(`${API_BASE}/payroll/staff-netpay/${staffId}`, { headers });
+      let queryParams = '';
+      if (monthStr && monthStr.includes('-')) {
+        const [y, m] = monthStr.split('-');
+        queryParams = `?month=${parseInt(m, 10)}&year=${parseInt(y, 10)}`;
+      }
+      const res = await axios.get(`${API_BASE}/payroll/staff-netpay/${staffId}${queryParams}`, { headers });
       if (res.data.status === 'success') {
         setStaffNetPay({
           amount: res.data.net_pay,
@@ -625,6 +651,15 @@ export default function OtherDeductionSetupPage() {
 
   const isConfigurator = true;
 
+  const activeCount = setups.filter(s => s.is_active === 1).length;
+  const totalMonthlyDeduction = setups
+    .filter(s => s.is_active === 1)
+    .reduce((acc, s) => acc + (parseFloat(s.monthly_deduction) || 0), 0);
+  const totalBalanceRemaining = setups
+    .reduce((acc, s) => acc + (parseFloat(s.balance_remaining) || 0), 0);
+  const totalPenaltyAmount = setups
+    .reduce((acc, s) => acc + (parseFloat(s.total_amount) || 0), 0);
+
   if (!mounted) {
     return (
       <div className={styles.container} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
@@ -635,29 +670,113 @@ export default function OtherDeductionSetupPage() {
 
   return (
     <div className={styles.container}>
+      {/* Header */}
       <div className={styles.header}>
-        <h1 className={styles.title}>Penalty Deduction Setup</h1>
-        <p className={styles.subtitle}>Configure penalty deductions from employee salaries, supporting both one-time deductions and monthly spreading, as well as bulk spreadsheet importing.</p>
+        <div className={styles.headerBadge}>
+          <AlertOctagon size={13} />
+          Payroll Deductions
+        </div>
+        <h1 className={styles.title}>
+          <ShieldAlert size={28} className={styles.titleIcon} />
+          Penalty Deduction Setup
+        </h1>
+        <p className={styles.subtitle}>
+          Configure penalty deductions from employee salaries, supporting both one-time deductions and monthly spreading, as well as bulk spreadsheet importing.
+        </p>
+      </div>
+
+      {/* Summary KPI Cards */}
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconRed}`}>
+            <Users size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Active Setups</span>
+            <div className={styles.statValue}>
+              {activeCount} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--secondary)' }}>/ {setups.length}</span>
+            </div>
+            <span className={styles.statSubtext}>Configured staff penalties</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconEmerald}`}>
+            <TrendingUp size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Monthly Deduction Pool</span>
+            <div className={styles.statValue}>
+              ₦ {fmt(totalMonthlyDeduction)}
+            </div>
+            <span className={styles.statSubtext}>Active monthly recovery</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconAmber}`}>
+            <CreditCard size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Outstanding Balance</span>
+            <div className={styles.statValue}>
+              ₦ {fmt(totalBalanceRemaining)}
+            </div>
+            <span className={styles.statSubtext}>Pending deduction balance</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconBlue}`}>
+            <FileText size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Total Penalty Portfolio</span>
+            <div className={styles.statValue}>
+              ₦ {fmt(totalPenaltyAmount)}
+            </div>
+            <span className={styles.statSubtext}>Cumulative penalty value</span>
+          </div>
+        </div>
       </div>
 
       {isConfigurator && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div className={styles.topGrid}>
           {/* Setup Form */}
-          <div className={styles.card} style={{ marginBottom: 0 }}>
+          <div className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>{editSetupId ? 'Modify Penalty Deduction Setup' : 'Create Penalty Deduction Setup'}</h2>
+              <div className={styles.cardHeaderLeft}>
+                <div className={styles.cardHeaderIcon}>
+                  {editSetupId ? <Edit2 size={18} /> : <Plus size={18} />}
+                </div>
+                <h2 className={styles.cardTitle}>
+                  {editSetupId ? `Modify Penalty Setup (#${editSetupId})` : 'Create Penalty Deduction Setup'}
+                </h2>
+              </div>
+              {editSetupId && (
+                <button
+                  type="button"
+                  onClick={handleClearForm}
+                  className={styles.countBadge}
+                  style={{ cursor: 'pointer' }}
+                >
+                  Cancel Edit
+                </button>
+              )}
             </div>
             <div className={styles.cardBody}>
               <form onSubmit={handleSubmit}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   {/* Autocomplete Select Staff */}
                   <div className={styles.formGroup} ref={dropdownRef}>
-                    <label className={styles.label}>Select Staff Member *</label>
+                    <label className={styles.label}>
+                      Select Staff Member <span className={styles.reqStar}>*</span>
+                    </label>
                     <div className={styles.dropdownContainer}>
                       <input
                         type="text"
                         className={styles.input}
-                        placeholder="Search by name, staff ID..."
+                        placeholder="Search by name, staff ID, department..."
                         value={dropdownSearch}
                         onChange={(e) => {
                           setDropdownSearch(e.target.value);
@@ -670,19 +789,26 @@ export default function OtherDeductionSetupPage() {
                       />
                       {showDropdown && (
                         <ul className={styles.dropdownList}>
-                           {filteredStaff.length > 0 ? (
+                          {filteredStaff.length > 0 ? (
                             filteredStaff.map((staff) => (
                               <li
                                 key={staff.id}
                                 className={styles.dropdownItem}
                                 onClick={() => handleSelectStaff(staff)}
                               >
-                                <span className={styles.staffName}>{staff.name}</span>
-                                <span className={styles.dropdownItemSub}>Staff ID: {staff.id}</span>
+                                <div className={styles.staffDropdownLeft}>
+                                  <div className={styles.dropdownAvatar}>
+                                    {staff.name ? staff.name.charAt(0).toUpperCase() : 'S'}
+                                  </div>
+                                  <span className={styles.staffName}>{staff.name}</span>
+                                </div>
+                                <span className={styles.staffFileNo}>Staff ID: {staff.id}</span>
                               </li>
                             ))
                           ) : (
-                            <li className={styles.dropdownEmpty}>No active staff members found</li>
+                            <li style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--secondary)', fontSize: '0.85rem' }}>
+                              No active staff members found
+                            </li>
                           )}
                         </ul>
                       )}
@@ -690,41 +816,29 @@ export default function OtherDeductionSetupPage() {
                   
                     {selectedStaff && (
                       <motion.div 
-                        initial={{ opacity: 0, y: -10 }}
+                        initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        style={{
-                          padding: '0.75rem 1rem',
-                          background: 'rgba(59, 130, 246, 0.08)',
-                          border: '1px solid rgba(59, 130, 246, 0.2)',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: '0.75rem',
-                          fontSize: '0.9rem',
-                          marginTop: '0.5rem'
-                        }}
+                        className={styles.salaryBanner}
                       >
                         {loadingNetPay ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', width: '100%', justifyContent: 'center' }}>
-                            <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--secondary)', width: '100%', justifyContent: 'center' }}>
+                            <Loader2 size={16} className="animate-spin" style={{ color: 'var(--primary)' }} />
                             <span>Fetching salary details...</span>
                           </div>
                         ) : (
                           <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ color: '#9ca3af' }}>Gross Salary:</span>
-                                <span style={{ fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            <div className={styles.salaryItems}>
+                              <div className={styles.salaryItem}>
+                                <span className={styles.salaryLabel}>Gross Salary:</span>
+                                <span className={styles.salaryValueGross}>
                                   <NairaSign size={14} />
                                   {staffNetPay ? fmt(staffNetPay.grossPay) : '0.00'}
                                 </span>
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ color: '#9ca3af' }}>Current Net Pay:</span>
-                                <span style={{ fontWeight: 'bold', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              <div className={styles.salaryItem}>
+                                <span className={styles.salaryLabel}>Current Net Pay:</span>
+                                <span className={styles.salaryValueNet}>
                                   <NairaSign size={14} />
                                   {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
                                 </span>
@@ -732,8 +846,8 @@ export default function OtherDeductionSetupPage() {
                             </div>
 
                             {staffNetPay?.month && (
-                              <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af' }}>
-                                ({staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
+                              <span className={styles.salaryPeriod}>
+                                (Active Month: {staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
                               </span>
                             )}
                           </>
@@ -744,37 +858,14 @@ export default function OtherDeductionSetupPage() {
 
                   {/* Setup Mode Toggle Switch */}
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Deduction Calculation Mode *</label>
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '0.5rem',
-                      background: 'rgba(241, 245, 249, 0.7)',
-                      padding: '4px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(226, 232, 240, 0.9)'
-                    }}>
+                    <label className={styles.label}>
+                      Deduction Calculation Mode <span className={styles.reqStar}>*</span>
+                    </label>
+                    <div className={styles.modeSwitchContainer}>
                       <button
                         type="button"
-                        onClick={() => {
-                          setCalcMode('amount');
-                        }}
-                        style={{
-                          padding: '0.65rem 0.85rem',
-                          borderRadius: '8px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontWeight: calcMode === 'amount' ? '600' : '500',
-                          fontSize: '0.85rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          transition: 'all 0.2s ease',
-                          background: calcMode === 'amount' ? '#2563eb' : 'transparent',
-                          color: calcMode === 'amount' ? '#ffffff' : '#64748b',
-                          boxShadow: calcMode === 'amount' ? '0 2px 6px rgba(37, 99, 235, 0.25)' : 'none',
-                        }}
+                        onClick={() => setCalcMode('amount')}
+                        className={`${styles.modeBtn} ${calcMode === 'amount' ? styles.modeBtnActiveAmount : ''}`}
                       >
                         <NairaSign size={15} />
                         Normal Setup (Fixed Amount)
@@ -786,22 +877,7 @@ export default function OtherDeductionSetupPage() {
                           setCalcMode('days');
                           if (!deductionDays) setDeductionDays('1');
                         }}
-                        style={{
-                          padding: '0.65rem 0.85rem',
-                          borderRadius: '8px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontWeight: calcMode === 'days' ? '600' : '500',
-                          fontSize: '0.85rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          transition: 'all 0.2s ease',
-                          background: calcMode === 'days' ? '#059669' : 'transparent',
-                          color: calcMode === 'days' ? '#ffffff' : '#64748b',
-                          boxShadow: calcMode === 'days' ? '0 2px 6px rgba(5, 150, 105, 0.25)' : 'none',
-                        }}
+                        className={`${styles.modeBtn} ${calcMode === 'days' ? styles.modeBtnActiveDays : ''}`}
                       >
                         <Calendar size={15} />
                         Day Setup (Deduct Days)
@@ -809,9 +885,7 @@ export default function OtherDeductionSetupPage() {
                     </div>
                   </div>
 
-                  {/* ───────────────────────────────────────────────────────────── */}
                   {/* MODE 1: DAY-BASED DEDUCTION SETUP */}
-                  {/* ───────────────────────────────────────────────────────────── */}
                   {calcMode === 'days' ? (
                     <motion.div
                       initial={{ opacity: 0, y: 6 }}
@@ -821,7 +895,7 @@ export default function OtherDeductionSetupPage() {
                       {/* Quick Select Days Pills */}
                       <div className={styles.formGroup}>
                         <label className={styles.label}>Quick Select Days to Deduct</label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div className={styles.quickDaysGrid}>
                           {[
                             { label: '0.5 Day (Half Day)', val: '0.5' },
                             { label: '1 Day', val: '1' },
@@ -834,18 +908,7 @@ export default function OtherDeductionSetupPage() {
                               key={pill.val}
                               type="button"
                               onClick={() => setDeductionDays(pill.val)}
-                              style={{
-                                padding: '0.4rem 0.8rem',
-                                borderRadius: '20px',
-                                fontSize: '0.8rem',
-                                border: '1px solid',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                                borderColor: deductionDays === pill.val ? '#059669' : '#cbd5e1',
-                                background: deductionDays === pill.val ? '#ecfdf5' : '#ffffff',
-                                color: deductionDays === pill.val ? '#065f46' : '#475569',
-                                fontWeight: deductionDays === pill.val ? '600' : '500',
-                              }}
+                              className={`${styles.quickDayBtn} ${deductionDays === pill.val ? styles.quickDayBtnActive : ''}`}
                             >
                               {pill.label}
                             </button>
@@ -856,7 +919,9 @@ export default function OtherDeductionSetupPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {/* Custom Days Input */}
                         <div className={styles.formGroup}>
-                          <label className={styles.label}>Number of Days to Deduct *</label>
+                          <label className={styles.label}>
+                            Number of Days to Deduct <span className={styles.reqStar}>*</span>
+                          </label>
                           <input
                             type="number"
                             step="0.1"
@@ -871,7 +936,9 @@ export default function OtherDeductionSetupPage() {
 
                         {/* Start Month / Payroll Period */}
                         <div className={styles.formGroup}>
-                          <label className={styles.label}>Payroll Month / Period *</label>
+                          <label className={styles.label}>
+                            Payroll Month / Period <span className={styles.reqStar}>*</span>
+                          </label>
                           <input
                             type="month"
                             className={styles.input}
@@ -883,22 +950,13 @@ export default function OtherDeductionSetupPage() {
                       </div>
 
                       {/* Live Calculation Preview Card */}
-                      <div style={{
-                        padding: '1rem',
-                        background: 'linear-gradient(135deg, rgba(236, 253, 245, 0.7), rgba(240, 253, 250, 0.7))',
-                        border: '1px solid #a7f3d0',
-                        borderRadius: '10px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.65rem',
-                        fontSize: '0.875rem'
-                      }}>
+                      <div className={styles.calcPreviewCard}>
                         <div style={{ fontWeight: '600', color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <Calendar size={16} color="#059669" />
                           <span>Day Deduction Calculation Breakdown</span>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', paddingTop: '4px' }}>
+                        <div className={styles.calcGrid}>
                           <div>
                             <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Monthly Gross:</span>
                             <span style={{ fontWeight: '600', color: '#1e293b' }}>
@@ -959,11 +1017,13 @@ export default function OtherDeductionSetupPage() {
 
                       {/* Remarks Field */}
                       <div className={styles.formGroup}>
-                        <label className={styles.label}>Remarks (Reason / Description) *</label>
+                        <label className={styles.label}>
+                          Remarks (Reason / Description) <span className={styles.reqStar}>*</span>
+                        </label>
                         <input
                           type="text"
                           className={styles.input}
-                          placeholder="e.g. 1 day salary deduction for unexcused leave, half day deduction..."
+                          placeholder="e.g. 1 day salary deduction for unexcused absence, disciplinary action..."
                           value={remarks}
                           onChange={(e) => setRemarks(e.target.value)}
                           maxLength={500}
@@ -972,9 +1032,7 @@ export default function OtherDeductionSetupPage() {
                       </div>
                     </motion.div>
                   ) : (
-                    /* ───────────────────────────────────────────────────────────── */
                     /* MODE 2: NORMAL AMOUNT-BASED DEDUCTION SETUP */
-                    /* ───────────────────────────────────────────────────────────── */
                     <motion.div
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -983,7 +1041,9 @@ export default function OtherDeductionSetupPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {/* Deduction Type */}
                         <div className={styles.formGroup}>
-                          <label className={styles.label}>Deduction Type *</label>
+                          <label className={styles.label}>
+                            Deduction Type <span className={styles.reqStar}>*</span>
+                          </label>
                           <select
                             className={styles.select}
                             value={deductionType}
@@ -996,15 +1056,17 @@ export default function OtherDeductionSetupPage() {
 
                         {/* Total Amount */}
                         <div className={styles.formGroup}>
-                          <label className={styles.label}>Total Amount (₦) *</label>
-                          <div className={styles.inputGroup}>
-                            <NairaSign size={16} className={styles.inputIcon} />
+                          <label className={styles.label}>
+                            Total Amount (₦) <span className={styles.reqStar}>*</span>
+                          </label>
+                          <div className={styles.inputWrapper}>
+                            <span className={styles.inputPrefix}>₦</span>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
-                              className={`${styles.input} ${styles.inputWithIcon}`}
-                              placeholder="Enter total amount"
+                              className={`${styles.input} ${styles.inputWithPrefix}`}
+                              placeholder="0.00"
                               value={totalAmount}
                               onChange={(e) => setTotalAmount(e.target.value)}
                               required
@@ -1016,16 +1078,17 @@ export default function OtherDeductionSetupPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {/* Duration Months (Active only for Spread) */}
                         <div className={styles.formGroup}>
-                          <label className={styles.label}>Duration (Months) *</label>
+                          <label className={styles.label}>
+                            Duration (Months) <span className={styles.reqStar}>*</span>
+                          </label>
                           <input
                             type="number"
                             min="1"
-                            className={styles.input}
+                            className={`${styles.input} ${deductionType === 'one_time' ? styles.inputDisabled : ''}`}
                             placeholder={deductionType === 'one_time' ? "1 month (Fixed)" : "e.g. 3"}
                             value={deductionType === 'one_time' ? '1' : durationMonths}
                             onChange={(e) => setDurationMonths(e.target.value)}
                             disabled={deductionType === 'one_time'}
-                            style={deductionType === 'one_time' ? { backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' } : {}}
                             required
                           />
                         </div>
@@ -1033,15 +1096,14 @@ export default function OtherDeductionSetupPage() {
                         {/* Calculated Monthly Deduction */}
                         <div className={styles.formGroup}>
                           <label className={styles.label}>Monthly Deduction (₦)</label>
-                          <div className={styles.inputGroup}>
-                            <NairaSign size={16} className={styles.inputIcon} />
+                          <div className={styles.inputWrapper}>
+                            <span className={styles.inputPrefix}>₦</span>
                             <input
                               type="text"
-                              className={`${styles.input} ${styles.inputWithIcon}`}
+                              className={`${styles.input} ${styles.inputWithPrefix} ${styles.inputDisabled}`}
                               placeholder="Calculated automatically"
-                              value={monthlyDeduction}
+                              value={monthlyDeduction ? fmt(monthlyDeduction) : ''}
                               disabled
-                              style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
                             />
                           </div>
                         </div>
@@ -1051,13 +1113,13 @@ export default function OtherDeductionSetupPage() {
                         {/* Remaining Balance */}
                         <div className={styles.formGroup}>
                           <label className={styles.label}>Remaining Balance (₦)</label>
-                          <div className={styles.inputGroup}>
-                            <NairaSign size={16} className={styles.inputIcon} />
+                          <div className={styles.inputWrapper}>
+                            <span className={styles.inputPrefix}>₦</span>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
-                              className={`${styles.input} ${styles.inputWithIcon}`}
+                              className={`${styles.input} ${styles.inputWithPrefix}`}
                               placeholder="Defaults to total amount"
                               value={balanceRemaining}
                               onChange={(e) => setBalanceRemaining(e.target.value)}
@@ -1067,7 +1129,9 @@ export default function OtherDeductionSetupPage() {
 
                         {/* Start Month */}
                         <div className={styles.formGroup}>
-                          <label className={styles.label}>Start Month *</label>
+                          <label className={styles.label}>
+                            Start Month <span className={styles.reqStar}>*</span>
+                          </label>
                           <input
                             type="month"
                             className={styles.input}
@@ -1081,13 +1145,12 @@ export default function OtherDeductionSetupPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {/* Calculated End Month */}
                         <div className={styles.formGroup}>
-                          <label className={styles.label}>End Month</label>
+                          <label className={styles.label}>Expected End Month</label>
                           <input
-                            type="month"
-                            className={styles.input}
-                            value={endMonth}
+                            type="text"
+                            className={`${styles.input} ${styles.inputDisabled}`}
+                            value={endMonth ? fmtMonth(endMonth) : ''}
                             disabled
-                            style={{ backgroundColor: 'var(--bg-disabled, #f1f5f9)', cursor: 'not-allowed' }}
                           />
                         </div>
 
@@ -1107,11 +1170,13 @@ export default function OtherDeductionSetupPage() {
 
                       {/* Remarks Field */}
                       <div className={styles.formGroup}>
-                        <label className={styles.label}>Remarks (Reason / Description) *</label>
+                        <label className={styles.label}>
+                          Remarks (Reason / Description) <span className={styles.reqStar}>*</span>
+                        </label>
                         <input
                           type="text"
                           className={styles.input}
-                          placeholder="e.g. Uniform fee, damaged equipment, ID card replacement..."
+                          placeholder="e.g. Uniform fee, damaged equipment, ID card replacement, penalty..."
                           value={remarks}
                           onChange={(e) => setRemarks(e.target.value)}
                           maxLength={500}
@@ -1135,30 +1200,37 @@ export default function OtherDeductionSetupPage() {
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: '8px',
-                        marginTop: '1.25rem'
+                        marginTop: '0.5rem'
                       }}
                     >
                       <AlertCircle size={18} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
                       <div>
                         <strong style={{ display: 'block', marginBottom: '2px' }}>Deduction Exceeds Available Net Pay:</strong>
-                        Monthly deduction of <strong>₦{fmt(monthlyDeduction)}</strong> exceeds the staff member's available Net Pay (<strong>₦{fmt(staffNetPay?.amount || 0)}</strong>). This deduction will be declined because net pay cannot be negative.
+                        Monthly deduction of <strong>₦{fmt(monthlyDeduction)}</strong> exceeds the staff member&apos;s available Net Pay (<strong>₦{fmt(staffNetPay?.amount || 0)}</strong>). This deduction will be declined because net pay cannot be negative.
                       </div>
                     </motion.div>
                   )}
                 </div>
 
-                <div className={styles.formActions} style={{ marginTop: '1.5rem' }}>
-                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleClearForm}>
+                <div className={styles.formActions}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={handleClearForm}
+                    disabled={saving}
+                  >
                     Clear Form
                   </button>
-                  <button 
-                    type="submit" 
-                    className={`${styles.btn} ${styles.btnPrimary}`} 
-                    disabled={saving || isDeductionExceedingNet}
-                    style={isDeductionExceedingNet ? { opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#94a3b8', borderColor: '#94a3b8' } : {}}
-                    title={isDeductionExceedingNet ? 'Cannot save: Deduction exceeds available Net Pay' : ''}
+                  <button
+                    type="submit"
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    disabled={saving}
                   >
-                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                    {saving ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Plus size={16} />
+                    )}
                     {editSetupId ? 'Update Configuration' : 'Save Configuration'}
                   </button>
                 </div>
@@ -1166,10 +1238,15 @@ export default function OtherDeductionSetupPage() {
             </div>
           </div>
 
-          {/* Import Excel Zone */}
-          <div className={styles.card} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* Bulk Import Excel/CSV */}
+          <div className={styles.card} style={{ display: 'flex', flexDirection: 'column' }}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Bulk Import Excel/CSV</h2>
+              <div className={styles.cardHeaderLeft}>
+                <div className={styles.cardHeaderIcon}>
+                  <Upload size={18} />
+                </div>
+                <h2 className={styles.cardTitle}>Bulk Import Excel/CSV</h2>
+              </div>
             </div>
             <div className={styles.cardBody} style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div
@@ -1179,15 +1256,6 @@ export default function OtherDeductionSetupPage() {
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current.click()}
-                style={{
-                  border: '2px dashed var(--border-color, #e2e8f0)',
-                  borderRadius: '0.5rem',
-                  padding: '2.5rem 1.5rem',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: dragActive ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
-                  transition: 'all 0.2s ease',
-                }}
               >
                 <input
                   type="file"
@@ -1198,41 +1266,55 @@ export default function OtherDeductionSetupPage() {
                 />
                 {importing ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                    <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary)' }} />
-                    <p style={{ fontWeight: 500 }}>Processing spreadsheet...</p>
+                    <Loader2 size={36} className="animate-spin" style={{ color: '#dc2626' }} />
+                    <p style={{ fontWeight: 600 }}>Processing spreadsheet...</p>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                    <Upload size={36} style={{ color: 'var(--primary)' }} />
-                    <p style={{ fontWeight: 500, fontSize: '0.95rem' }}>Drag & drop file here or click to browse</p>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Supports Excel (.xlsx, .xls) and CSV (.csv)</span>
-                  </div>
+                  <>
+                    <div className={styles.uploadIconCircle}>
+                      <Upload size={24} />
+                    </div>
+                    <p className={styles.uploadTitle}>Drag & drop file here or click to browse</p>
+                    <span className={styles.uploadSub}>Supports Excel (.xlsx, .xls) and CSV (.csv)</span>
+                  </>
                 )}
               </div>
-              <div style={{ marginTop: '1.25rem', fontSize: '0.825rem', color: '#64748b', lineHeight: '1.4' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                  <p style={{ fontWeight: 600, margin: 0 }}>Spreadsheet Formatting Guideline:</p>
+              <div className={styles.guidelinesBox}>
+                <div className={styles.guidelineHeader}>
+                  <span className={styles.guidelineTitle}>Spreadsheet Formatting Guideline:</span>
                   <a
                     href={`${API_BASE}/payroll/other-deduction-setups/template`}
-                    download="other_deduction_import_template.csv"
-                    style={{
-                      color: 'var(--primary, #6366f1)',
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 500,
-                    }}
+                    download="penalty_deduction_import_template.csv"
+                    className={styles.downloadTemplateLink}
                   >
                     Download Template
                   </a>
                 </div>
-                <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <li>Column 1: **Staff ID**</li>
-                  <li>Column 2: **Deduction Type** (`one_time` or `spread`)</li>
-                  <li>Column 3: **Total Amount**</li>
-                  <li>Column 4: **Duration Months** (optional, ignored for one_time)</li>
-                  <li>Column 5: **Start Month** (format: `YYYY-MM`)</li>
-                  <li>Column 6: **Remarks** (optional description / reason)</li>
+                <ul className={styles.guidelineList}>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 1: <strong>Staff ID</strong></span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 2: <strong>Deduction Type</strong> (<code>one_time</code> or <code>spread</code>)</span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 3: <strong>Total Amount</strong></span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 4: <strong>Duration Months</strong> (optional, ignored for one_time)</span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 5: <strong>Start Month</strong> (format: <code>YYYY-MM</code>)</span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 6: <strong>Remarks</strong> (optional description / reason)</span>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1240,47 +1322,65 @@ export default function OtherDeductionSetupPage() {
         </div>
       )}
 
-      {/* Setup Configurations Table */}
+      {/* Setup Configurations Table Card */}
       <div className={styles.card}>
-        <div className={styles.searchBar}>
-          <div className={styles.searchInputWrapper}>
-            <Search size={18} className={styles.inputIcon} />
-            <input
-              type="text"
-              className={`${styles.input} ${styles.inputWithIcon}`}
-              placeholder="Search setups by staff name, ID, or remarks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className={styles.cardHeader}>
+          <div className={styles.cardHeaderLeft}>
+            <div className={styles.cardHeaderIcon}>
+              <ShieldAlert size={18} />
+            </div>
+            <h2 className={styles.cardTitle}>Penalty Deduction Configurations</h2>
+            <span className={styles.countBadge}>{filteredSetups.length} records</span>
           </div>
-          <div className={styles.perPageGroup}>
-            <span className={styles.perPageLabel}>Show:</span>
-            <select
-              className={styles.perPageSelect}
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="10">10 records</option>
-              <option value="20">20 records</option>
-              <option value="30">30 records</option>
-              <option value="50">50 records</option>
-              <option value="100">100 records</option>
-              <option value="all">All Records</option>
-            </select>
+          <div className={styles.filterBar}>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
+            <div className={styles.searchWrapper}>
+              <Search size={15} className={styles.searchIcon} />
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="Search setups by staff name, ID, or remarks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className={styles.searchClearBtn}
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         <div className={styles.cardBody} style={{ padding: 0 }}>
           {loading ? (
-            <div className={styles.emptyState}>
-              <Loader2 size={32} className="animate-spin emptyIcon" />
-              <p>Retrieving configurations...</p>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}>
+              <Loader2 size={28} className="animate-spin" style={{ color: '#dc2626' }} />
             </div>
           ) : paginatedSetups.length > 0 ? (
-            <div className={styles.tableContainer}>
+            <div className={styles.tableResponsive}>
               <table className={styles.table}>
                 <thead>
                   <tr>
@@ -1293,112 +1393,135 @@ export default function OtherDeductionSetupPage() {
                     <th>Period (Start - End)</th>
                     <th>Remarks</th>
                     <th>Status</th>
-                    {isConfigurator && <th>Actions</th>}
+                    {isConfigurator && <th style={{ textAlign: 'center' }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedSetups.map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <div className={styles.staffCell}>
-                          <span className={styles.staffName}>{s.name}</span>
-                          <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
-                        </div>
-                      </td>
-                      <td>{s.department || 'N/A'}</td>
-                      <td>
-                        {s.calculation_mode === 'days' || (s.deduction_days && parseFloat(s.deduction_days) > 0) ? (
-                          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '3px' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              background: '#ecfdf5',
-                              color: '#065f46',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              border: '1px solid #a7f3d0'
-                            }}>
-                              <Calendar size={12} />
-                              {s.deduction_days} {parseFloat(s.deduction_days) === 1 ? 'Day' : 'Days'} Deduct
-                            </span>
-                            {s.daily_rate > 0 && (
-                              <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>
-                                @ ₦{fmt(s.daily_rate)}/day
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '2px 8px',
-                            borderRadius: '6px',
-                            background: '#eff6ff',
-                            color: '#1e40af',
-                            fontSize: '0.75rem',
-                            fontWeight: '500',
-                            border: '1px solid #bfdbfe',
-                            textTransform: 'capitalize'
-                          }}>
-                            <NairaSign size={12} />
-                            {s.deduction_type?.replace('_', ' ')}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ fontWeight: '600', color: '#0f172a' }}>₦{fmt(s.total_amount)}</td>
-                      <td>₦{fmt(s.monthly_deduction)}</td>
-                      <td>₦{fmt(s.balance_remaining)}</td>
-                      <td>{s.start_month} to {s.end_month}</td>
-                      <td>
-                        <div style={{ maxWidth: '180px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '0.85rem', color: s.remarks ? 'inherit' : 'var(--secondary, #94a3b8)' }}>
-                          {s.remarks || '—'}
-                        </div>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
-                          onClick={() => isConfigurator && handleToggleStatus(s.id)}
-                          style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
-                        >
-                          {s.is_active === 1 ? 'Active' : 'Inactive'}
-                        </button>
-                      </td>
-                      {isConfigurator && (
+                  {paginatedSetups.map((s) => {
+                    const initials = s.name
+                      ? s.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase()
+                      : 'U';
+                    const isCleared = parseFloat(s.balance_remaining || 0) <= 0;
+
+                    return (
+                      <tr key={s.id}>
                         <td>
-                          <div className={styles.rowActions}>
-                            <button
-                              type="button"
-                              className={`${styles.actionBtn} ${styles.actionBtnEdit}`}
-                              onClick={() => handleEdit(s)}
-                              title="Edit Setup"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
-                              onClick={() => handleDelete(s.id)}
-                              title="Delete Setup"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          <div className={styles.staffCell}>
+                            <div className={styles.staffAvatar}>
+                              {initials}
+                            </div>
+                            <div className={styles.staffText}>
+                              <span className={styles.staffNameText}>{s.name}</span>
+                              <span className={styles.staffIdBadge}>ID #{s.staffId}</span>
+                            </div>
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td>
+                          <span className={styles.deptBadge}>
+                            <Building2 size={13} style={{ color: 'var(--secondary)' }} />
+                            {s.department || 'N/A'}
+                          </span>
+                        </td>
+                        <td>
+                          {s.calculation_mode === 'days' || (s.deduction_days && parseFloat(s.deduction_days) > 0) ? (
+                            <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '3px' }}>
+                              <span className={styles.typeBadgeDay}>
+                                <Calendar size={12} />
+                                {s.deduction_days} {parseFloat(s.deduction_days) === 1 ? 'Day' : 'Days'} Deduct
+                              </span>
+                              {s.daily_rate > 0 && (
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '500' }}>
+                                  @ ₦{fmt(s.daily_rate)}/day
+                                </span>
+                              )}
+                            </div>
+                          ) : s.deduction_type === 'one_time' ? (
+                            <span className={styles.typeBadgeOneTime}>
+                              One-Time
+                            </span>
+                          ) : (
+                            <span className={styles.typeBadgeSpread}>
+                              Monthly Spread ({s.duration_months || 1} Mos)
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={styles.currencyAmount}>₦{fmt(s.total_amount)}</span>
+                        </td>
+                        <td>
+                          <span className={styles.monthlyDeductionCell}>₦{fmt(s.monthly_deduction)}</span>
+                        </td>
+                        <td>
+                          {isCleared ? (
+                            <span className={styles.balanceCleared}>
+                              <CheckCircle2 size={13} /> Cleared (₦0.00)
+                            </span>
+                          ) : (
+                            <span className={styles.balanceCell}>₦{fmt(s.balance_remaining)}</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className={styles.periodCell}>
+                            <div className={styles.periodItem}>
+                              <span className={styles.periodLabel}>From</span>
+                              <span className={styles.periodValue}>{fmtMonth(s.start_month)}</span>
+                            </div>
+                            <div className={styles.periodItem}>
+                              <span className={styles.periodLabel}>To</span>
+                              <span className={styles.periodValue}>{fmtMonth(s.end_month)}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className={styles.remarksCell}>
+                            {s.remarks || '—'}
+                          </div>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={s.is_active === 1 ? styles.badgeSuccess : styles.badgeDanger}
+                            onClick={() => isConfigurator && handleToggleStatus(s.id)}
+                            title={isConfigurator ? (s.is_active === 1 ? 'Click to deactivate' : 'Click to activate') : undefined}
+                            style={{ border: 'none' }}
+                          >
+                            <span className={styles.badgeDot} />
+                            {s.is_active === 1 ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+                        {isConfigurator && (
+                          <td>
+                            <div className={styles.actionsCell} style={{ justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className={`${styles.iconButton} ${s.is_active === 1 ? styles.btnPowerActive : styles.btnPowerInactive}`}
+                                onClick={() => handleToggleStatus(s.id)}
+                                title={s.is_active === 1 ? 'Deactivate Setup' : 'Activate Setup'}
+                              >
+                                <Power size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.iconButton} ${styles.btnEdit}`}
+                                onClick={() => handleEdit(s)}
+                                title="Modify Setup"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
-            <div className={styles.emptyState}>
-              <FileText size={32} className={styles.emptyIcon} />
-              <p>No other configurations found.</p>
+            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--secondary)' }}>
+              <AlertCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--secondary)', opacity: 0.6 }} />
+              <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>No penalty deduction configurations found</p>
+              <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>Try adjusting your search query or add a new configuration above.</p>
             </div>
           )}
 
@@ -1412,8 +1535,7 @@ export default function OtherDeductionSetupPage() {
                 <div className={styles.paginationButtons}>
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(1)}
                   >
@@ -1421,8 +1543,7 @@ export default function OtherDeductionSetupPage() {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
                   >
@@ -1444,8 +1565,7 @@ export default function OtherDeductionSetupPage() {
                       <button
                         key={pageNum}
                         type="button"
-                        className={`${styles.btn} ${currentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
-                        style={{ minWidth: '30px', padding: '0.375rem 0.5rem', fontSize: '0.75rem' }}
+                        className={`${styles.pageBtn} ${currentPage === pageNum ? styles.pageBtnActive : ''}`}
                         onClick={() => setCurrentPage(pageNum)}
                       >
                         {pageNum}
@@ -1455,8 +1575,7 @@ export default function OtherDeductionSetupPage() {
 
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
                   >
@@ -1464,8 +1583,7 @@ export default function OtherDeductionSetupPage() {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(totalPages)}
                   >

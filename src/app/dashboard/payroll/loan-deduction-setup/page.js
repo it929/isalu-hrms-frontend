@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, TrendingUp, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Settings, Calendar, Percent, Power, Upload } from 'lucide-react';
+import { Users, TrendingUp, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Settings, Calendar, Percent, Power, Upload, Coins, CreditCard } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
-import styles from '../apply-coop-loan/page.module.css';
+import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -27,6 +27,20 @@ function fmt(n) {
   const num = parseFloat(n);
   if (isNaN(num)) return '0.00';
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtMonth(ym) {
+  if (!ym) return '—';
+  const parts = String(ym).split('-');
+  if (parts.length === 2) {
+    const year = parts[0];
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${months[monthIdx]} ${year}`;
+    }
+  }
+  return ym;
 }
 
 export default function LoanDeductionSetupPage() {
@@ -506,6 +520,15 @@ export default function LoanDeductionSetupPage() {
 
   const isConfigurator = true;
 
+  const activeCount = setups.filter(s => s.is_active === 1).length;
+  const totalMonthlyDeduction = setups
+    .filter(s => s.is_active === 1)
+    .reduce((acc, s) => acc + (parseFloat(s.monthly_deduction) || 0), 0);
+  const totalBalanceRemaining = setups
+    .reduce((acc, s) => acc + (parseFloat(s.balance_remaining) || 0), 0);
+  const totalLoanPortfolio = setups
+    .reduce((acc, s) => acc + (parseFloat(s.loan_amount) || 0), 0);
+
   if (!mounted) {
     return (
       <div className={styles.container} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
@@ -516,29 +539,113 @@ export default function LoanDeductionSetupPage() {
 
   return (
     <div className={styles.container}>
+      {/* Page Header */}
       <div className={styles.header}>
-        <h1 className={styles.title}>Loan Deduction Setup</h1>
-        <p className={styles.subtitle}>Configure how regular employee loan deductions are recovered monthly from employee salaries, including interest and durations.</p>
+        <div className={styles.headerBadge}>
+          <Settings size={13} />
+          Payroll Deductions
+        </div>
+        <h1 className={styles.title}>
+          <Coins size={28} className={styles.titleIcon} />
+          Loan Deduction Setup
+        </h1>
+        <p className={styles.subtitle}>
+          Configure how regular employee loan deductions are recovered monthly from employee salaries, including interest and durations.
+        </p>
+      </div>
+
+      {/* Summary KPI Cards */}
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconBlue}`}>
+            <Users size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Active Setups</span>
+            <div className={styles.statValue}>
+              {activeCount} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--secondary)' }}>/ {setups.length}</span>
+            </div>
+            <span className={styles.statSubtext}>Configured staff loans</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconEmerald}`}>
+            <TrendingUp size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Monthly Deduction Pool</span>
+            <div className={styles.statValue}>
+              ₦ {fmt(totalMonthlyDeduction)}
+            </div>
+            <span className={styles.statSubtext}>Total active monthly recovery</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconAmber}`}>
+            <CreditCard size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Outstanding Balance</span>
+            <div className={styles.statValue}>
+              ₦ {fmt(totalBalanceRemaining)}
+            </div>
+            <span className={styles.statSubtext}>Pending deduction balance</span>
+          </div>
+        </div>
+
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconPurple}`}>
+            <FileText size={22} />
+          </div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Total Loan Portfolio</span>
+            <div className={styles.statValue}>
+              ₦ {fmt(totalLoanPortfolio)}
+            </div>
+            <span className={styles.statSubtext}>Cumulative principal value</span>
+          </div>
+        </div>
       </div>
 
       {isConfigurator && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div className={styles.topGrid}>
           {/* Setup Form */}
-          <div className={styles.card} style={{ marginBottom: 0 }}>
+          <div className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>{editSetupId ? 'Modify Deduction Setup' : 'Create Deduction Setup'}</h2>
+              <div className={styles.cardHeaderLeft}>
+                <div className={styles.cardHeaderIcon}>
+                  {editSetupId ? <Edit2 size={18} /> : <Plus size={18} />}
+                </div>
+                <h2 className={styles.cardTitle}>
+                  {editSetupId ? `Modify Deduction Setup (#${editSetupId})` : 'Create Deduction Setup'}
+                </h2>
+              </div>
+              {editSetupId && (
+                <button
+                  type="button"
+                  onClick={handleClearForm}
+                  className={styles.countBadge}
+                  style={{ cursor: 'pointer', background: 'rgba(239, 68, 68, 0.08)', color: '#dc2626', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                >
+                  Cancel Edit
+                </button>
+              )}
             </div>
             <div className={styles.cardBody}>
               <form onSubmit={handleSubmit}>
                 <div className={styles.formGrid}>
                   {/* Autocomplete Select Staff */}
-                  <div className={styles.formGroup} ref={dropdownRef}>
-                    <label className={styles.label}>Select Staff Member *</label>
+                  <div className={`${styles.formGroup} ${styles.formGroupFull}`} ref={dropdownRef}>
+                    <label className={styles.label}>
+                      Select Staff Member <span className={styles.reqStar}>*</span>
+                    </label>
                     <div className={styles.dropdownContainer}>
                       <input
                         type="text"
                         className={styles.input}
-                        placeholder="Search by name, staff ID..."
+                        placeholder="Search by name, staff ID, department..."
                         value={dropdownSearch}
                         onChange={(e) => {
                           setDropdownSearch(e.target.value);
@@ -557,8 +664,13 @@ export default function LoanDeductionSetupPage() {
                               className={styles.dropdownItem}
                               onClick={() => handleSelectStaff(staff)}
                             >
-                              <span className={styles.staffName}>{staff.name}</span>
-                              <span className={styles.staffFileNo}>(ID: {staff.id})</span>
+                              <div className={styles.staffDropdownLeft}>
+                                <div className={styles.dropdownAvatar}>
+                                  {staff.name ? staff.name.charAt(0).toUpperCase() : 'S'}
+                                </div>
+                                <span className={styles.staffName}>{staff.name}</span>
+                              </div>
+                              <span className={styles.staffFileNo}>ID: {staff.id}</span>
                             </li>
                           ))}
                         </ul>
@@ -567,41 +679,29 @@ export default function LoanDeductionSetupPage() {
                   
                     {selectedStaff && (
                       <motion.div 
-                        initial={{ opacity: 0, y: -10 }}
+                        initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        style={{
-                          padding: '0.75rem 1rem',
-                          background: 'rgba(59, 130, 246, 0.08)',
-                          border: '1px solid rgba(59, 130, 246, 0.2)',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          flexWrap: 'wrap',
-                          gap: '0.75rem',
-                          fontSize: '0.9rem',
-                          marginTop: '0.5rem'
-                        }}
+                        className={styles.salaryBanner}
                       >
                         {loadingNetPay ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', width: '100%', justifyContent: 'center' }}>
-                            <Loader2 size={16} className="animate-spin" style={{ color: '#3b82f6' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--secondary)', width: '100%', justifyContent: 'center' }}>
+                            <Loader2 size={16} className="animate-spin" style={{ color: 'var(--primary)' }} />
                             <span>Fetching salary details...</span>
                           </div>
                         ) : (
                           <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ color: '#9ca3af' }}>Gross Salary:</span>
-                                <span style={{ fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            <div className={styles.salaryItems}>
+                              <div className={styles.salaryItem}>
+                                <span className={styles.salaryLabel}>Gross Salary:</span>
+                                <span className={styles.salaryValueGross}>
                                   <NairaSign size={14} />
                                   {staffNetPay ? fmt(staffNetPay.grossPay) : '0.00'}
                                 </span>
                               </div>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ color: '#9ca3af' }}>Current Net Pay:</span>
-                                <span style={{ fontWeight: 'bold', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              <div className={styles.salaryItem}>
+                                <span className={styles.salaryLabel}>Current Net Pay:</span>
+                                <span className={styles.salaryValueNet}>
                                   <NairaSign size={14} />
                                   {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
                                 </span>
@@ -609,26 +709,27 @@ export default function LoanDeductionSetupPage() {
                             </div>
 
                             {staffNetPay?.month && (
-                              <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af' }}>
-                                ({staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
+                              <span className={styles.salaryPeriod}>
+                                (Active Month: {staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
                               </span>
                             )}
                           </>
                         )}
                       </motion.div>
                     )}
-</div>
+                  </div>
 
                   {/* Loan Amount */}
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Loan Principal Amount (₦) *</label>
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }}>₦</span>
+                    <label className={styles.label}>
+                      Loan Principal Amount (₦) <span className={styles.reqStar}>*</span>
+                    </label>
+                    <div className={styles.inputWrapper}>
+                      <span className={styles.inputPrefix}>₦</span>
                       <input
                         type="number"
                         step="0.01"
-                        className={styles.input}
-                        style={{ paddingLeft: '32px' }}
+                        className={`${styles.input} ${styles.inputWithPrefix}`}
                         placeholder="0.00"
                         value={loanAmount}
                         onChange={(e) => setLoanAmount(e.target.value)}
@@ -639,24 +740,28 @@ export default function LoanDeductionSetupPage() {
 
                   {/* Interest Rate */}
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Interest Rate (%) *</label>
-                    <div style={{ position: 'relative' }}>
+                    <label className={styles.label}>
+                      Interest Rate (%) <span className={styles.reqStar}>*</span>
+                    </label>
+                    <div className={styles.inputWrapper}>
                       <input
                         type="number"
                         step="0.01"
-                        className={styles.input}
+                        className={`${styles.input} ${styles.inputWithSuffix}`}
                         placeholder="0"
                         value={interestRate}
                         onChange={(e) => setInterestRate(e.target.value)}
                         required
                       />
-                      <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }}>%</span>
+                      <span className={styles.inputSuffix}>%</span>
                     </div>
                   </div>
 
                   {/* Duration Months */}
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Repayment Duration (Months) *</label>
+                    <label className={styles.label}>
+                      Repayment Duration (Months) <span className={styles.reqStar}>*</span>
+                    </label>
                     <input
                       type="number"
                       className={styles.input}
@@ -669,7 +774,9 @@ export default function LoanDeductionSetupPage() {
 
                   {/* Start Month */}
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Repayment Start Month *</label>
+                    <label className={styles.label}>
+                      Repayment Start Month <span className={styles.reqStar}>*</span>
+                    </label>
                     <input
                       type="month"
                       className={styles.input}
@@ -681,41 +788,41 @@ export default function LoanDeductionSetupPage() {
 
                   {/* Monthly Deduction (Calculated) */}
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Monthly Deduction Amount (Calculated)</label>
+                    <label className={styles.label}>Monthly Deduction (Calculated)</label>
                     <input
                       type="text"
-                      className={styles.input}
+                      className={`${styles.input} ${styles.inputDisabled}`}
                       value={monthlyDeduction ? `₦ ${fmt(monthlyDeduction)}` : ''}
                       disabled
-                      style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }}
                     />
                   </div>
 
                   {/* End Month (Calculated) */}
                   <div className={styles.formGroup}>
-                    <label className={styles.label}>Expected Repayment End Month</label>
+                    <label className={styles.label}>Expected End Month (Calculated)</label>
                     <input
                       type="text"
-                      className={styles.input}
-                      value={endMonth || ''}
+                      className={`${styles.input} ${styles.inputDisabled}`}
+                      value={endMonth ? fmtMonth(endMonth) : ''}
                       disabled
-                      style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }}
                     />
                   </div>
 
                   {/* Balance Remaining */}
                   <div className={styles.formGroup}>
                     <label className={styles.label}>Balance Remaining (₦)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className={styles.input}
-                      value={balanceRemaining}
-                      onChange={(e) => setBalanceRemaining(e.target.value)}
-                      placeholder="Auto-calculated if left blank"
-                      disabled={editSetupId === null}
-                      style={editSetupId === null ? { backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' } : {}}
-                    />
+                    <div className={styles.inputWrapper}>
+                      <span className={styles.inputPrefix}>₦</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className={`${styles.input} ${styles.inputWithPrefix} ${editSetupId === null ? styles.inputDisabled : ''}`}
+                        value={balanceRemaining}
+                        onChange={(e) => setBalanceRemaining(e.target.value)}
+                        placeholder="Auto-calculated if blank"
+                        disabled={editSetupId === null}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -746,9 +853,14 @@ export default function LoanDeductionSetupPage() {
           </div>
 
           {/* Import Excel Zone */}
-          <div className={styles.card} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
+          <div className={styles.card} style={{ display: 'flex', flexDirection: 'column' }}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Bulk Import Excel/CSV</h2>
+              <div className={styles.cardHeaderLeft}>
+                <div className={styles.cardHeaderIcon}>
+                  <Upload size={18} />
+                </div>
+                <h2 className={styles.cardTitle}>Bulk Import Excel/CSV</h2>
+              </div>
             </div>
             <div className={styles.cardBody} style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div
@@ -758,15 +870,6 @@ export default function LoanDeductionSetupPage() {
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current.click()}
-                style={{
-                  border: '2px dashed var(--border-color, #e2e8f0)',
-                  borderRadius: '0.5rem',
-                  padding: '2.5rem 1.5rem',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: dragActive ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
-                  transition: 'all 0.2s ease',
-                }}
               >
                 <input
                   type="file"
@@ -778,39 +881,50 @@ export default function LoanDeductionSetupPage() {
                 {importing ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
                     <Loader2 size={36} className="animate-spin" style={{ color: 'var(--primary)' }} />
-                    <p style={{ fontWeight: 500 }}>Processing spreadsheet...</p>
+                    <p style={{ fontWeight: 600 }}>Processing spreadsheet...</p>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                    <Upload size={36} style={{ color: 'var(--primary)' }} />
-                    <p style={{ fontWeight: 500, fontSize: '0.95rem' }}>Drag & drop file here or click to browse</p>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Supports Excel (.xlsx, .xls) and CSV (.csv)</span>
-                  </div>
+                  <>
+                    <div className={styles.uploadIconCircle}>
+                      <Upload size={24} />
+                    </div>
+                    <p className={styles.uploadTitle}>Drag & drop file here or click to browse</p>
+                    <span className={styles.uploadSub}>Supports Excel (.xlsx, .xls) and CSV (.csv)</span>
+                  </>
                 )}
               </div>
-              <div style={{ marginTop: '1.25rem', fontSize: '0.825rem', color: '#64748b', lineHeight: '1.4' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                  <p style={{ fontWeight: 600, margin: 0 }}>Spreadsheet Formatting Guideline:</p>
+              <div className={styles.guidelinesBox}>
+                <div className={styles.guidelineHeader}>
+                  <span className={styles.guidelineTitle}>Formatting Guideline:</span>
                   <a
                     href={`${API_BASE}/payroll/loan-deduction-setups/template`}
                     download="loan_setup_import_template.csv"
-                    style={{
-                      color: 'var(--primary, #6366f1)',
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 500,
-                    }}
+                    className={styles.downloadTemplateLink}
                   >
                     Download Template
                   </a>
                 </div>
-                <ul style={{ listStyleType: 'disc', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <li>Column 1: **Staff ID**</li>
-                  <li>Column 2: **Loan Amount**</li>
-                  <li>Column 3: **Interest Rate (%)**</li>
-                  <li>Column 4: **Duration Months**</li>
-                  <li>Column 5: **Start Month** (format: `YYYY-MM`)</li>
+                <ul className={styles.guidelineList}>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 1: <strong>Staff ID</strong></span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 2: <strong>Loan Amount</strong></span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 3: <strong>Interest Rate (%)</strong></span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 4: <strong>Duration Months</strong></span>
+                  </li>
+                  <li className={styles.guidelineItem}>
+                    <span className={styles.guidelineDot} />
+                    <span>Column 5: <strong>Start Month</strong> (format: <code>YYYY-MM</code>)</span>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -819,10 +933,16 @@ export default function LoanDeductionSetupPage() {
       )}
 
       {/* List Card */}
-      <div className={styles.card} style={{ marginTop: '32px' }}>
-        <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <h2 className={styles.cardTitle}>Deduction Setup Configurations</h2>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div className={styles.cardHeaderLeft}>
+            <div className={styles.cardHeaderIcon}>
+              <Coins size={18} />
+            </div>
+            <h2 className={styles.cardTitle}>Deduction Setup Configurations</h2>
+            <span className={styles.countBadge}>{filteredSetups.length} records</span>
+          </div>
+          <div className={styles.filterBar}>
             <div className={styles.perPageGroup}>
               <span className={styles.perPageLabel}>Show:</span>
               <select
@@ -841,16 +961,25 @@ export default function LoanDeductionSetupPage() {
                 <option value="all">All Records</option>
               </select>
             </div>
-            <div style={{ position: 'relative', minWidth: '240px' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+            <div className={styles.searchWrapper}>
+              <Search size={15} className={styles.searchIcon} />
               <input
                 type="text"
-                className={styles.input}
-                style={{ paddingLeft: '36px' }}
+                className={styles.searchInput}
                 placeholder="Search staff configurations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className={styles.searchClearBtn}
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -858,12 +987,13 @@ export default function LoanDeductionSetupPage() {
         <div className={styles.cardBody} style={{ padding: '0' }}>
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '48px' }}>
-              <Loader2 size={24} className="animate-spin" style={{ color: 'var(--primary)' }} />
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--primary)' }} />
             </div>
           ) : filteredSetups.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
-              <AlertCircle size={32} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--text-secondary)' }} />
-              No deduction setups found.
+            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--secondary)' }}>
+              <AlertCircle size={36} style={{ margin: '0 auto 12px', display: 'block', color: 'var(--secondary)', opacity: 0.6 }} />
+              <p style={{ fontWeight: 600, fontSize: '0.95rem', margin: 0 }}>No deduction setups found</p>
+              <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>Try adjusting your search query or add a new configuration above.</p>
             </div>
           ) : (
             <div className={styles.tableResponsive}>
@@ -875,64 +1005,107 @@ export default function LoanDeductionSetupPage() {
                     <th>Interest</th>
                     <th>Duration</th>
                     <th>Monthly Deduction</th>
-                    <th>Start / End Month</th>
+                    <th>Repayment Period</th>
                     <th>Balance Remaining</th>
                     <th>Status</th>
-                    {isConfigurator && <th>Actions</th>}
+                    {isConfigurator && <th style={{ textAlign: 'center' }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedSetups.map((setup) => (
-                    <tr key={setup.id}>
-                      <td>
-                        <div style={{ fontWeight: '600' }}>{setup.name}</div>
-                        <div className={styles.staffFileNo} style={{ fontSize: '0.8rem' }}>ID: {setup.staffId}</div>
-                      </td>
-                      <td style={{ fontWeight: '500' }}>₦ {fmt(setup.loan_amount)}</td>
-                      <td>{setup.interest_rate}%</td>
-                      <td>{setup.duration_months} Months</td>
-                      <td style={{ color: 'var(--danger)', fontWeight: '600' }}>₦ {fmt(setup.monthly_deduction)}</td>
-                      <td>
-                        <div>Start: {setup.start_month}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>End: {setup.end_month}</div>
-                      </td>
-                      <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
-                        ₦ {fmt(setup.balance_remaining)}
-                      </td>
-                      <td>
-                        <span className={setup.is_active === 1 ? styles.badgeSuccess : styles.badgeDanger}>
-                          {setup.is_active === 1 ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      {isConfigurator && (
+                  {paginatedSetups.map((setup) => {
+                    const initials = setup.name
+                      ? setup.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase()
+                      : 'U';
+                    const isCleared = parseFloat(setup.balance_remaining || 0) <= 0;
+
+                    return (
+                      <tr key={setup.id}>
                         <td>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              className={styles.iconButton}
-                              onClick={() => handleToggleStatus(setup.id)}
-                              title={setup.is_active === 1 ? 'Deactivate' : 'Activate'}
-                            >
-                              <Power size={14} style={{ color: setup.is_active === 1 ? 'var(--danger)' : 'var(--success)' }} />
-                            </button>
-                            <button
-                              className={styles.iconButton}
-                              onClick={() => handleEdit(setup)}
-                              title="Modify Setup"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              className={styles.iconButton}
-                              onClick={() => handleDelete(setup.id)}
-                              title="Delete Setup"
-                            >
-                              <Trash2 size={14} style={{ color: 'var(--danger)' }} />
-                            </button>
+                          <div className={styles.staffCell}>
+                            <div className={styles.staffAvatar}>
+                              {initials}
+                            </div>
+                            <div className={styles.staffText}>
+                              <span className={styles.staffNameText}>{setup.name}</span>
+                              <span className={styles.staffIdBadge}>ID #{setup.staffId}</span>
+                            </div>
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td>
+                          <span className={styles.currencyAmount}>
+                            ₦ {fmt(setup.loan_amount)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={styles.interestBadge}>
+                            {parseFloat(setup.interest_rate || 0).toFixed(2)}%
+                          </span>
+                        </td>
+                        <td>
+                          <span className={styles.durationBadge}>
+                            <Calendar size={12} />
+                            {setup.duration_months} Mos
+                          </span>
+                        </td>
+                        <td>
+                          <span className={styles.monthlyDeductionCell}>
+                            ₦ {fmt(setup.monthly_deduction)}
+                          </span>
+                        </td>
+                        <td>
+                          <div className={styles.periodCell}>
+                            <div className={styles.periodItem}>
+                              <span className={styles.periodLabel}>From</span>
+                              <span className={styles.periodValue}>{fmtMonth(setup.start_month)}</span>
+                            </div>
+                            <div className={styles.periodItem}>
+                              <span className={styles.periodLabel}>To</span>
+                              <span className={styles.periodValue}>{fmtMonth(setup.end_month)}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {isCleared ? (
+                            <span className={styles.balanceCleared}>
+                              <CheckCircle2 size={13} /> Cleared (₦ 0.00)
+                            </span>
+                          ) : (
+                            <span className={styles.balanceCell}>
+                              ₦ {fmt(setup.balance_remaining)}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={setup.is_active === 1 ? styles.badgeSuccess : styles.badgeDanger}>
+                            <span className={styles.badgeDot} />
+                            {setup.is_active === 1 ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        {isConfigurator && (
+                          <td>
+                            <div className={styles.actionsCell} style={{ justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className={`${styles.iconButton} ${setup.is_active === 1 ? styles.btnPowerActive : styles.btnPowerInactive}`}
+                                onClick={() => handleToggleStatus(setup.id)}
+                                title={setup.is_active === 1 ? 'Deactivate Setup' : 'Activate Setup'}
+                              >
+                                <Power size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.iconButton} ${styles.btnEdit}`}
+                                onClick={() => handleEdit(setup)}
+                                title="Modify Setup"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -948,8 +1121,7 @@ export default function LoanDeductionSetupPage() {
                 <div className={styles.paginationButtons}>
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(1)}
                   >
@@ -957,8 +1129,7 @@ export default function LoanDeductionSetupPage() {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
                   >
@@ -980,8 +1151,7 @@ export default function LoanDeductionSetupPage() {
                       <button
                         key={pageNum}
                         type="button"
-                        className={`${styles.btn} ${currentPage === pageNum ? styles.btnPrimary : styles.btnSecondary}`}
-                        style={{ minWidth: '30px', padding: '0.375rem 0.5rem', fontSize: '0.75rem' }}
+                        className={`${styles.pageBtn} ${currentPage === pageNum ? styles.pageBtnActive : ''}`}
                         onClick={() => setCurrentPage(pageNum)}
                       >
                         {pageNum}
@@ -991,8 +1161,7 @@ export default function LoanDeductionSetupPage() {
 
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
                   >
@@ -1000,8 +1169,7 @@ export default function LoanDeductionSetupPage() {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
+                    className={styles.pageBtn}
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(totalPages)}
                   >

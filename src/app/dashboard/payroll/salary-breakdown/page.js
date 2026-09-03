@@ -833,7 +833,7 @@ export default function SalaryBreakdownPage() {
                     ))
                   ) : (
                     <div className={styles.dropdownItem} style={{ color: 'var(--text-secondary)' }}>
-                      No staff found matching "{staffSearchQuery}"
+                      No staff found matching &quot;{staffSearchQuery}&quot;
                     </div>
                   )}
                 </div>
@@ -1366,8 +1366,27 @@ export default function SalaryBreakdownPage() {
                 {deductions?.other_deductions?.amount > 0 && (
                   <div className={styles.listItem}>
                     <div className={styles.itemLeft}>
-                      <span className={styles.itemName}>Other Deductions</span>
-                      <span className={styles.itemSubtext}>Special deduction setup</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span className={styles.itemName}>Other Deductions</span>
+                        {deductions.other_deductions.remarks && (
+                          <span
+                            className={styles.badge}
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.12)',
+                              color: '#b45309',
+                              border: '1px solid rgba(245, 158, 11, 0.25)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              textTransform: 'none',
+                              letterSpacing: 'normal',
+                              padding: '2px 8px',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            {deductions.other_deductions.remarks}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className={styles.itemRight}>
                       <span className={`${styles.itemAmount} ${styles.itemAmountDeduction}`}>
@@ -1781,7 +1800,14 @@ export default function SalaryBreakdownPage() {
                     )}
                     {deductions?.other_deductions?.amount > 0 && (
                       <div className={styles.sheetRow}>
-                        <span>Other Deductions</span>
+                        <span>
+                          Other Deductions
+                          {deductions.other_deductions.remarks && (
+                            <span style={{ fontSize: '0.75rem', color: '#b45309', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
+                              {deductions.other_deductions.remarks}
+                            </span>
+                          )}
+                        </span>
                         <span>{formatCurrency(deductions.other_deductions.amount)}</span>
                       </div>
                     )}
@@ -2472,7 +2498,14 @@ export default function SalaryBreakdownPage() {
                             <td className={styles.tdMoney}>{formatCurrency(r.absence_penalty)}</td>
                             <td className={styles.tdMoney}>{formatCurrency(r.leave_of_absence)}</td>
                             <td className={styles.tdMoney}>{formatCurrency(r.regular_loan)}</td>
-                            <td className={styles.tdMoney}>{formatCurrency(r.other_deductions)}</td>
+                            <td className={styles.tdMoney}>
+                              <div>{formatCurrency(r.other_deductions)}</div>
+                              {r.other_deductions_remarks && (
+                                <div style={{ fontSize: '0.7rem', color: '#b45309', fontWeight: 600, background: 'rgba(245, 158, 11, 0.12)', padding: '1px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.other_deductions_remarks}>
+                                  {r.other_deductions_remarks}
+                                </div>
+                              )}
+                            </td>
                             <td className={styles.tdMoney} style={{ color: '#dc2626', fontWeight: 600 }}>
                               - {formatCurrency(r.total_deductions)}
                             </td>
@@ -2895,7 +2928,14 @@ export default function SalaryBreakdownPage() {
                         <span>{formatCurrency(modalStaffBreakdown.deductions?.regular_loan?.amount ?? modalStaffBreakdown.deductions?.regular_loan?.monthly_deduction)}</span>
                       </div>
                       <div className={styles.sheetRow}>
-                        <span>Other Deductions</span>
+                        <span>
+                          Other Deductions
+                          {modalStaffBreakdown.deductions?.other_deductions?.remarks && (
+                            <span style={{ fontSize: '0.75rem', color: '#b45309', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
+                              {modalStaffBreakdown.deductions.other_deductions.remarks}
+                            </span>
+                          )}
+                        </span>
                         <span>{formatCurrency(modalStaffBreakdown.deductions?.other_deductions?.amount ?? modalStaffBreakdown.deductions?.other_deductions?.monthly_deduction)}</span>
                       </div>
                       <div className={`${styles.sheetRow} ${styles.sheetTotalRow}`} style={{ color: '#dc2626' }}>
