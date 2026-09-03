@@ -538,7 +538,7 @@ export default function CoopSavingsSetupPage() {
                             {staffNetPay ? fmt(staffNetPay.amount) : '0.00'}
                             {staffNetPay?.month && (
                               <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: '#9ca3af', marginLeft: '4px' }}>
-                                ({staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
+                                (Active Month: {staffNetPay.month} {staffNetPay.year}){staffNetPay.isEstimated ? ' [Estimated]' : ''}
                               </span>
                             )}
                           </span>
