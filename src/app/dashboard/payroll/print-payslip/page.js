@@ -364,9 +364,9 @@ export default function PrintPayslip() {
           transition={{ duration: 0.35 }}
         >
           {/* Action header */}
-          <div className={styles.actions} style={{ justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', gap: '0.75rem' }}>
+          <div className={styles.actions} style={{ justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1.25rem', gap: '0.75rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <label htmlFor="print-size-select" style={{ fontSize: '0.85rem', fontWeight: '600', marginRight: '0.5rem', color: 'var(--text-secondary)' }}>Print Size:</label>
+              <label htmlFor="print-size-select" style={{ fontSize: '0.85rem', fontWeight: '600', marginRight: '0.5rem', color: 'var(--text-secondary)' }}>Paper Size & Layout:</label>
               <select
                 id="print-size-select"
                 value={printSize}
@@ -374,8 +374,10 @@ export default function PrintPayslip() {
                 className={styles.select}
                 style={{ width: 'auto', padding: '0.5rem 2rem 0.5rem 1rem', height: '40px', borderRadius: '8px' }}
               >
-                <option value="A5">A5 (Landscape)</option>
-                <option value="A4">A4 (Portrait)</option>
+                <option value="A5">A5 (Landscape — Voucher)</option>
+                <option value="A5-portrait">A5 (Portrait)</option>
+                <option value="A4">A4 (Portrait — Full Page)</option>
+                <option value="A4-landscape">A4 (Landscape)</option>
               </select>
             </div>
             <button onClick={handlePrint} className={styles.btnPrimary} style={{ height: '40px' }}>
@@ -393,23 +395,124 @@ export default function PrintPayslip() {
           {/* Dynamic page print size overrides */}
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
+              * {
+                transform: none !important;
+                transition: none !important;
+                animation: none !important;
+              }
               @page {
-                size: ${printSize === 'A4' ? 'A4 portrait' : 'A5 landscape'};
-                margin: ${printSize === 'A4' ? '12mm' : '4mm'};
+                size: ${
+                  printSize === 'A4' ? 'A4 portrait' :
+                  printSize === 'A4-landscape' ? 'A4 landscape' :
+                  printSize === 'A5-portrait' ? 'A5 portrait' :
+                  'A5 landscape'
+                };
+                margin: ${
+                  printSize === 'A5' ? '3mm 4mm' :
+                  printSize === 'A5-portrait' ? '4mm 5mm' :
+                  printSize === 'A4-landscape' ? '6mm 8mm' :
+                  '8mm 10mm'
+                } !important;
+              }
+              html, body {
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                background: #ffffff !important;
+                color: #0f172a !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              header,
+              aside,
+              nav,
+              [class*="navbar"],
+              [class*="sidebar"],
+              [class*="controlsCard"],
+              [class*="actions"],
+              [class*="toast"] {
+                display: none !important;
+                height: 0 !important;
+                width: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                position: absolute !important;
+                visibility: hidden !important;
+              }
+              #__next,
+              main,
+              [class*="layout"],
+              [class*="mainContainer"],
+              [class*="content"],
+              [class*="pageWrapper"],
+              .printCard,
+              .paperContainer {
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                display: block !important;
+                border: none !important;
+                box-shadow: none !important;
+              }
+              [class*="payslipWrapper"] {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+                page-break-before: avoid !important;
+                break-before: avoid !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+              }
+              [class*="breakdownGrid"] {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: ${printSize === 'A5' ? '10px' : '16px'} !important;
+                width: 100% !important;
+              }
+              [class*="columnEarnings"],
+              [class*="columnDeductions"] {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                min-width: 0 !important;
               }
             }
           `}} />
 
           {/* Payslip Document */}
           <div className={styles.payslipWrapper} data-print-size={printSize}>
+            {/* Repeating Watermark Grid */}
+            <div className={styles.watermark} aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={styles.watermarkItem}>
+                  <img src="/isalu_logo.png" alt="" />
+                </div>
+              ))}
+            </div>
+
+            {/* Header */}
             <div className={styles.payslipHeader}>
-              <div className={styles.companyInfo}>
-                <h2>Isalu Hospitals Limited</h2>
-                <p>STAFF MONTHLY SALARY ADVICE / PAYSLIP</p>
+              <div className={styles.headerLeft}>
+                <img src="/isalu_logo.png" alt="Isalu Hospitals Limited" className={styles.hospitalLogo} />
+                <div className={styles.companyInfo}>
+                  <h2>Isalu Hospitals Limited</h2>
+                  <p className={styles.subDept}>Human Resources & Payroll Department</p>
+                  <p className={styles.docTitle}>STAFF MONTHLY SALARY ADVICE / PAYSLIP</p>
+                </div>
               </div>
               <div className={styles.payslipTitle}>
-                <h3>PAYSLIP</h3>
-                <p>{selectedMonth} {selectedYear}</p>
+                <div className={styles.badgePayslip}>PAYSLIP</div>
+                <h3>{selectedMonth} {selectedYear}</h3>
+                <span className={styles.printedDate}>
+                  Date: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
               </div>
             </div>
 
@@ -432,16 +535,28 @@ export default function PrintPayslip() {
                 <span className={styles.metaVal}>{payslipData.staff.designation}</span>
               </div>
               <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Bank Name:</span>
+                <span className={styles.metaVal}>{payslipData.staff.bank_name || 'N/A'}</span>
+              </div>
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Account No:</span>
+                <span className={styles.metaVal}>{payslipData.staff.bank_account || 'N/A'}</span>
+              </div>
+              <div className={styles.metaItem}>
                 <span className={styles.metaLabel}>Paid Days:</span>
                 <span className={styles.metaVal}>{payslipData.payslip.paid_days !== null && payslipData.payslip.paid_days !== undefined ? payslipData.payslip.paid_days : 'N/A'}</span>
+              </div>
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Pay Period:</span>
+                <span className={styles.metaVal}>{selectedMonth} {selectedYear}</span>
               </div>
             </div>
 
             {/* Earnings and Deductions columns */}
             <div className={styles.breakdownGrid}>
-              {/* Earnings Column */}
-              <div>
-                <h4 className={styles.sectionTitle}>Earnings</h4>
+              {/* Left Column: Earnings & Balances */}
+              <div className={styles.columnEarnings}>
+                <h4 className={styles.sectionTitle}>Earnings & Allowances</h4>
                 <table className={styles.table}>
                   <tbody>
                     <tr>
@@ -474,57 +589,116 @@ export default function PrintPayslip() {
                     </tr>
                   </tbody>
                 </table>
+
+                {/* Balances & Outstanding Information under Earnings */}
+                <div className={styles.balancesContainer}>
+                  <h4 className={styles.subSectionTitle}>Balances & Outstanding Information</h4>
+                  <div className={styles.balancesGrid}>
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}>Cop. Contr.:</span>
+                      <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_savings_balance)}</span>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}>Cop. Loan Bal:</span>
+                      <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_loan_balance)}</span>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}>Cop. Asset Fin:</span>
+                      <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_asset_finance_balance)}</span>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}>Med. Debt:</span>
+                      <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.medical_loan_balance)}</span>
+                    </div>
+                    {payslipData.payslip.revolving_loan_balance > 0 && (
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}>Revolving Loan:</span>
+                        <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.revolving_loan_balance)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Deductions Column */}
-              <div>
+              {/* Right Column: Deductions */}
+              <div className={styles.columnDeductions}>
                 <h4 className={styles.sectionTitle}>Deductions</h4>
                 <table className={styles.table}>
                   <tbody>
                     <tr>
-                      <td>P. Tax</td>
+                      <td>P. Tax (PAYE)</td>
                       <td>{formatCurrency(payslipData.payslip.tax)}</td>
                     </tr>
                     <tr>
-                      <td>IOU</td>
-                      <td>{formatCurrency(payslipData.payslip.iou)}</td>
-                    </tr>
-                    <tr>
-                      <td>Retention</td>
-                      <td>{formatCurrency(payslipData.payslip.retention)}</td>
-                    </tr>
-                    <tr>
-                      <td>Surcharges</td>
-                      <td>{formatCurrency(payslipData.payslip.surcharges)}</td>
-                    </tr>
-                    <tr>
-                      <td>Pension</td>
+                      <td>Pension (8%)</td>
                       <td>{formatCurrency(payslipData.payslip.pension)}</td>
                     </tr>
-                    <tr>
-                      <td>Med. Loan</td>
-                      <td>{formatCurrency(payslipData.payslip.medical_loan)}</td>
-                    </tr>
-                    <tr>
-                      <td>Coop. Saving</td>
-                      <td>{formatCurrency(payslipData.payslip.coop_savings)}</td>
-                    </tr>
-                    <tr>
-                      <td>Coop. Loan Rpyt</td>
-                      <td>{formatCurrency(payslipData.payslip.coop_loan)}</td>
-                    </tr>
-                    <tr>
-                      <td>Absence Pen</td>
-                      <td>{formatCurrency(payslipData.payslip.absence_penalty)}</td>
-                    </tr>
-                    <tr>
-                      <td>LOA Dedn</td>
-                      <td>{formatCurrency(payslipData.payslip.leave_absence_deduction)}</td>
-                    </tr>
-                    <tr>
-                      <td>Coop. Asset</td>
-                      <td>{formatCurrency(payslipData.payslip.coop_asset_finance)}</td>
-                    </tr>
+                    {payslipData.payslip.iou > 0 && (
+                      <tr>
+                        <td>IOU</td>
+                        <td>{formatCurrency(payslipData.payslip.iou)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.retention > 0 && (
+                      <tr>
+                        <td>Retention</td>
+                        <td>{formatCurrency(payslipData.payslip.retention)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.surcharges > 0 && (
+                      <tr>
+                        <td>Surcharges</td>
+                        <td>{formatCurrency(payslipData.payslip.surcharges)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.medical_loan > 0 && (
+                      <tr>
+                        <td>Med. Loan</td>
+                        <td>{formatCurrency(payslipData.payslip.medical_loan)}</td>
+                      </tr>
+                    )}
+                    {(payslipData.payslip.coop_savings > 0 || payslipData.payslip.coop_savings_balance > 0) && (
+                      <tr>
+                        <td>Coop. Saving</td>
+                        <td>{formatCurrency(payslipData.payslip.coop_savings)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.coop_loan > 0 && (
+                      <tr>
+                        <td>Coop. Loan Rpyt</td>
+                        <td>{formatCurrency(payslipData.payslip.coop_loan)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.coop_asset_finance > 0 && (
+                      <tr>
+                        <td>Coop. Asset Fin</td>
+                        <td>{formatCurrency(payslipData.payslip.coop_asset_finance)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.absence_penalty > 0 && (
+                      <tr>
+                        <td>Absence Pen</td>
+                        <td>{formatCurrency(payslipData.payslip.absence_penalty)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.leave_absence_deduction > 0 && (
+                      <tr>
+                        <td>LOA Dedn</td>
+                        <td>{formatCurrency(payslipData.payslip.leave_absence_deduction)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.loan > 0 && (
+                      <tr>
+                        <td>Loan Repayment</td>
+                        <td>{formatCurrency(payslipData.payslip.loan)}</td>
+                      </tr>
+                    )}
+                    {payslipData.payslip.other_deductions > 0 && (
+                      <tr>
+                        <td>Other Deductions</td>
+                        <td>{formatCurrency(payslipData.payslip.other_deductions)}</td>
+                      </tr>
+                    )}
                     <tr className={styles.subTotalRow}>
                       <td>Total Deductions</td>
                       <td>{formatCurrency(payslipData.payslip.total_deductions)}</td>
@@ -534,28 +708,18 @@ export default function PrintPayslip() {
               </div>
             </div>
 
-            {/* Balances & Net Salary Row (Side-by-Side) */}
+            {/* Bottom Summary Bar: Net Pay & Authorized Signature */}
             <div className={styles.bottomSection}>
-              {/* Balances & Information Section */}
-              <div className={styles.balancesContainer}>
-                <h4 className={styles.sectionTitle}>Balances & Outstanding Information</h4>
-                <div className={styles.balancesGrid}>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>Cop. Contr.:</span>
-                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_savings_balance)}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>Cop. Lone Bal:</span>
-                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_loan_balance)}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>Cop. Asset Fin:</span>
-                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.coop_asset_finance_balance)}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>Med. Debt:</span>
-                    <span className={styles.metaVal}>{formatCurrency(payslipData.payslip.medical_loan_balance)}</span>
-                  </div>
+              {/* Signature Section */}
+              <div className={styles.signatureSection}>
+                <span className={styles.signatureTitle}>Authorized Signature (HR Head):</span>
+                <div className={styles.signatureBox}>
+                  {payslipData.hr_signature ? (
+                    <img src={payslipData.hr_signature} alt="HR Head Signature" className={styles.signatureImg} />
+                  ) : (
+                    <div className={styles.signatureLine}></div>
+                  )}
+                  <div className={styles.signatoryLabel}>Head of Human Resources & Payroll</div>
                 </div>
               </div>
 
@@ -568,14 +732,9 @@ export default function PrintPayslip() {
               </div>
             </div>
 
-            {/* Signature Section */}
-            <div className={styles.signatureSection}>
-              <span className={styles.metaLabel} style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Authorized Signature (HR Head):</span>
-              {payslipData.hr_signature ? (
-                <img src={payslipData.hr_signature} alt="HR Head Signature" className={styles.signatureImg} />
-              ) : (
-                <span style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No signature on file</span>
-              )}
+            {/* Confidentiality Footer Note */}
+            <div className={styles.footerNote}>
+              Isalu Hospitals Limited &bull; Official Staff Monthly Salary Advice &bull; Strictly Confidential &bull; Retain for statutory &amp; tax records
             </div>
           </div>
         </motion.div>

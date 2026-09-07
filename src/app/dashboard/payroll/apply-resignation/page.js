@@ -1426,6 +1426,40 @@ export default function ApplyResignationPage() {
                 </button>
               </div>
               <div className={styles.modalBody}>
+                {approvalModal.level === 'HR' && approvalModal.action === 'approve' && (() => {
+                  const targetRow = records.find(r => r.id === approvalModal.recordId);
+                  const resDate = targetRow?.resignation_date;
+                  let resDay = null;
+                  if (resDate) {
+                    const parts = resDate.split('-');
+                    if (parts.length === 3) resDay = parseInt(parts[2], 10);
+                  }
+                  const isEarly = resDay !== null && resDay <= 10;
+
+                  return (
+                    <div style={{
+                      background: isEarly ? '#eff6ff' : '#ecfdf5',
+                      border: `1px solid ${isEarly ? '#bfdbfe' : '#a7f3d0'}`,
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      fontSize: '0.8rem',
+                      color: isEarly ? '#1e40af' : '#065f46',
+                      lineHeight: '1.45',
+                      marginBottom: '10px'
+                    }}>
+                      {isEarly ? (
+                        <>
+                          <strong>Early Month Rule (Day 1–10):</strong> Resignation submitted on <strong>{resDate || 'early in month'}</strong>. Approving will immediately remove this staff from active payroll (<code>staff_status = 0</code>). The full 1-month notice will be settled on the <strong>Exit Settlement Registry</strong> page.
+                        </>
+                      ) : (
+                        <>
+                          <strong>Mid/Late Month Rule (Day 11+):</strong> Resignation submitted on <strong>{resDate || 'mid/late month'}</strong>. Staff will remain active on payroll (<code>staff_status = 1</code>) to receive this month's full regular salary. The remaining next month prorated notice days will be calculated in the <strong>Exit Settlement Registry</strong>.
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Please specify any additional remarks or notes for this action.
                 </p>
