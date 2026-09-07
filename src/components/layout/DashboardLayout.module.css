@@ -81,23 +81,32 @@
 @media print {
   .layout {
     height: auto !important;
-    min-height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
     display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .mainContainer {
     height: auto !important;
-    min-height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
     display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .content {
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
     display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .pageWrapper {
@@ -105,5 +114,7 @@
     margin: 0 !important;
     width: 100% !important;
     overflow: visible !important;
+    min-height: 0 !important;
+    height: auto !important;
   }
 }

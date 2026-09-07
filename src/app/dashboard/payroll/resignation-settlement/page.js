@@ -776,8 +776,17 @@ export default function ResignationSettlementPage() {
                         {formatDate(r.exit_date)}
                       </span>
                     </td>
-                    <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#3b82f6' }}>
-                      ₦{fmt(r.notice_salary_total)}
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 600, color: '#3b82f6' }}>₦{fmt(r.notice_salary_total)}</div>
+                      {r.resignation_rule === 'mid_late_month' ? (
+                        <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 500 }} title="Current month full salary received via regular monthly payroll run">
+                          Prorated: {r.next_month_days}/{r.days_in_next_month} days (M1 on Payroll)
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                          Full 1-Mo Notice (Day 1–10)
+                        </div>
+                      )}
                     </td>
                     <td style={{ whiteSpace: 'nowrap', fontWeight: 600, color: '#ef4444' }}>
                       ₦{fmt(r.total_deductions)}
@@ -995,6 +1004,25 @@ export default function ResignationSettlementPage() {
                     </div>
                   </div>
 
+                  {/* Resignation Notice Rule Banner */}
+                  {settlementData.timeline?.rule_description && (
+                    <div style={{
+                      margin: '0 0 1.25rem 0',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '8px',
+                      background: settlementData.timeline.resignation_rule === 'mid_late_month' ? '#eff6ff' : '#f0fdf4',
+                      border: `1px solid ${settlementData.timeline.resignation_rule === 'mid_late_month' ? '#bfdbfe' : '#bbf7d0'}`,
+                      color: settlementData.timeline.resignation_rule === 'mid_late_month' ? '#1e40af' : '#166534',
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <Sparkles size={16} style={{ flexShrink: 0 }} />
+                      <span>{settlementData.timeline.rule_description}</span>
+                    </div>
+                  )}
+
                   {/* Staff Metadata Summary Box */}
                   <div className={styles.staffMetaBox}>
                     <div className={styles.metaItem}>
@@ -1015,7 +1043,7 @@ export default function ResignationSettlementPage() {
                     </div>
                     <div className={styles.metaItem}>
                       <span className={styles.metaLabel}>Notice Submission Date:</span>
-                      <span className={styles.metaValue}>{formatDate(settlementData.timeline.resignation_date)} (30 Days)</span>
+                      <span className={styles.metaValue}>{formatDate(settlementData.timeline.resignation_date)} (1 Month Notice)</span>
                     </div>
                     <div className={styles.metaItem}>
                       <span className={styles.metaLabel}>Effective Exit Date:</span>
@@ -1023,7 +1051,11 @@ export default function ResignationSettlementPage() {
                     </div>
                     <div className={styles.metaItem}>
                       <span className={styles.metaLabel}>Payroll Status:</span>
-                      <span className={styles.metaValue} style={{ color: '#d97706' }}>Removed from Active Payroll</span>
+                      <span className={styles.metaValue} style={{ color: settlementData.timeline?.resignation_rule === 'mid_late_month' ? '#059669' : '#d97706' }}>
+                        {settlementData.timeline?.resignation_rule === 'mid_late_month'
+                          ? 'Current Month Active on Regular Payroll'
+                          : 'Removed from Active Payroll'}
+                      </span>
                     </div>
                     <div className={styles.metaItem}>
                       <span className={styles.metaLabel}>Declared Base Salary:</span>
@@ -1066,14 +1098,18 @@ export default function ResignationSettlementPage() {
 
                       {/* Notice Period Proration Rows */}
                       {settlementData.notice_earnings.breakdown.map((b, idx) => (
-                        <div key={idx} className={styles.sheetRow} style={{ background: 'rgba(59, 130, 246, 0.03)' }}>
+                        <div key={idx} className={styles.sheetRow} style={{ background: b.is_paid_via_payroll ? 'rgba(16, 185, 129, 0.05)' : 'rgba(59, 130, 246, 0.03)' }}>
                           <span>
-                            Notice Salary: {b.month_name}
+                            {b.is_paid_via_payroll ? `Salary: ${b.month_name}` : `Notice Salary: ${b.month_name}`}
                             <span className={styles.sheetRowNote}>
-                              ({b.days_worked}/{b.days_in_month} days{b.is_full_month ? ' full' : ''})
+                              {b.is_paid_via_payroll
+                                ? ' (Paid via Regular Monthly Payroll)'
+                                : ` (${b.days_worked}/${b.days_in_month} days${b.payroll_note ? ` — ${b.payroll_note}` : ''})`}
                             </span>
                           </span>
-                          <span style={{ color: '#3b82f6' }}>{fmt(b.earned_salary)}</span>
+                          <span style={{ color: b.is_paid_via_payroll ? '#059669' : '#3b82f6', fontWeight: b.is_paid_via_payroll ? 600 : 400 }}>
+                            {b.is_paid_via_payroll ? 'Paid on Payroll (₦0.00)' : `₦${fmt(b.earned_salary)}`}
+                          </span>
                         </div>
                       ))}
 
@@ -1614,7 +1650,7 @@ export default function ResignationSettlementPage() {
             </div>
             <div>
               <p style={{ margin: '3px 0' }}><strong>Resignation Date:</strong> {formatDate(settlementData.timeline.resignation_date)}</p>
-              <p style={{ margin: '3px 0' }}><strong>Notice Duration:</strong> 30 Days (1 Month)</p>
+              <p style={{ margin: '3px 0' }}><strong>Notice Duration:</strong> Exactly 1 Calendar Month ({settlementData.timeline.notice_period_days || 30} Days)</p>
               <p style={{ margin: '3px 0' }}><strong>Effective Exit Date:</strong> {formatDate(settlementData.timeline.exit_date)}</p>
               <p style={{ margin: '3px 0' }}><strong>HR Approval Date:</strong> {formatDate(settlementData.timeline.admin_approved_at)}</p>
             </div>
@@ -1632,11 +1668,20 @@ export default function ResignationSettlementPage() {
             </thead>
             <tbody>
               {settlementData.notice_earnings.breakdown.map((b, idx) => (
-                <tr key={idx}>
-                  <td style={{ padding: '6px', border: '1px solid #ddd' }}>{b.period_label}</td>
+                <tr key={idx} style={{ background: b.is_paid_via_payroll ? '#f8fafc' : '#fff' }}>
+                  <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                    {b.period_label}
+                    {b.is_paid_via_payroll && (
+                      <span style={{ color: '#059669', fontWeight: 600, display: 'block', fontSize: '0.72rem' }}>
+                        ✓ Paid via Regular Monthly Payroll (Excluded from Settlement)
+                      </span>
+                    )}
+                  </td>
                   <td style={{ padding: '6px', border: '1px solid #ddd' }}>{b.days_in_month}</td>
                   <td style={{ padding: '6px', border: '1px solid #ddd' }}>{b.days_worked}</td>
-                  <td style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'right' }}>₦{fmt(b.earned_salary)}</td>
+                  <td style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'right', color: b.is_paid_via_payroll ? '#64748b' : '#000' }}>
+                    ₦{fmt(b.earned_salary)}
+                  </td>
                 </tr>
               ))}
               <tr style={{ fontWeight: 700, background: '#fafafa' }}>
