@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '../contexts/SessionContext';
 import axios from 'axios';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Clock } from 'lucide-react';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -16,8 +16,26 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [inactivityNotice, setInactivityNotice] = useState(false);
   const router = useRouter();
   const { login } = useSession();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // If already logged in, redirect straight to dashboard
+      const savedUser = localStorage.getItem('hrms_user');
+      if (savedUser) {
+        window.location.href = '/dashboard';
+        return;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reason') === 'inactivity') {
+        setInactivityNotice(true);
+        window.history.replaceState({}, '', '/');
+      }
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,20 +44,23 @@ export default function Login() {
     
     try {
       const response = await axios.post(`${API_BASE}/login`, {
-        username,
+        username: username.trim(),
         password
+      }, {
+        timeout: 15000
       });
 
       if (response.data.status === 'success') {
         const { user, role } = response.data;
         login(user, role);
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       } else {
         setError(response.data.message || 'Login failed');
+        setLoading(false);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Connection error. Please try again.');
-    } finally {
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || err.message || 'Connection error. Please try again.');
       setLoading(false);
     }
   };
@@ -53,6 +74,27 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleLogin} className={styles.form}>
+          {inactivityNotice && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              color: '#92400e',
+              backgroundColor: '#fef3c7',
+              padding: '0.85rem 1rem',
+              borderRadius: 'var(--radius)',
+              marginBottom: '1.25rem',
+              fontSize: '0.875rem',
+              border: '1px solid #fde68a',
+              lineHeight: 1.4
+            }}>
+              <Clock size={20} style={{ flexShrink: 0, color: '#d97706' }} />
+              <div>
+                <strong>Session Expired:</strong> You were automatically logged out due to 30 minutes of inactivity. Please sign in again.
+              </div>
+            </div>
+          )}
+
           {error && <div style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.875rem', border: '1px solid #fca5a5' }}>{error}</div>}
           <div className={styles.inputGroup}>
             <label htmlFor="username">Staff ID</label>

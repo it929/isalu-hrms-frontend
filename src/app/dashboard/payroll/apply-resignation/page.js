@@ -224,12 +224,9 @@ export default function ApplyResignationPage() {
     }
   })() : '';
 
-  const isStaffRole = activeRoleName === 'staff';
-
   // Privileged users (HR Head, Finance Head, Audit Head, and Super Admin) see all staff records
-  // If explicitly in Staff role, user is NOT privileged and must see only their own record
-  const isPrivilegedUser = !isStaffRole && Boolean(
-    (!isStaffRole && userCtx.isSuperAdmin) || 
+  const isPrivilegedUser = Boolean(
+    userCtx.isSuperAdmin || 
     userCtx.isAdminStaff || 
     userCtx.isFinanceStaff || 
     userCtx.isAuditStaff ||
@@ -243,7 +240,7 @@ export default function ApplyResignationPage() {
     activeRoleName === 'head of audit'
   );
 
-  const isHodUser = !isStaffRole && (userCtx.isHod || activeRoleName === 'hod');
+  const isHodUser = Boolean(userCtx.isHod || activeRoleName === 'hod' || activeRoleName === 'head of department');
 
   // Determine if active user can select other staff members (Super Admin, HR Head, Finance Head, Audit Head, HOD)
   const canSelectStaff = isPrivilegedUser || isHodUser;
@@ -476,20 +473,35 @@ export default function ApplyResignationPage() {
   const filteredRecords = records.filter(r => {
     // If not privileged (Super Admin, HR Head, Finance Head, Audit Head) and not HOD:
     // Regular staff strictly see their own record alone
-    if (!isPrivilegedUser && !isHodUser) {
-      const currentEmployee = userCtx.employee;
-      const empId = currentEmployee ? (currentEmployee.ID ?? currentEmployee.id) : null;
+    if (!isPrivilegedUser) {
+      if (isHodUser) {
+        const currentEmployee = userCtx.employee;
+        const empId = currentEmployee ? (currentEmployee.ID ?? currentEmployee.id) : null;
+        const hodDeptId = currentEmployee?.departmentID;
+        const hodDeptName = currentEmployee?.department;
 
-      const fallbackStaffId = typeof window !== 'undefined' ? (() => {
-        try {
-          const u = JSON.parse(localStorage.getItem('hrms_user'));
-          return u?.staff_id ?? u?.staffID ?? u?.employee_id ?? (u?.username && /^\d+$/.test(u.username) ? u.username : null);
-        } catch { return null; }
-      })() : null;
+        const isOwn = empId && String(r.staff_id) === String(empId);
+        const isDeptMatch = (hodDeptId && r.departmentID && String(r.departmentID) === String(hodDeptId)) ||
+          (hodDeptName && r.department && String(r.department).toLowerCase().trim() === String(hodDeptName).toLowerCase().trim());
 
-      const myStaffId = empId || fallbackStaffId;
-      if (myStaffId && String(r.staff_id) !== String(myStaffId)) {
-        return false;
+        if (!isOwn && !isDeptMatch) {
+          return false;
+        }
+      } else {
+        const currentEmployee = userCtx.employee;
+        const empId = currentEmployee ? (currentEmployee.ID ?? currentEmployee.id) : null;
+
+        const fallbackStaffId = typeof window !== 'undefined' ? (() => {
+          try {
+            const u = JSON.parse(localStorage.getItem('hrms_user'));
+            return u?.staff_id ?? u?.staffID ?? u?.employee_id ?? (u?.username && /^\d+$/.test(u.username) ? u.username : null);
+          } catch { return null; }
+        })() : null;
+
+        const myStaffId = empId || fallbackStaffId;
+        if (myStaffId && String(r.staff_id) !== String(myStaffId)) {
+          return false;
+        }
       }
     }
     
@@ -551,9 +563,19 @@ export default function ApplyResignationPage() {
   const canRecommendHOD = (row) => {
     if (row.status !== 0 || row.hod_status !== 0) return false;
     if (userCtx.isSuperAdmin || userCtx.isAdminStaff) return true;
-    if (userCtx.isHod && userCtx.employee) {
+    if ((isHodUser || userCtx.isHod) && userCtx.employee) {
       const empId = userCtx.employee.ID ?? userCtx.employee.id;
-      return row.department === userCtx.employee.department || String(row.staff_id) === String(empId);
+      const hodDeptId = userCtx.employee.departmentID;
+      const rowDeptId = row.departmentID;
+
+      const deptIdMatches = Boolean(hodDeptId && rowDeptId && String(hodDeptId) === String(rowDeptId));
+      const deptNameMatches = Boolean(
+        row.department && 
+        userCtx.employee.department && 
+        row.department.trim().toLowerCase() === userCtx.employee.department.trim().toLowerCase()
+      );
+
+      return deptIdMatches || deptNameMatches || String(row.staff_id) === String(empId);
     }
     return false;
   };
