@@ -33,6 +33,26 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+const CustomXAxisTick = ({ x, y, payload }) => {
+  if (!payload || payload.value === undefined) return null;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={12}
+        textAnchor="end"
+        fill="var(--secondary)"
+        transform="rotate(-40)"
+        fontSize={11}
+        fontWeight={500}
+      >
+        {payload.value}
+      </text>
+    </g>
+  );
+};
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
 const iconMap = {
@@ -66,6 +86,8 @@ export default function DashboardHome() {
         if (!hasCache) setLoading(false);
       });
   }, []);
+
+  const validDeptStats = deptStats.filter(d => Number(d.value) > 0);
 
   return (
     <div>
@@ -172,29 +194,29 @@ export default function DashboardHome() {
         </div>
         {/* ── Department Staff Distribution Bar Chart ── */}
         <div className="premium-card" style={{ width: '100%', padding: '2rem', border: '1px solid var(--border)', marginTop: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'var(--foreground)' }}>Staff Distribution by Department</h3>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>Overview of current employee strengths across all departments</p>
             </div>
           </div>
 
-          <div style={{ height: '320px', width: '100%', minWidth: 0, minHeight: 320 }}>
-            {deptStats.length === 0 ? (
+          <div style={{ height: '390px', width: '100%', minWidth: 0, minHeight: 390 }}>
+            {validDeptStats.length === 0 ? (
               <div style={{ color: 'var(--secondary)', fontSize: '0.95rem', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 No department statistics available.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={deptStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={validDeptStats} margin={{ top: 10, right: 15, left: -20, bottom: 65 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.3} />
                   <XAxis 
                     dataKey="name" 
-                    stroke="var(--secondary)" 
-                    fontSize={11} 
+                    interval={0}
+                    tick={<CustomXAxisTick />}
                     tickLine={false} 
-                    axisLine={false} 
-                    dy={10}
+                    axisLine={false}
+                    height={80}
                   />
                   <YAxis 
                     stroke="var(--secondary)" 
@@ -209,9 +231,9 @@ export default function DashboardHome() {
                     radius={[6, 6, 0, 0]} 
                     animationDuration={1000}
                     animationMatchBy="stretch"
-                    barSize={40}
+                    barSize={32}
                   >
-                    {deptStats.map((entry, index) => (
+                    {validDeptStats.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Bar>
