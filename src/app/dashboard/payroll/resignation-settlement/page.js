@@ -25,7 +25,9 @@ import {
   Mail,
   Download,
   Edit2,
-  Save
+  Save,
+  Briefcase,
+  FileText
 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
@@ -751,7 +753,7 @@ export default function ResignationSettlementPage() {
                 <tr>
                   <th>Staff Information</th>
                   <th>Department</th>
-                  <th>Exit Date</th>
+                  <th>Service & Exit Timeline</th>
                   <th>Notice Salary</th>
                   <th>Total Deductions</th>
                   <th>Net Settlement</th>
@@ -771,10 +773,20 @@ export default function ResignationSettlementPage() {
                     </td>
                     <td>{r.department || 'N/A'}</td>
                     <td>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', fontWeight: 600, color: '#ec4899' }}>
-                        <Calendar size={13} style={{ color: '#ec4899' }} />
-                        {formatDate(r.exit_date)}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.78rem', minWidth: '165px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569' }} title="Staff Date of Appointment / Joining">
+                          <Briefcase size={12} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span><strong style={{ color: '#334155' }}>Appointed:</strong> {formatDate(r.appointment_date)}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#0369a1' }} title="Resignation Notice Submission Date">
+                          <FileText size={12} style={{ color: '#0284c7', flexShrink: 0 }} />
+                          <span><strong style={{ color: '#0369a1' }}>Resigned:</strong> {formatDate(r.resignation_date)}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 700, color: '#db2777' }} title="Effective Exit / Clearance Date">
+                          <Calendar size={12} style={{ color: '#db2777', flexShrink: 0 }} />
+                          <span><strong style={{ color: '#be185d' }}>Exit:</strong> {formatDate(r.exit_date)}</span>
+                        </div>
+                      </div>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <div style={{ fontWeight: 600, color: '#3b82f6' }}>₦{fmt(r.notice_salary_total)}</div>
@@ -1042,12 +1054,18 @@ export default function ResignationSettlementPage() {
                       <span className={styles.metaValue}>{settlementData.staff.bank_name} — {settlementData.staff.account_no}</span>
                     </div>
                     <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}>Date of Appointment:</span>
+                      <span className={styles.metaValue} style={{ color: '#0f172a', fontWeight: 600 }}>
+                        {formatDate(settlementData.staff?.appointment_date || settlementData.timeline?.appointment_date)}
+                      </span>
+                    </div>
+                    <div className={styles.metaItem}>
                       <span className={styles.metaLabel}>Notice Submission Date:</span>
                       <span className={styles.metaValue}>{formatDate(settlementData.timeline.resignation_date)} (1 Month Notice)</span>
                     </div>
                     <div className={styles.metaItem}>
                       <span className={styles.metaLabel}>Effective Exit Date:</span>
-                      <span className={styles.metaValue} style={{ color: '#ec4899' }}>{formatDate(settlementData.timeline.exit_date)}</span>
+                      <span className={styles.metaValue} style={{ color: '#ec4899', fontWeight: 700 }}>{formatDate(settlementData.timeline.exit_date)}</span>
                     </div>
                     <div className={styles.metaItem}>
                       <span className={styles.metaLabel}>Payroll Status:</span>
@@ -1195,6 +1213,9 @@ export default function ResignationSettlementPage() {
                               )}
                               {d.name.includes('Savings') && (
                                 <span className={styles.sheetRowNote} style={{ color: '#10b981' }}> (Refunded under Earnings)</span>
+                              )}
+                              {d.name.includes('Leave of Absence') && d.amount > 0 && d.note && d.note !== 'Nil' && (
+                                <span className={styles.sheetRowNote} style={{ color: '#ef4444' }}> ({d.note})</span>
                               )}
                             </span>
                             <span style={d.amount > 0 ? { color: '#ef4444' } : { color: '#94a3b8' }}>
@@ -1649,6 +1670,7 @@ export default function ResignationSettlementPage() {
               <p style={{ margin: '3px 0' }}><strong>Bank Details:</strong> {settlementData.staff.bank_name} — {settlementData.staff.account_no}</p>
             </div>
             <div>
+              <p style={{ margin: '3px 0' }}><strong>Date of Appointment:</strong> {formatDate(settlementData.staff?.appointment_date || settlementData.timeline?.appointment_date)}</p>
               <p style={{ margin: '3px 0' }}><strong>Resignation Date:</strong> {formatDate(settlementData.timeline.resignation_date)}</p>
               <p style={{ margin: '3px 0' }}><strong>Notice Duration:</strong> Exactly 1 Calendar Month ({settlementData.timeline.notice_period_days || 30} Days)</p>
               <p style={{ margin: '3px 0' }}><strong>Effective Exit Date:</strong> {formatDate(settlementData.timeline.exit_date)}</p>
@@ -1727,7 +1749,12 @@ export default function ResignationSettlementPage() {
             <tbody>
               {(settlementData.deductions?.itemized_deductions || []).map((d, i) => (
                 <tr key={i}>
-                  <td style={{ padding: '6px', border: '1px solid #ddd' }}>{d.name}</td>
+                  <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                    {d.name}
+                    {d.name.includes('Leave of Absence') && d.amount > 0 && d.note && d.note !== 'Nil' && (
+                      <span style={{ fontSize: '0.75rem', color: '#666' }}> ({d.note})</span>
+                    )}
+                  </td>
                   <td style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'right' }}>₦{fmt(d.amount)}</td>
                 </tr>
               ))}
