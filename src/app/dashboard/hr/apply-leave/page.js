@@ -183,12 +183,14 @@ export default function ApplyLeavePage() {
       const isAuditStaff = pageData.isAuditStaff ?? false;
       const currentEmployee = pageData.employee ?? null;
 
-      // Regular staff auto-prepopulates with own ID; HOD also defaults to own ID as initial default
+      // Regular staff auto-prepopulates with own ID if active; HOD also defaults to own ID as initial default if active
       if (!isSuperAdmin && !isAdminStaff && !isAuditStaff && currentEmployee) {
-        setForm(prev => ({
-          ...prev,
-          employee_id: prev.employee_id || currentEmployee.ID,
-        }));
+        if (Number(currentEmployee.staff_status) === 1) {
+          setForm(prev => ({
+            ...prev,
+            employee_id: prev.employee_id || currentEmployee.ID,
+          }));
+        }
       }
     }
   }, [pageData]);
@@ -254,7 +256,7 @@ export default function ApplyLeavePage() {
     const isExec = pageData && (pageData.isSuperAdmin || pageData.isAdminStaff || pageData.isAuditStaff);
     setForm({
       leave_type: '',
-      employee_id: !isExec && pageData?.employee
+      employee_id: !isExec && pageData?.employee && Number(pageData.employee.staff_status) === 1
         ? pageData.employee.ID
         : '',
       start_date: '',
@@ -266,6 +268,11 @@ export default function ApplyLeavePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSelectedStaffInactive || (!canSelectStaff && !isCurrentStaffActive)) {
+      showToast('Only active staff (staff status: Active) are eligible to apply for Leave.', 'error');
+      return;
+    }
 
     if (isAnnualLeaveSelected && !isSelectedEmpAnnualEligible) {
       showToast('Cannot apply: Staff must have worked for at least 1 full year in the company before becoming eligible for Annual Leave.', 'error');
@@ -442,18 +449,26 @@ export default function ApplyLeavePage() {
       name: lt.leaveType,
     }));
 
+  const isCurrentStaffActive = currentEmployee ? Number(currentEmployee.staff_status) === 1 : false;
+
   const employeeOptions = canSelectStaff
-    ? employees.map(emp => ({
-        id:   emp.ID,
-        name: `${emp.surname} ${emp.first_name} ${emp.othernames}`.trim() + (emp.office_shift == 1 ? ' (Admin)' : ' (Shift)'),
-      }))
-    : (currentEmployee
+    ? employees
+        .filter(emp => emp.staff_status === undefined || Number(emp.staff_status) === 1)
+        .map(emp => ({
+          id:   emp.ID,
+          name: `${emp.surname} ${emp.first_name} ${emp.othernames}`.trim() + (emp.office_shift == 1 ? ' (Admin)' : ' (Shift)'),
+        }))
+    : (currentEmployee && isCurrentStaffActive
         ? [{
             id:   currentEmployee.ID,
             name: `${currentEmployee.surname} ${currentEmployee.first_name} ${currentEmployee.othernames}`.trim() + (currentEmployee.office_shift == 1 ? ' (Admin)' : ' (Shift)'),
           }]
         : []
       );
+
+  const isSelectedStaffInactive = selectedEmpObj
+    ? (selectedEmpObj.staff_status !== undefined && Number(selectedEmpObj.staff_status) !== 1)
+    : (!canSelectStaff && currentEmployee && !isCurrentStaffActive);
 
   const hasNotUploadedEducation = selectedEmpObj && selectedEmpObj.has_uploaded_education === false;
 
@@ -701,6 +716,26 @@ export default function ApplyLeavePage() {
             </div>
           )}
 
+          {/* Inactive Staff Alert Banner */}
+          {(isSelectedStaffInactive || (!canSelectStaff && !isCurrentStaffActive)) && (
+            <div style={{
+              margin: '1rem 0',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#ef4444',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <span>Only active staff (staff status: Active) are eligible to apply for Leave. This staff profile is currently inactive.</span>
+            </div>
+          )}
+
           {/* Submit */}
           <div className={styles.submitRow} style={{ gap: '0.75rem' }}>
             {editRecordId && (
@@ -713,7 +748,11 @@ export default function ApplyLeavePage() {
                 Cancel Edit
               </button>
             )}
-            <button type="submit" className={styles.submitBtn} disabled={submitting || formLoading || hasNotUploadedEducation}>
+            <button
+              type="submit"
+              className={styles.submitBtn}
+              disabled={submitting || formLoading || hasNotUploadedEducation || isSelectedStaffInactive || (!canSelectStaff && !isCurrentStaffActive)}
+            >
               {submitting
                 ? (editRecordId
                     ? <><Loader2 size={16} className={styles.btnSpinner} /> Updating…</>
