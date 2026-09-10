@@ -281,10 +281,12 @@ export default function ApplyLoaPage() {
       const currentEmployee = pageData.employee ?? null;
 
       if (!(isSuperAdmin || isAdminStaff || isAuditStaff || isFinanceStaff) && currentEmployee) {
-        setForm(prev => ({
-          ...prev,
-          employee_id: currentEmployee.ID,
-        }));
+        if (Number(currentEmployee.staff_status) === 1) {
+          setForm(prev => ({
+            ...prev,
+            employee_id: currentEmployee.ID,
+          }));
+        }
       }
     }
   }, [pageData]);
@@ -325,7 +327,7 @@ export default function ApplyLoaPage() {
   const handleCancelEdit = () => {
     setEditRecordId(null);
     setForm({
-      employee_id: pageData && !(pageData.isSuperAdmin || pageData.isAdminStaff || pageData.isAuditStaff || pageData.isFinanceStaff) && pageData.employee
+      employee_id: pageData && !(pageData.isSuperAdmin || pageData.isAdminStaff || pageData.isAuditStaff || pageData.isFinanceStaff) && pageData.employee && Number(pageData.employee.staff_status) === 1
         ? pageData.employee.ID
         : '',
       start_date: '',
@@ -336,6 +338,11 @@ export default function ApplyLoaPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSelectedStaffInactive || (!canSelectStaff && !isCurrentStaffActive)) {
+      showToast('Only active staff (staff status: Active) are eligible to apply for Leave of Absence.', 'error');
+      return;
+    }
 
     if (loaCalculation && loaCalculation.isExceeded) {
       showToast(`Cannot apply for Leave of Absence: This employee available net pay for ${loaCalculation.monthName} can not be negative.`, 'error');
@@ -432,12 +439,16 @@ export default function ApplyLoaPage() {
     return `${emp.surname} ${emp.first_name}${other}`.trim();
   };
 
+  const isCurrentStaffActive = currentEmployee ? Number(currentEmployee.staff_status) === 1 : false;
+
   const employeeOptions = canSelectStaff
-    ? employees.map(emp => ({
-        id:   emp.ID,
-        name: formatName(emp),
-      }))
-    : (currentEmployee
+    ? employees
+        .filter(emp => emp.staff_status === undefined || Number(emp.staff_status) === 1)
+        .map(emp => ({
+          id:   emp.ID,
+          name: formatName(emp),
+        }))
+    : (currentEmployee && isCurrentStaffActive
         ? [{
             id:   currentEmployee.ID,
             name: formatName(currentEmployee),
@@ -448,6 +459,10 @@ export default function ApplyLoaPage() {
   const selectedEmpObj = canSelectStaff
     ? employees.find(e => String(e.ID) === String(form.employee_id))
     : currentEmployee;
+
+  const isSelectedStaffInactive = selectedEmpObj
+    ? (selectedEmpObj.staff_status !== undefined && Number(selectedEmpObj.staff_status) !== 1)
+    : (!canSelectStaff && currentEmployee && !isCurrentStaffActive);
 
   const hasNotUploadedEducation = selectedEmpObj && selectedEmpObj.has_uploaded_education === false;
 
@@ -826,6 +841,29 @@ export default function ApplyLoaPage() {
               </div>
             )}
 
+            {/* Inactive Staff Alert Banner */}
+            {(isSelectedStaffInactive || (!canSelectStaff && !isCurrentStaffActive)) && (
+              <div
+                className={styles.spanFull}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                  color: '#ef4444',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginTop: '-0.35rem'
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>Only active staff (staff status: Active) are eligible to apply for Leave of Absence. This staff profile is currently inactive.</span>
+              </div>
+            )}
+
             {/* Start Date */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Start Date</label>
@@ -962,7 +1000,11 @@ export default function ApplyLoaPage() {
               </button>
             )}
             {mounted ? (
-              <button type="submit" className={styles.submitBtn} disabled={submitting || formLoading || !!hasNotUploadedEducation}>
+              <button
+                type="submit"
+                className={styles.submitBtn}
+                disabled={submitting || formLoading || !!hasNotUploadedEducation || isSelectedStaffInactive || (!canSelectStaff && !isCurrentStaffActive)}
+              >
                 {submitting
                   ? (editRecordId
                       ? <><Loader2 size={16} className={styles.btnSpinner} /> Updating…</>
