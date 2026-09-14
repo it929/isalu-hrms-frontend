@@ -53,6 +53,7 @@ export default function RetentionActivationPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAdminStaff, setIsAdminStaff] = useState(false);
+  const [isFinanceStaff, setIsFinanceStaff] = useState(false);
 
   // Edit Deducted Months Modal State
   const [editingStaff, setEditingStaff] = useState(null);
@@ -96,6 +97,7 @@ export default function RetentionActivationPage() {
         setStaffRecords(freshData);
         setIsSuperAdmin(Boolean(res.data.isSuperAdmin));
         setIsAdminStaff(Boolean(res.data.isAdminStaff));
+        setIsFinanceStaff(Boolean(res.data.isFinanceStaff));
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(cacheKey, JSON.stringify(freshData));
         }
@@ -127,7 +129,7 @@ export default function RetentionActivationPage() {
     }
   }, [fetchData]);
 
-  const canManageRetention = isSuperAdmin || isAdminStaff;
+  const canManageRetention = isSuperAdmin || isAdminStaff || isFinanceStaff;
 
   // Handle Toggle Retention Status
   const handleToggleRetention = async (staffId, currentStatus) => {
@@ -183,7 +185,7 @@ export default function RetentionActivationPage() {
     if (!editingStaff) return;
 
     if (!canManageRetention) {
-      showToast('Permission denied: Only Super Administrators and HR Head are authorized to update retention deducted months.', 'warning');
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to update retention deducted months.', 'warning');
       return;
     }
 
@@ -714,11 +716,11 @@ export default function RetentionActivationPage() {
                                   if (canManageRetention) {
                                     handleOpenEditModal(row);
                                   } else {
-                                    showToast('Permission denied: Only Super Administrators and HR Head are authorized to update retention deducted months.', 'warning');
+                                    showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to update retention deducted months.', 'warning');
                                   }
                                 }}
                                 disabled={!canManageRetention}
-                                title={canManageRetention ? "Edit Deducted Retention Months" : "Super Admin and HR Head only"}
+                                title={canManageRetention ? "Edit Deducted Retention Months" : "Super Admin, HR Head, and Finance Head only"}
                                 style={!canManageRetention ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                               >
                                 <Edit2 size={12} />

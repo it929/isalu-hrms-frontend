@@ -179,7 +179,7 @@ export default function ResignationSettlementPage() {
     loading: false,
   });
 
-  const canManageRetention = userPermissions.is_super_admin || userPermissions.is_admin_staff;
+  const canManageRetention = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
   const canManageMedicalLoan = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
   const canManageCoopLoan = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
 
@@ -472,7 +472,7 @@ export default function ResignationSettlementPage() {
     e?.stopPropagation();
 
     if (!canManageRetention) {
-      showToast('Permission denied: Only Super Administrators and HR Head are authorized to edit retention months.', 'warning');
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to edit retention months.', 'warning');
       return;
     }
 
@@ -516,7 +516,7 @@ export default function ResignationSettlementPage() {
     if (!retentionModal.staffId) return;
 
     if (!canManageRetention) {
-      showToast('Permission denied: Only Super Administrators and HR Head are authorized to edit retention months.', 'warning');
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to edit retention months.', 'warning');
       return;
     }
 
