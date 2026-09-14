@@ -595,14 +595,26 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
   };
 
   const handleAdd = async () => {
-    if (!form.schoolattended || !form.category) return;
+    if (!form.category) {
+      const msg = 'Please select an education category.';
+      showToast ? showToast(msg, 'error') : alert(msg);
+      return;
+    }
+    if (!form.schoolattended) {
+      const msg = 'Please enter the school attended.';
+      showToast ? showToast(msg, 'error') : alert(msg);
+      return;
+    }
+    if (!form.document) {
+      const msg = 'Please attach a certificate. This field is compulsory.';
+      showToast ? showToast(msg, 'error') : alert(msg);
+      return;
+    }
     
-    if (form.document) {
-      const check = await validateImageFile(form.document);
-      if (!check.valid) {
-        showToast ? showToast(check.message, 'error') : alert(check.message);
-        return;
-      }
+    const check = await validateImageFile(form.document);
+    if (!check.valid) {
+      showToast ? showToast(check.message, 'error') : alert(check.message);
+      return;
     }
     
     setUploading(true);
@@ -728,8 +740,8 @@ function StepEducation({ staffId, data = [], onUpdate, lookups = {}, onRefetch, 
             onChange={e => setForm({...form, degreequalification: e.target.value})}
           />
           <div className={styles.field}>
-            <label>Attach Certificate</label>
-            <input type="file" ref={fileInputRef} accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" onChange={handleFileChange} />
+            <label>Attach Certificate *</label>
+            <input type="file" ref={fileInputRef} accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" onChange={handleFileChange} required />
             <small style={{ color: 'var(--text-secondary, #6b7280)', display: 'block', marginTop: '4px', fontSize: '0.78rem' }}>
               Allowed formats: PDF, JPG, PNG, WEBP. Max dimensions: 2000 &times; 2000 px (Max size: 5MB).
             </small>

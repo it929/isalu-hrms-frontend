@@ -147,6 +147,14 @@ export default function ResignationSettlementPage() {
     loading: false,
   });
 
+  // Resubmit / Forward to Audit Dialog State (for HR Head & Finance Head)
+  const [resubmitDialog, setResubmitDialog] = useState({
+    open: false,
+    record: null,
+    remarks: '',
+    loading: false,
+  });
+
   const canManageRetention = userPermissions.is_super_admin || userPermissions.is_admin_staff;
 
   // Toast Helper
@@ -338,6 +346,44 @@ export default function ResignationSettlementPage() {
     } catch (err) {
       showToast(err.response?.data?.message || 'Finance action error.', 'error');
       setFinanceDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Open Resubmit / Forward to Audit Dialog (for HR Head or Finance Head)
+  const handleOpenResubmitDialog = (rec, e) => {
+    if (e) e.stopPropagation();
+    setResubmitDialog({
+      open: true,
+      record: rec,
+      remarks: 'Reviewed and corrected exit settlement calculations. Forwarded back for audit approval.',
+      loading: false,
+    });
+  };
+
+  // Submit Resubmission to Audit Head
+  const handleSubmitResubmit = async () => {
+    if (!resubmitDialog.record) return;
+    setResubmitDialog((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await axios.post(
+        `${API_BASE}/payroll/resignations/resubmit-audit/${resubmitDialog.record.id}`,
+        { remarks: resubmitDialog.remarks },
+        { headers: buildHeaders() }
+      );
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Corrected and forwarded back to Audit Head for approval.');
+        setResubmitDialog({ open: false, record: null, remarks: '', loading: false });
+        fetchApprovedRecords();
+        if (selectedRecordId === resubmitDialog.record.id) {
+          handleOpenBreakdown(resubmitDialog.record.id);
+        }
+      } else {
+        showToast(res.data.message || 'Action failed.', 'error');
+        setResubmitDialog((prev) => ({ ...prev, loading: false }));
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error forwarding to Audit Head.', 'error');
+      setResubmitDialog((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -533,6 +579,7 @@ export default function ResignationSettlementPage() {
     if (settlementFilter === 'recoverable' && r.settlement_type !== 'recoverable') return false;
 
     if (workflowFilter === 'pending_audit' && r.audit_status !== 0) return false;
+    if (workflowFilter === 'audit_queried' && r.audit_status !== 2) return false;
     if (workflowFilter === 'ready_for_payment' && (r.audit_status !== 1 || r.finance_status === 1)) return false;
     if (workflowFilter === 'paid' && r.finance_status !== 1) return false;
 
@@ -545,6 +592,7 @@ export default function ResignationSettlementPage() {
 
   const canAudit = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_audit_staff || activeRoleName === 'audit head' || activeRoleName === 'head of audit');
   const canFinance = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff || activeRoleName === 'finance head' || activeRoleName === 'head of finance');
+  const canResubmitToAudit = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff || activeRoleName === 'hr head' || activeRoleName === 'head of hr' || activeRoleName === 'finance head' || activeRoleName === 'head of finance');
 
   if (!mounted) return null;
 
@@ -709,6 +757,7 @@ export default function ResignationSettlementPage() {
               {[
                 { id: 'all', label: 'All Records' },
                 { id: 'pending_audit', label: '1. Pending Audit Review' },
+                { id: 'audit_queried', label: 'Audit Queried' },
                 { id: 'ready_for_payment', label: '2. Audited & Ready for Payment' },
                 { id: 'paid', label: '3. Settlement Paid' },
               ].map((tab) => (
@@ -891,6 +940,19 @@ export default function ResignationSettlementPage() {
                           </button>
                         )}
 
+                        {/* Forward to Audit Action Button for HR Head / Finance Head when audit_status === 2 */}
+                        {canResubmitToAudit && r.audit_status === 2 && (
+                          <button
+                            type="button"
+                            className={`${styles.actionBtn} ${styles.btnResubmit}`}
+                            onClick={(e) => handleOpenResubmitDialog(r, e)}
+                            title="Audit Queried: Click to review query and forward back to Audit Head for approval"
+                          >
+                            <ShieldCheck size={14} />
+                            <span>Forward to Audit</span>
+                          </button>
+                        )}
+
                         {/* Finance Action: Pay or Recover */}
                         {canFinance && r.audit_status === 1 && r.finance_status === 0 && (
                           <button
@@ -1015,6 +1077,47 @@ export default function ResignationSettlementPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Audit Query Alert Banner */}
+                  {settlementData.clearance_workflow?.audit_approval?.status === 2 && (
+                    <div style={{
+                      margin: '0 0 1.25rem 0',
+                      padding: '0.85rem 1rem',
+                      borderRadius: '8px',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#b91c1c',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                          <AlertCircle size={18} style={{ color: '#dc2626', flexShrink: 0 }} />
+                          <span>Audit Head Query / Clearance Held</span>
+                        </div>
+                        {canResubmitToAudit && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResubmitDialog({
+                              id: selectedRecordId,
+                              name: settlementData.staff.name,
+                              audit_remarks: settlementData.clearance_workflow?.audit_approval?.remarks
+                            })}
+                            className={`${styles.btn} ${styles.btnResubmit}`}
+                            style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                          >
+                            <ShieldCheck size={14} />
+                            <span>Forward to Audit Head</span>
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#991b1b', whiteSpace: 'pre-wrap' }}>
+                        <strong>Query / Remarks:</strong> {settlementData.clearance_workflow?.audit_approval?.remarks || 'Audit calculation review requested.'}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Resignation Notice Rule Banner */}
                   {settlementData.timeline?.rule_description && (
@@ -1265,6 +1368,22 @@ export default function ResignationSettlementPage() {
                     >
                       <ShieldCheck size={16} />
                       <span>Audit & Approve for Payment</span>
+                    </button>
+                  )}
+
+                  {/* Forward to Audit inside Modal when audit_status === 2 */}
+                  {canResubmitToAudit && settlementData.clearance_workflow?.audit_approval?.status === 2 && (
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnResubmit}`}
+                      onClick={() => handleOpenResubmitDialog({
+                        id: selectedRecordId,
+                        name: settlementData.staff.name,
+                        audit_remarks: settlementData.clearance_workflow?.audit_approval?.remarks,
+                      })}
+                    >
+                      <ShieldCheck size={16} />
+                      <span>Forward to Audit Head</span>
                     </button>
                   )}
 
@@ -1649,6 +1768,97 @@ export default function ResignationSettlementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Forward Back to Audit Head Modal ────────────── */}
+      {resubmitDialog.open && (
+        <div className={styles.modalOverlay} onClick={() => !resubmitDialog.loading && setResubmitDialog({ open: false, record: null, remarks: '', loading: false })}>
+          <div className={styles.modalBox} style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>
+                <ShieldCheck size={20} style={{ color: '#f59e0b' }} />
+                Forward to Audit Head for Approval
+              </h3>
+              <button
+                type="button"
+                className={styles.modalCloseBtn}
+                onClick={() => !resubmitDialog.loading && setResubmitDialog({ open: false, record: null, remarks: '', loading: false })}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+                This exit settlement for <strong>{resubmitDialog.record?.name}</strong> was queried by Internal Audit.
+                After reviewing and making necessary corrections, provide explanation notes below and forward it back for Audit Head approval.
+              </p>
+
+              {resubmitDialog.record?.audit_remarks && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.06)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '0.82rem',
+                  color: '#b91c1c'
+                }}>
+                  <strong>Audit Head Query / Reason:</strong>
+                  <div style={{ marginTop: '4px', whiteSpace: 'pre-wrap' }}>
+                    {resubmitDialog.record.audit_remarks}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Correction & Explanation Notes for Audit Head:
+                </label>
+                <textarea
+                  rows={3}
+                  value={resubmitDialog.remarks}
+                  onChange={(e) => setResubmitDialog((prev) => ({ ...prev, remarks: e.target.value }))}
+                  placeholder="Describe the adjustments or corrections made (e.g. Adjusted retention months, reviewed loan deduction)..."
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                onClick={() => setResubmitDialog({ open: false, record: null, remarks: '', loading: false })}
+                disabled={resubmitDialog.loading}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnResubmit}`}
+                onClick={handleSubmitResubmit}
+                disabled={resubmitDialog.loading}
+              >
+                {resubmitDialog.loading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Check size={16} />
+                )}
+                <span>Forward to Audit Head</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
