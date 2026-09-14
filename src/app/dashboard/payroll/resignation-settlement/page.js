@@ -155,7 +155,33 @@ export default function ResignationSettlementPage() {
     loading: false,
   });
 
+  // Edit Medical Loan Balance State
+  const [medicalLoanModal, setMedicalLoanModal] = useState({
+    open: false,
+    staffId: null,
+    staffName: '',
+    resignationId: null,
+    currentBalance: 0,
+    newBalance: '',
+    reason: '',
+    loading: false,
+  });
+
+  // Edit Cooperative Loan Balance State
+  const [coopLoanModal, setCoopLoanModal] = useState({
+    open: false,
+    staffId: null,
+    staffName: '',
+    resignationId: null,
+    currentBalance: 0,
+    newBalance: '',
+    reason: '',
+    loading: false,
+  });
+
   const canManageRetention = userPermissions.is_super_admin || userPermissions.is_admin_staff;
+  const canManageMedicalLoan = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
+  const canManageCoopLoan = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
 
   // Toast Helper
   const showToast = (message, type = 'success') => {
@@ -523,6 +549,144 @@ export default function ResignationSettlementPage() {
       showToast(err.response?.data?.message || 'Server error updating retention months.', 'error');
     } finally {
       setRetentionModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Open Edit Medical Loan Modal
+  const handleOpenEditMedicalLoan = (data, currentAmount, e) => {
+    e?.stopPropagation();
+
+    if (!canManageMedicalLoan) {
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to edit medical loan balance.', 'warning');
+      return;
+    }
+
+    const staffId = data.staff?.id || data.staff_id || data.id;
+    const staffName = data.staff?.name || data.name;
+    const resignationId = data.resignation_id || data.id;
+    const curBal = parseFloat(currentAmount) || 0;
+
+    setMedicalLoanModal({
+      open: true,
+      staffId,
+      staffName,
+      resignationId,
+      currentBalance: curBal,
+      newBalance: curBal.toString(),
+      reason: 'Exit clearance reconciliation',
+      loading: false,
+    });
+  };
+
+  // Save Edited Medical Loan Balance
+  const handleSaveMedicalLoanBalance = async (e) => {
+    e?.preventDefault();
+    if (!medicalLoanModal.staffId) return;
+
+    if (!canManageMedicalLoan) {
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to edit medical loan balance.', 'warning');
+      return;
+    }
+
+    const balNum = parseFloat(medicalLoanModal.newBalance);
+    if (isNaN(balNum) || balNum < 0) {
+      showToast('Please enter a valid balance amount (greater than or equal to ₦0.00).', 'error');
+      return;
+    }
+
+    setMedicalLoanModal(prev => ({ ...prev, loading: true }));
+    try {
+      const headers = buildHeaders();
+      const res = await axios.post(`${API_BASE}/payroll/resignation-settlement/update-medical-loan-balance`, {
+        staff_id: medicalLoanModal.staffId,
+        balance: balNum,
+        reason: medicalLoanModal.reason.trim(),
+        resignation_id: medicalLoanModal.resignationId,
+      }, { headers });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Medical loan balance updated successfully.');
+        if (res.data.data?.settlement && selectedRecordId === medicalLoanModal.resignationId) {
+          setSettlementData(res.data.data.settlement);
+        }
+        setMedicalLoanModal({ open: false, staffId: null, staffName: '', resignationId: null, currentBalance: 0, newBalance: '', reason: '', loading: false });
+        fetchApprovedRecords();
+      } else {
+        showToast(res.data.message || 'Failed to update medical loan balance.', 'error');
+        setMedicalLoanModal(prev => ({ ...prev, loading: false }));
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error updating medical loan balance.', 'error');
+      setMedicalLoanModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Open Edit Cooperative Loan Modal
+  const handleOpenEditCoopLoan = (data, currentAmount, e) => {
+    e?.stopPropagation();
+
+    if (!canManageCoopLoan) {
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to edit cooperative loan balance.', 'warning');
+      return;
+    }
+
+    const staffId = data.staff?.id || data.staff_id || data.id;
+    const staffName = data.staff?.name || data.name;
+    const resignationId = data.resignation_id || data.id;
+    const curBal = parseFloat(currentAmount) || 0;
+
+    setCoopLoanModal({
+      open: true,
+      staffId,
+      staffName,
+      resignationId,
+      currentBalance: curBal,
+      newBalance: curBal.toString(),
+      reason: 'Exit clearance reconciliation',
+      loading: false,
+    });
+  };
+
+  // Save Edited Cooperative Loan Balance
+  const handleSaveCoopLoanBalance = async (e) => {
+    e?.preventDefault();
+    if (!coopLoanModal.staffId) return;
+
+    if (!canManageCoopLoan) {
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to edit cooperative loan balance.', 'warning');
+      return;
+    }
+
+    const balNum = parseFloat(coopLoanModal.newBalance);
+    if (isNaN(balNum) || balNum < 0) {
+      showToast('Please enter a valid balance amount (greater than or equal to ₦0.00).', 'error');
+      return;
+    }
+
+    setCoopLoanModal(prev => ({ ...prev, loading: true }));
+    try {
+      const headers = buildHeaders();
+      const res = await axios.post(`${API_BASE}/payroll/resignation-settlement/update-coop-loan-balance`, {
+        staff_id: coopLoanModal.staffId,
+        balance: balNum,
+        reason: coopLoanModal.reason.trim(),
+        resignation_id: coopLoanModal.resignationId,
+      }, { headers });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Cooperative loan balance updated successfully.');
+        if (res.data.data?.settlement && selectedRecordId === coopLoanModal.resignationId) {
+          setSettlementData(res.data.data.settlement);
+        }
+        setCoopLoanModal({ open: false, staffId: null, staffName: '', resignationId: null, currentBalance: 0, newBalance: '', reason: '', loading: false });
+        fetchApprovedRecords();
+      } else {
+        showToast(res.data.message || 'Failed to update cooperative loan balance.', 'error');
+        setCoopLoanModal(prev => ({ ...prev, loading: false }));
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error updating cooperative loan balance.', 'error');
+      setCoopLoanModal(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -1302,25 +1466,53 @@ export default function ResignationSettlementPage() {
 
                       {settlementData.deductions?.itemized_deductions ? (
                         settlementData.deductions.itemized_deductions.map((d, i) => (
-                          <div key={i} className={styles.sheetRow}>
-                            <span>
-                              {d.name}
-                              {d.name.includes('Retention') && (
-                                <span className={styles.sheetRowNote} style={{ color: '#10b981' }}> (Refunded)</span>
+                          <div key={i} className={styles.sheetRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div>
+                                <span>
+                                  {d.name}
+                                  {d.name.includes('Retention') && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#10b981' }}> (Refunded)</span>
+                                  )}
+                                  {d.name === 'PAYE Tax' && d.amount === 0 && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#64748b' }}> (Exempt ≤₦800k)</span>
+                                  )}
+                                  {d.name.includes('Pension') && d.amount === 0 && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#64748b' }}> (Not Enrolled)</span>
+                                  )}
+                                  {d.name.includes('Savings') && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#10b981' }}> (Refunded under Earnings)</span>
+                                  )}
+                                  {d.name.includes('Leave of Absence') && d.amount > 0 && d.note && d.note !== 'Nil' && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#ef4444' }}> ({d.note})</span>
+                                  )}
+                                </span>
+                              </div>
+                              {d.name.includes('Medical Loan') && canManageMedicalLoan && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenEditMedicalLoan(settlementData, d.amount, e)}
+                                  className={styles.btnEditRetentionBadge}
+                                  style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#dc2626' }}
+                                  title="Edit or reconcile staff medical loan balance"
+                                >
+                                  <Edit2 size={11} />
+                                  Edit Balance
+                                </button>
                               )}
-                              {d.name === 'PAYE Tax' && d.amount === 0 && (
-                                <span className={styles.sheetRowNote} style={{ color: '#64748b' }}> (Exempt ≤₦800k)</span>
+                              {d.name === 'Cooperative Loan' && canManageCoopLoan && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenEditCoopLoan(settlementData, d.amount, e)}
+                                  className={styles.btnEditRetentionBadge}
+                                  style={{ background: '#fffbeb', borderColor: '#fde68a', color: '#b45309' }}
+                                  title="Edit or reconcile staff cooperative loan balance"
+                                >
+                                  <Edit2 size={11} />
+                                  Edit Balance
+                                </button>
                               )}
-                              {d.name.includes('Pension') && d.amount === 0 && (
-                                <span className={styles.sheetRowNote} style={{ color: '#64748b' }}> (Not Enrolled)</span>
-                              )}
-                              {d.name.includes('Savings') && (
-                                <span className={styles.sheetRowNote} style={{ color: '#10b981' }}> (Refunded under Earnings)</span>
-                              )}
-                              {d.name.includes('Leave of Absence') && d.amount > 0 && d.note && d.note !== 'Nil' && (
-                                <span className={styles.sheetRowNote} style={{ color: '#ef4444' }}> ({d.note})</span>
-                              )}
-                            </span>
+                            </div>
                             <span style={d.amount > 0 ? { color: '#ef4444' } : { color: '#94a3b8' }}>
                               {fmt(d.amount)}
                             </span>
@@ -1765,6 +1957,337 @@ export default function ResignationSettlementPage() {
                 >
                   {retentionModal.loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   <span>Save Retention Months</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Medical Loan Balance Modal Dialog ── */}
+      {medicalLoanModal.open && (
+        <div className={styles.modalOverlay} onClick={() => setMedicalLoanModal({ open: false, staffId: null, staffName: '', resignationId: null, currentBalance: 0, newBalance: '', reason: '', loading: false })}>
+          <div className={styles.retentionModalBox} style={{ maxWidth: '460px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader} style={{ padding: '0.8rem 1.25rem' }}>
+              <h3 className={styles.modalTitle} style={{ fontSize: '1.05rem' }}>
+                <Edit2 size={17} style={{ color: '#ef4444' }} />
+                Edit Medical Loan Balance
+              </h3>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setMedicalLoanModal({ open: false, staffId: null, staffName: '', resignationId: null, currentBalance: 0, newBalance: '', reason: '', loading: false })}
+                disabled={medicalLoanModal.loading}
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMedicalLoanBalance} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={styles.modalBody} style={{ padding: '0.85rem 1.25rem', gap: '0.65rem' }}>
+                {/* Staff Summary Card - Compact Bar */}
+                <div style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '10px',
+                  padding: '0.55rem 0.85rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.82rem'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{medicalLoanModal.staffName}</div>
+                    <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Staff ID: {medicalLoanModal.staffId}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Current Balance</div>
+                    <div style={{ fontWeight: 800, color: '#b91c1c' }}>₦{fmt(medicalLoanModal.currentBalance)}</div>
+                  </div>
+                </div>
+
+                {/* New Balance Input */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.2rem' }}>
+                    New Medical Loan Balance (₦) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    style={{
+                      width: '100%',
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.92rem',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      background: 'var(--surface, #ffffff)',
+                      outline: 'none',
+                    }}
+                    value={medicalLoanModal.newBalance}
+                    onChange={(e) => setMedicalLoanModal(prev => ({
+                      ...prev,
+                      newBalance: e.target.value
+                    }))}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                {/* Adjustment / Reconciliation Reason Input */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.2rem' }}>
+                    Adjustment Note / Reason:
+                  </label>
+                  <input
+                    type="text"
+                    style={{
+                      width: '100%',
+                      padding: '0.42rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.82rem',
+                      color: '#0f172a',
+                      background: 'var(--surface, #ffffff)',
+                      outline: 'none',
+                    }}
+                    value={medicalLoanModal.reason}
+                    onChange={(e) => setMedicalLoanModal(prev => ({
+                      ...prev,
+                      reason: e.target.value
+                    }))}
+                    placeholder="e.g. Cash payment at cashier, pharmacy bill waiver..."
+                  />
+                </div>
+
+                {/* Compact Comparison Strip */}
+                <div style={{
+                  background: '#fff5f5',
+                  border: '1px solid #fecaca',
+                  borderRadius: '10px',
+                  padding: '0.55rem 0.85rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.8rem'
+                }}>
+                  <div>
+                    <span style={{ color: '#64748b' }}>Reconciled: </span>
+                    <strong style={{ color: '#991b1b' }}>₦{fmt(parseFloat(medicalLoanModal.newBalance) || 0)}</strong>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: '#64748b' }}>
+                      {((parseFloat(medicalLoanModal.newBalance) || 0) < medicalLoanModal.currentBalance)
+                        ? 'Reduction: '
+                        : ((parseFloat(medicalLoanModal.newBalance) || 0) > medicalLoanModal.currentBalance)
+                        ? 'Addition: '
+                        : 'Change: '}
+                    </span>
+                    <strong style={{ color: '#991b1b' }}>
+                      ₦{fmt(Math.abs((parseFloat(medicalLoanModal.newBalance) || 0) - medicalLoanModal.currentBalance))}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter} style={{ padding: '0.65rem 1.25rem' }}>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnSecondary}`}
+                  style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}
+                  onClick={() => setMedicalLoanModal({ open: false, staffId: null, staffName: '', resignationId: null, currentBalance: 0, newBalance: '', reason: '', loading: false })}
+                  disabled={medicalLoanModal.loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff', padding: '0.4rem 0.95rem', fontSize: '0.8rem' }}
+                  disabled={medicalLoanModal.loading}
+                >
+                  {medicalLoanModal.loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>Save Balance</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Cooperative Loan Balance Modal Dialog ── */}
+      {coopLoanModal.open && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setCoopLoanModal({
+            open: false,
+            staffId: null,
+            staffName: '',
+            resignationId: null,
+            currentBalance: 0,
+            newBalance: '',
+            reason: '',
+            loading: false
+          })}
+        >
+          <div
+            className={styles.retentionModalBox}
+            style={{ maxWidth: '460px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader} style={{ padding: '0.8rem 1.25rem' }}>
+              <h3 className={styles.modalTitle} style={{ fontSize: '1.05rem' }}>
+                <Edit2 size={17} style={{ color: '#d97706' }} />
+                Edit Cooperative Loan Balance
+              </h3>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setCoopLoanModal({
+                  open: false,
+                  staffId: null,
+                  staffName: '',
+                  resignationId: null,
+                  currentBalance: 0,
+                  newBalance: '',
+                  reason: '',
+                  loading: false
+                })}
+                disabled={coopLoanModal.loading}
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCoopLoanBalance} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className={styles.modalBody} style={{ padding: '0.85rem 1.25rem', gap: '0.65rem' }}>
+                {/* Staff Summary Bar */}
+                <div style={{
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '10px',
+                  padding: '0.55rem 0.85rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.82rem'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{coopLoanModal.staffName}</div>
+                    <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Staff ID: {coopLoanModal.staffId}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Current Balance</div>
+                    <div style={{ fontWeight: 800, color: '#b45309' }}>₦{fmt(coopLoanModal.currentBalance)}</div>
+                  </div>
+                </div>
+
+                {/* New Balance Input */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.2rem' }}>
+                    New Cooperative Loan Balance (₦) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    style={{
+                      width: '100%',
+                      padding: '0.45rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.92rem',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      background: 'var(--surface, #ffffff)',
+                      outline: 'none',
+                    }}
+                    value={coopLoanModal.newBalance}
+                    onChange={(e) => setCoopLoanModal(prev => ({
+                      ...prev,
+                      newBalance: e.target.value
+                    }))}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                {/* Adjustment / Reconciliation Reason Input */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.2rem' }}>
+                    Adjustment Note / Reason:
+                  </label>
+                  <input
+                    type="text"
+                    style={{
+                      width: '100%',
+                      padding: '0.42rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.82rem',
+                      color: '#0f172a',
+                      background: 'var(--surface, #ffffff)',
+                      outline: 'none',
+                    }}
+                    value={coopLoanModal.reason}
+                    onChange={(e) => setCoopLoanModal(prev => ({
+                      ...prev,
+                      reason: e.target.value
+                    }))}
+                    placeholder="e.g. Offset against savings, cash payment..."
+                  />
+                </div>
+
+                {/* Compact Comparison Strip */}
+                <div style={{
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '10px',
+                  padding: '0.55rem 0.85rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.8rem'
+                }}>
+                  <div>
+                    <span style={{ color: '#64748b' }}>Reconciled: </span>
+                    <strong style={{ color: '#b45309' }}>₦{fmt(parseFloat(coopLoanModal.newBalance) || 0)}</strong>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: '#64748b' }}>
+                      {((parseFloat(coopLoanModal.newBalance) || 0) < coopLoanModal.currentBalance)
+                        ? 'Reduction: '
+                        : ((parseFloat(coopLoanModal.newBalance) || 0) > coopLoanModal.currentBalance)
+                        ? 'Addition: '
+                        : 'Change: '}
+                    </span>
+                    <strong style={{ color: '#b45309' }}>
+                      ₦{fmt(Math.abs((parseFloat(coopLoanModal.newBalance) || 0) - coopLoanModal.currentBalance))}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter} style={{ padding: '0.65rem 1.25rem' }}>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnSecondary}`}
+                  style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}
+                  onClick={() => setCoopLoanModal({ open: false, staffId: null, staffName: '', resignationId: null, currentBalance: 0, newBalance: '', reason: '', loading: false })}
+                  disabled={coopLoanModal.loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  style={{ background: '#d97706', borderColor: '#d97706', color: '#ffffff', padding: '0.4rem 0.95rem', fontSize: '0.8rem' }}
+                  disabled={coopLoanModal.loading}
+                >
+                  {coopLoanModal.loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  <span>Save Balance</span>
                 </button>
               </div>
             </form>
