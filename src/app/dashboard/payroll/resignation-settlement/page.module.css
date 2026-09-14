@@ -560,6 +560,16 @@
   background: #7c3aed !important;
 }
 
+.btnResubmit {
+  background: #f59e0b !important;
+  color: #ffffff !important;
+  border-color: #f59e0b !important;
+}
+
+.btnResubmit:hover {
+  background: #d97706 !important;
+}
+
 .btnReject {
   background: transparent;
   color: #ef4444;
