@@ -795,8 +795,8 @@ export default function ResignationSettlementPage() {
                           Prorated: {r.next_month_days}/{r.days_in_next_month} days (M1 on Payroll)
                         </div>
                       ) : (
-                        <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                          Full 1-Mo Notice (Day 1–10)
+                        <div style={{ fontSize: '0.68rem', color: '#64748b' }} title="Full current month salary plus exit month notice days paid via Exit Settlement">
+                          Full Month + {r.next_month_days}d (Day 1–10)
                         </div>
                       )}
                     </td>
