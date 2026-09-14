@@ -1471,7 +1471,7 @@ export default function ApplyResignationPage() {
                     }}>
                       {isEarly ? (
                         <>
-                          <strong>Early Month Rule (Day 1–10):</strong> Resignation submitted on <strong>{resDate || 'early in month'}</strong>. Approving will immediately remove this staff from active payroll (<code>staff_status = 0</code>). The full 1-month notice will be settled on the <strong>Exit Settlement Registry</strong> page.
+                          <strong>Early Month Rule (Day 1–10):</strong> Resignation submitted on <strong>{resDate || 'early in month'}</strong>. Approving will immediately remove this staff from active payroll (<code>staff_status = 0</code>). The full current month salary plus remaining exit notice days will be settled on the <strong>Exit Settlement Registry</strong> page.
                         </>
                       ) : (
                         <>
