@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload, Download, Printer } from 'lucide-react';
+import { Users, UserCheck, UserX, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload, Download, Printer } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
 
@@ -41,6 +41,7 @@ export default function MedicalLoanDeductionSetupPage() {
   const [staffList, setStaffList] = useState([]);
   const [setups, setSetups] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [staffStatusFilter, setStaffStatusFilter] = useState('all'); // 'all' | 'active' (staff_status=1) | 'inactive' (staff_status=0)
 
   // Dropdown Autocomplete Staff State
   const [dropdownSearch, setDropdownSearch] = useState('');
@@ -83,7 +84,7 @@ export default function MedicalLoanDeductionSetupPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  }, [searchQuery, itemsPerPage, staffStatusFilter]);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -117,14 +118,19 @@ export default function MedicalLoanDeductionSetupPage() {
 
   // Fetch dynamic medical loan setups list
   const fetchSetups = useCallback(async (silent = false) => {
-    const cacheKeySetups = 'hrms_medical_loan_setups_cache';
+    const cacheKeySetups = 'hrms_medical_loan_setups_cache_v2';
     let hasCache = false;
 
     if (typeof window !== 'undefined') {
       const cachedSetups = sessionStorage.getItem(cacheKeySetups);
       if (cachedSetups) {
-        setSetups(JSON.parse(cachedSetups));
-        hasCache = true;
+        try {
+          const parsed = JSON.parse(cachedSetups);
+          if (Array.isArray(parsed) && (parsed.length === 0 || parsed[0]?.staff_status !== undefined)) {
+            setSetups(parsed);
+            hasCache = true;
+          }
+        } catch { /* ignore */ }
       }
     }
 
@@ -157,7 +163,7 @@ export default function MedicalLoanDeductionSetupPage() {
   useEffect(() => {
     let hasCache = false;
     if (typeof window !== 'undefined') {
-      hasCache = !!(sessionStorage.getItem('hrms_medical_loan_setups_cache') && sessionStorage.getItem('hrms_coop_loans_staff_cache'));
+      hasCache = !!(sessionStorage.getItem('hrms_medical_loan_setups_cache_v2') && sessionStorage.getItem('hrms_coop_loans_staff_cache'));
     }
     const timer = setTimeout(() => {
       fetchStaffData();
@@ -487,12 +493,32 @@ export default function MedicalLoanDeductionSetupPage() {
         String(s.id).includes(dropdownSearch)
       );
 
+  // Calculate staff status counts across setups
+  const baseSetupsForCounts = selectedStaff ? setups.filter(s => s.staffId === selectedStaff.id) : setups;
+  const countAllStaff = baseSetupsForCounts.length;
+  const countActiveStaff = baseSetupsForCounts.filter(s => Number(s.staff_status !== undefined ? s.staff_status : 1) === 1).length;
+  const countInactiveStaff = baseSetupsForCounts.filter(s => Number(s.staff_status) === 0).length;
+
   const filteredSetups = setups.filter(s => {
     if (selectedStaff && s.staffId !== selectedStaff.id) {
       return false;
     }
-    return s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(s.staffId).includes(searchQuery);
+
+    // Filter by staff_status toggle:
+    // staff_status = 1 (Active Staff), staff_status = 0 (Inactive Staff)
+    const staffStatusNum = Number(s.staff_status !== undefined ? s.staff_status : 1);
+    if (staffStatusFilter === 'active' && staffStatusNum !== 1) {
+      return false;
+    }
+    if (staffStatusFilter === 'inactive' && staffStatusNum !== 0) {
+      return false;
+    }
+
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return s.name?.toLowerCase().includes(q) ||
+      String(s.staffId).includes(q) ||
+      (s.department && s.department.toLowerCase().includes(q));
   });
 
   const totalPages = itemsPerPage === 'all'
@@ -522,6 +548,8 @@ export default function MedicalLoanDeductionSetupPage() {
   const totalRecords = filteredSetups.length;
   const activeCount = filteredSetups.filter(s => s.is_active === 1).length;
   const inactiveCount = totalRecords - activeCount;
+  const filteredActiveStaffCount = filteredSetups.filter(s => Number(s.staff_status !== undefined ? s.staff_status : 1) === 1).length;
+  const filteredInactiveStaffCount = filteredSetups.filter(s => Number(s.staff_status) === 0).length;
   const totalLoanSum = filteredSetups.reduce((acc, s) => acc + (parseFloat(s.loan_amount) || 0), 0);
   const totalMonthlyDeductSum = filteredSetups.reduce((acc, s) => acc + (parseFloat(s.monthly_deduction) || 0), 0);
   const totalBalanceSum = filteredSetups.reduce((acc, s) => acc + (parseFloat(s.balance_remaining) || 0), 0);
@@ -537,6 +565,7 @@ export default function MedicalLoanDeductionSetupPage() {
       'S/N',
       'Staff ID',
       'Staff Name',
+      'Staff Status',
       'Department',
       'Loan Amount (NGN)',
       'Duration (Months)',
@@ -544,13 +573,14 @@ export default function MedicalLoanDeductionSetupPage() {
       'Balance Remaining (NGN)',
       'Start Month',
       'End Month',
-      'Status'
+      'Loan Setup Status'
     ];
 
     const rows = filteredSetups.map((s, i) => [
       i + 1,
       s.staffId || '',
       `"${(s.name || '').replace(/"/g, '""')}"`,
+      Number(s.staff_status) === 0 ? 'Inactive Staff' : 'Active Staff',
       `"${(s.department || 'N/A').replace(/"/g, '""')}"`,
       parseFloat(s.loan_amount) || 0,
       s.duration_months || 0,
@@ -567,7 +597,8 @@ export default function MedicalLoanDeductionSetupPage() {
     const link = document.createElement('a');
     link.setAttribute('href', url);
     const dateStr = new Date().toISOString().split('T')[0];
-    link.setAttribute('download', `medical_loan_deduction_setups_${dateStr}.csv`);
+    const statusSuffix = staffStatusFilter === 'active' ? '_active_staff' : staffStatusFilter === 'inactive' ? '_inactive_staff' : '_all_staff';
+    link.setAttribute('download', `medical_loan_deduction_setups${statusSuffix}_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1015,6 +1046,141 @@ export default function MedicalLoanDeductionSetupPage() {
           </div>
         </div>
 
+        {/* Staff Status Toggle Filters */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.85rem 1.5rem',
+          backgroundColor: '#f8fafc',
+          borderBottom: '1px solid var(--border, #e2e8f0)',
+          flexWrap: 'wrap',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#475569', marginRight: '0.25rem' }}>
+              Staff Filter:
+            </span>
+
+            {/* Toggle: All Active & Inactive Staff */}
+            <button
+              type="button"
+              onClick={() => { setStaffStatusFilter('all'); setCurrentPage(1); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.42rem 0.9rem',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: staffStatusFilter === 'all' ? 600 : 500,
+                border: staffStatusFilter === 'all' ? '1.5px solid var(--primary, #3b82f6)' : '1px solid #cbd5e1',
+                backgroundColor: staffStatusFilter === 'all' ? 'var(--primary, #3b82f6)' : '#ffffff',
+                color: staffStatusFilter === 'all' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: staffStatusFilter === 'all' ? '0 1px 3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="View all staff (Active and Inactive)"
+            >
+              <Users size={15} />
+              <span>All (Active & Inactive Staff)</span>
+              <span style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                borderRadius: '9999px',
+                fontSize: '0.725rem',
+                fontWeight: 600,
+                backgroundColor: staffStatusFilter === 'all' ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                color: staffStatusFilter === 'all' ? '#ffffff' : '#64748b'
+              }}>
+                {countAllStaff}
+              </span>
+            </button>
+
+            {/* Toggle: Active Staff */}
+            <button
+              type="button"
+              onClick={() => { setStaffStatusFilter('active'); setCurrentPage(1); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.42rem 0.9rem',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: staffStatusFilter === 'active' ? 600 : 500,
+                border: staffStatusFilter === 'active' ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                backgroundColor: staffStatusFilter === 'active' ? '#059669' : '#ffffff',
+                color: staffStatusFilter === 'active' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: staffStatusFilter === 'active' ? '0 1px 3px rgba(5, 150, 105, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="Toggle to view Active Staff"
+            >
+              <UserCheck size={15} />
+              <span>Active Staff</span>
+              <span style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                borderRadius: '9999px',
+                fontSize: '0.725rem',
+                fontWeight: 600,
+                backgroundColor: staffStatusFilter === 'active' ? 'rgba(255,255,255,0.25)' : '#ecfdf5',
+                color: staffStatusFilter === 'active' ? '#ffffff' : '#059669'
+              }}>
+                {countActiveStaff}
+              </span>
+            </button>
+
+            {/* Toggle: Inactive Staff */}
+            <button
+              type="button"
+              onClick={() => { setStaffStatusFilter('inactive'); setCurrentPage(1); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.42rem 0.9rem',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: staffStatusFilter === 'inactive' ? 600 : 500,
+                border: staffStatusFilter === 'inactive' ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                backgroundColor: staffStatusFilter === 'inactive' ? '#dc2626' : '#ffffff',
+                color: staffStatusFilter === 'inactive' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: staffStatusFilter === 'inactive' ? '0 1px 3px rgba(220, 38, 38, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="Toggle to view Inactive Staff"
+            >
+              <UserX size={15} />
+              <span>Inactive Staff</span>
+              <span style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                borderRadius: '9999px',
+                fontSize: '0.725rem',
+                fontWeight: 600,
+                backgroundColor: staffStatusFilter === 'inactive' ? 'rgba(255,255,255,0.25)' : '#fef2f2',
+                color: staffStatusFilter === 'inactive' ? '#ffffff' : '#dc2626'
+              }}>
+                {countInactiveStaff}
+              </span>
+            </button>
+          </div>
+
+          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+            Showing <strong>{filteredSetups.length}</strong> of <strong>{countAllStaff}</strong> setups
+            {staffStatusFilter !== 'all' && (
+              <span style={{ marginLeft: '4px', fontWeight: 600, color: staffStatusFilter === 'active' ? '#059669' : '#dc2626' }}>
+                ({staffStatusFilter === 'active' ? 'Active staff only' : 'Inactive staff only'})
+              </span>
+            )}
+          </div>
+        </div>
+
         <div className={styles.cardBody} style={{ padding: 0 }}>
           {loading ? (
             <div className={styles.emptyState}>
@@ -1042,7 +1208,28 @@ export default function MedicalLoanDeductionSetupPage() {
                     <tr key={s.id}>
                       <td>
                         <div className={styles.staffCell}>
-                          <span className={styles.staffName}>{s.name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                            <span className={styles.staffName}>{s.name}</span>
+                            {Number(s.staff_status) === 0 && (
+                              <span
+                                title="Inactive Staff"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  padding: '1px 6px',
+                                  borderRadius: '9999px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  backgroundColor: '#fee2e2',
+                                  color: '#dc2626',
+                                  border: '1px solid #fca5a5',
+                                  lineHeight: 1.2
+                                }}
+                              >
+                                Inactive Staff
+                              </span>
+                            )}
+                          </div>
                           <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
                         </div>
                       </td>
@@ -1235,7 +1422,8 @@ export default function MedicalLoanDeductionSetupPage() {
           </div>
           <div style={{ textAlign: 'right', fontSize: '8pt', color: '#475569', lineHeight: 1.4 }}>
             <div><strong>Generated:</strong> {mounted ? new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</div>
-            <div><strong>Scope:</strong> {searchQuery.trim() ? `Search "${searchQuery.trim()}"` : 'All Medical Loan Setups'}</div>
+            <div><strong>Staff Filter:</strong> {staffStatusFilter === 'active' ? 'Active Staff Only' : staffStatusFilter === 'inactive' ? 'Inactive Staff Only' : 'All Staff (Active & Inactive)'}</div>
+            {searchQuery.trim() && <div><strong>Search:</strong> "{searchQuery.trim()}"</div>}
             <div><strong>Total Records:</strong> {filteredSetups.length}</div>
           </div>
         </div>
@@ -1243,8 +1431,10 @@ export default function MedicalLoanDeductionSetupPage() {
         {/* Metrics Summary Banner */}
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 16px', marginTop: '10px', padding: '6px 10px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '8pt' }}>
           <div>Total Configurations: <strong>{totalRecords}</strong></div>
-          <div>Active Setups: <strong style={{ color: '#059669' }}>{activeCount}</strong></div>
-          <div>Inactive Setups: <strong style={{ color: '#64748b' }}>{inactiveCount}</strong></div>
+          <div>Active Staff: <strong style={{ color: '#059669' }}>{filteredActiveStaffCount}</strong></div>
+          <div>Inactive Staff: <strong style={{ color: '#dc2626' }}>{filteredInactiveStaffCount}</strong></div>
+          <div>Active Loan Setups: <strong style={{ color: '#059669' }}>{activeCount}</strong></div>
+          <div>Inactive Loan Setups: <strong style={{ color: '#64748b' }}>{inactiveCount}</strong></div>
           <div>Total Loan Principal: <strong>₦{fmt(totalLoanSum)}</strong></div>
           <div>Total Monthly Deductions: <strong>₦{fmt(totalMonthlyDeductSum)}</strong></div>
           <div>Total Balance Outstanding: <strong style={{ color: '#dc2626' }}>₦{fmt(totalBalanceSum)}</strong></div>
@@ -1258,6 +1448,7 @@ export default function MedicalLoanDeductionSetupPage() {
             <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '30px' }}>S/N</th>
             <th style={{ padding: '6px 8px', border: '1px solid #334155', width: '65px' }}>Staff ID</th>
             <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Staff Name</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '70px' }}>Staff Status</th>
             <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Department</th>
             <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Loan Amount</th>
             <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Duration</th>
@@ -1265,7 +1456,7 @@ export default function MedicalLoanDeductionSetupPage() {
             <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Balance Remaining</th>
             <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Start Month</th>
             <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>End Month</th>
-            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Status</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Loan Status</th>
           </tr>
         </thead>
         <tbody>
@@ -1274,6 +1465,9 @@ export default function MedicalLoanDeductionSetupPage() {
               <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{idx + 1}</td>
               <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '600' }}>{s.staffId}</td>
               <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '500' }}>{s.name}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '600', color: Number(s.staff_status) === 0 ? '#dc2626' : '#059669' }}>
+                {Number(s.staff_status) === 0 ? 'Inactive' : 'Active'}
+              </td>
               <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1' }}>{s.department || 'N/A'}</td>
               <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(s.loan_amount)}</td>
               <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.duration_months} Mos</td>
@@ -1289,7 +1483,7 @@ export default function MedicalLoanDeductionSetupPage() {
         </tbody>
         <tfoot>
           <tr style={{ background: '#f1f5f9', fontWeight: '700' }}>
-            <td colSpan={4} style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL:</td>
+            <td colSpan={5} style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL:</td>
             <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalLoanSum)}</td>
             <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
             <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalMonthlyDeductSum)}</td>

@@ -3,9 +3,28 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Calendar, Info, Check, Printer, Calculator } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
+
+function getDaysInTargetMonth(yearMonthStr) {
+  if (!yearMonthStr) return 30;
+  const parts = yearMonthStr.split('-');
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(y) || isNaN(m)) return 30;
+  return new Date(y, m, 0).getDate();
+}
+
+function formatMonthYear(yearMonthStr) {
+  if (!yearMonthStr) return '';
+  const parts = yearMonthStr.split('-');
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(y) || isNaN(m)) return yearMonthStr;
+  const d = new Date(y, m - 1, 1);
+  return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -86,18 +105,29 @@ export default function ApplyRefundPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkApproveModal, setShowBulkApproveModal] = useState(false);
   
-  // Approval Modal State
+  // Approval Modal State (HOD, Audit, Finance, and HR Rejection)
   const [approvalModal, setApprovalModal] = useState({
     show: false,
     recordId: null,
-    level: '', // 'HOD', 'Finance', 'HR'
+    level: '', // 'HOD', 'Finance', 'Audit', 'HR'
     action: '', // 'approve', 'reject'
     remarks: '',
   });
 
-  // Form Fields
+  // Dedicated HR Head Setup & Approval Modal State
+  const [hrSetupModal, setHrSetupModal] = useState({
+    show: false,
+    record: null,
+    refundType: 'days', // 'days' | 'amount'
+    amount: '',
+    selectedMonth: '',
+    days: 1,
+    remarks: '',
+    grossSalaryOverride: '',
+  });
+
+  // Form Fields (staff enters reason & date, no amount)
   const [editId, setEditId] = useState(null);
-  const [amount, setAmount] = useState('');
   const [refundDate, setRefundDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -247,20 +277,15 @@ export default function ApplyRefundPage() {
       setDropdownSearch('');
     }
 
-    setAmount('');
     setRefundDate(new Date().toISOString().split('T')[0]);
     setReason('');
   };
 
-  // Submit/Apply for Refund
+  // Submit/Apply for Refund (staff enters reason, date, and selected staff)
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedStaff) {
       showToast('Please select a staff member.', 'error');
-      return;
-    }
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      showToast('Please specify a valid positive amount.', 'error');
       return;
     }
     if (!refundDate) {
@@ -277,7 +302,6 @@ export default function ApplyRefundPage() {
     const payload = {
       id: editId,
       staff_id: selectedStaff.id,
-      amount: parseFloat(amount),
       reason: reason.trim(),
       refund_date: refundDate,
     };
@@ -317,7 +341,6 @@ export default function ApplyRefundPage() {
       setDropdownSearch(staffObj.name);
     }
 
-    setAmount(record.amount);
     setRefundDate(record.refund_date);
     setReason(record.reason || '');
   };
@@ -379,7 +402,6 @@ export default function ApplyRefundPage() {
         if (r.id === recordId) {
           const updated = { ...r };
           if (action === 'approve') {
-            if (level === 'HOD') updated.hod_status = 1;
             if (level === 'HR') updated.admin_status = 1;
             if (level === 'Audit') updated.audit_status = 1;
             if (level === 'Finance') {
@@ -387,10 +409,6 @@ export default function ApplyRefundPage() {
               updated.status = 1; // overall approved (paid)
             }
           } else {
-            if (level === 'HOD') {
-              updated.hod_status = 2;
-              updated.status = 2; // overall rejected
-            }
             if (level === 'HR') {
               updated.admin_status = 2;
               updated.status = 2; // overall rejected
@@ -426,6 +444,95 @@ export default function ApplyRefundPage() {
     } catch (err) {
       setRecords(originalRecords); // rollback
       const msg = err.response?.data?.message ?? 'Failed to process refund action.';
+      showToast(msg, 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Open HR Setup & Approval Modal
+  const handleOpenHrSetup = (row) => {
+    let defaultMonth = '';
+    if (row.refund_date) {
+      defaultMonth = row.refund_date.substring(0, 7);
+    } else {
+      const today = new Date();
+      defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    const staffGross = parseFloat(row.gross_salary || row.staff_gross_salary || 0);
+
+    setHrSetupModal({
+      show: true,
+      record: row,
+      refundType: row.refund_type || 'days',
+      amount: row.amount && parseFloat(row.amount) > 0 ? String(row.amount) : '',
+      selectedMonth: row.refund_month || defaultMonth,
+      days: row.refund_days ? parseFloat(row.refund_days) : 1,
+      remarks: row.remarks || '',
+      grossSalaryOverride: staffGross > 0 ? String(staffGross) : '',
+    });
+  };
+
+  // Confirm HR Setup & Approval
+  const handleHrSetupSubmit = async () => {
+    const { record, refundType, amount, selectedMonth, days, remarks, grossSalaryOverride } = hrSetupModal;
+    if (!record) return;
+
+    const grossVal = parseFloat(grossSalaryOverride) || parseFloat(record.gross_salary || record.staff_gross_salary || 0);
+
+    let payload = {
+      refund_type: refundType,
+      remarks: remarks.trim(),
+    };
+
+    if (refundType === 'days') {
+      if (!selectedMonth) {
+        showToast('Please select a target month for the refund.', 'error');
+        return;
+      }
+      const numDays = parseFloat(days);
+      if (isNaN(numDays) || numDays <= 0) {
+        showToast('Please specify a valid number of days.', 'error');
+        return;
+      }
+      if (grossVal <= 0) {
+        showToast('Employee gross salary must be greater than zero to calculate daily refund rate.', 'error');
+        return;
+      }
+
+      const daysInMonth = getDaysInTargetMonth(selectedMonth);
+      const dailyRate = Math.round((grossVal / daysInMonth) * 100) / 100;
+      const calculatedAmount = Math.round((dailyRate * numDays) * 100) / 100;
+
+      payload.refund_days = numDays;
+      payload.refund_month = selectedMonth;
+      payload.gross_salary = grossVal;
+      payload.daily_rate = dailyRate;
+      payload.amount = calculatedAmount;
+    } else {
+      const numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        showToast('Please enter a valid positive refund amount.', 'error');
+        return;
+      }
+      payload.amount = numAmount;
+      payload.gross_salary = grossVal > 0 ? grossVal : null;
+    }
+
+    setActionLoading(true);
+    const headers = buildHeaders();
+    try {
+      const res = await axios.post(`${API_BASE}/payroll/refunds/hr-approve/${record.id}`, payload, { headers });
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Refund successfully configured and approved by HR Head.');
+        setHrSetupModal(prev => ({ ...prev, show: false, record: null }));
+        fetchRecords(true);
+      } else {
+        showToast(res.data.message || 'Failed to approve refund.', 'error');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message ?? 'Failed to approve refund setup.';
       showToast(msg, 'error');
     } finally {
       setActionLoading(false);
@@ -489,23 +596,9 @@ export default function ApplyRefundPage() {
 
   const isFormDisabled = !canSelectStaff && selectedStaff && String(selectedStaff.id) !== String(userCtx.employee?.ID ?? userCtx.employee?.id);
 
-  // Helper check to determine if a tier approval button should show
-  const canRecommendHOD = (row) => {
-    if (row.status !== 0 || row.hod_status !== 0) return false;
-    if (canSelectStaff) return true;
-    if (userCtx.isHod && userCtx.employee) {
-      const empId = userCtx.employee.ID ?? userCtx.employee.id;
-      const empDeptId = userCtx.employee.departmentID ?? userCtx.employee.department_id;
-      if (empDeptId && row.departmentID) {
-        return String(row.departmentID) === String(empDeptId);
-      }
-      return row.department === userCtx.employee.department || String(row.staff_id) === String(empId);
-    }
-    return false;
-  };
-
+  // Helper check to determine if a tier approval button should show (HR -> Audit -> Finance)
   const canRecommendHR = (row) => {
-    if (row.status !== 0 || row.hod_status !== 1 || row.admin_status !== 0) return false;
+    if (row.status !== 0 || row.admin_status !== 0) return false;
     return canSelectStaff || userCtx.isAdminStaff;
   };
 
@@ -520,7 +613,6 @@ export default function ApplyRefundPage() {
   };
 
   const getApprovalLevel = (row) => {
-    if (canRecommendHOD(row)) return 'hod';
     if (canRecommendHR(row)) return 'hr';
     if (canApproveAudit(row)) return 'audit';
     if (canApproveFinance(row)) return 'finance';
@@ -700,23 +792,6 @@ export default function ApplyRefundPage() {
                     className={`${styles.input} ${styles.inputWithIcon}`}
                     value={refundDate}
                     onChange={(e) => setRefundDate(e.target.value)}
-                    disabled={isFormDisabled}
-                  />
-                </div>
-              </div>
-
-              {/* Refund Amount */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Refund Amount (₦) *</label>
-                <div className={styles.inputGroup}>
-                  <NairaSign className={styles.inputIcon} size={16} />
-                  <input
-                    type="number"
-                    step="0.01"
-                    className={`${styles.input} ${styles.inputWithIcon}`}
-                    placeholder="Enter refund amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
                     disabled={isFormDisabled}
                   />
                 </div>
@@ -967,12 +1042,24 @@ export default function ApplyRefundPage() {
                           </div>
                         </td>
                         <td>{row.department || '—'}</td>
-                        <td style={{ fontWeight: 600 }}>₦{fmt(row.amount)}</td>
+                        <td>
+                          {parseFloat(row.amount) > 0 ? (
+                            <div>
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>₦{fmt(row.amount)}</span>
+                              {row.refund_type === 'days' && (
+                                <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                  {row.refund_days} {parseFloat(row.refund_days) === 1 ? 'day' : 'days'} ({formatMonthYear(row.refund_month)})
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className={styles.pendingSetupBadge}>Pending HR Setup</span>
+                          )}
+                        </td>
                         <td>{formatDateDMY(row.refund_date)}</td>
                         <td>{getOverallBadge(row.status)}</td>
                         <td>
                           <div className={styles.tierBadgeContainer}>
-                            {getTierBadge(row.hod_status, 'hod')}
                             {getTierBadge(row.admin_status, 'hr')}
                             {getTierBadge(row.audit_status, 'audit')}
                             {getTierBadge(row.finance_status, 'finance')}
@@ -1014,27 +1101,7 @@ export default function ApplyRefundPage() {
                               </button>
                             )}
 
-                            {/* HOD Approvals */}
-                            {canRecommendHOD(row) && (
-                              <div style={{ display: 'flex', gap: '0.2rem' }}>
-                                <button
-                                  type="button"
-                                  className={`${styles.iconBtn} ${styles.approveBtn}`}
-                                  title="HOD Approve"
-                                  onClick={() => handleApprovalAction(row.id, 'HOD', 'approve')}
-                                >
-                                  <Check size={16} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className={`${styles.iconBtn} ${styles.rejectBtn}`}
-                                  title="HOD Reject"
-                                  onClick={() => handleApprovalAction(row.id, 'HOD', 'reject')}
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                            )}
+
 
                             {/* HR Approvals */}
                             {canRecommendHR(row) && (
@@ -1042,8 +1109,8 @@ export default function ApplyRefundPage() {
                                 <button
                                   type="button"
                                   className={`${styles.iconBtn} ${styles.approveBtn}`}
-                                  title="HR Approve"
-                                  onClick={() => handleApprovalAction(row.id, 'HR', 'approve')}
+                                  title="HR Setup & Approve"
+                                  onClick={() => handleOpenHrSetup(row)}
                                 >
                                   <Check size={16} />
                                 </button>
@@ -1223,8 +1290,20 @@ export default function ApplyRefundPage() {
                   </div>
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Refund Amount</span>
-                    <span className={styles.detailValue} style={{ fontWeight: 700 }}>₦{fmt(detailRecord.amount)}</span>
+                    <span className={styles.detailValue} style={{ fontWeight: 700 }}>
+                      {parseFloat(detailRecord.amount) > 0 ? `₦${fmt(detailRecord.amount)}` : 'Pending HR Setup'}
+                    </span>
                   </div>
+                  {detailRecord.refund_type && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Refund Setup Method</span>
+                      <span className={styles.detailValue}>
+                        {detailRecord.refund_type === 'days'
+                          ? `Daily Rate (${detailRecord.refund_days} ${parseFloat(detailRecord.refund_days) === 1 ? 'day' : 'days'} for ${formatMonthYear(detailRecord.refund_month)})`
+                          : 'Direct Amount Entry'}
+                      </span>
+                    </div>
+                  )}
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>Application Date</span>
                     <span className={styles.detailValue}>{formatDateDMY(detailRecord.refund_date)}</span>
@@ -1234,12 +1313,7 @@ export default function ApplyRefundPage() {
                     <span className={styles.detailValue}>{getOverallBadge(detailRecord.status)}</span>
                   </div>
 
-                  <div className={styles.detailItem}>
-                    <span className={styles.detailLabel}>HOD Status Details</span>
-                    <span className={styles.detailValue}>
-                      {detailRecord.hod_status === 1 ? `Approved by ${detailRecord.hod_name || 'HOD'} on ${formatDateDMY(detailRecord.hod_date)}` : detailRecord.hod_status === 2 ? 'Rejected' : 'Pending'}
-                    </span>
-                  </div>
+
                   <div className={styles.detailItem}>
                     <span className={styles.detailLabel}>HR Status Details</span>
                     <span className={styles.detailValue}>
@@ -1440,6 +1514,226 @@ export default function ApplyRefundPage() {
             </motion.div>
           </div>
         )}
+        {/* Dedicated HR Setup & Approval Modal */}
+        <AnimatePresence>
+          {hrSetupModal.show && hrSetupModal.record && (() => {
+            const grossSalary = parseFloat(hrSetupModal.grossSalaryOverride) || parseFloat(hrSetupModal.record.gross_salary || hrSetupModal.record.staff_gross_salary || 0);
+            const daysInMonth = getDaysInTargetMonth(hrSetupModal.selectedMonth);
+            const numDays = parseFloat(hrSetupModal.days) || 0;
+            const dailyRate = daysInMonth > 0 && grossSalary > 0 ? Math.round((grossSalary / daysInMonth) * 100) / 100 : 0;
+            const calculatedTotal = Math.round((dailyRate * numDays) * 100) / 100;
+            const finalAmount = hrSetupModal.refundType === 'days' ? calculatedTotal : (parseFloat(hrSetupModal.amount) || 0);
+
+            return (
+              <div className={styles.modalOverlay} onClick={() => setHrSetupModal(prev => ({ ...prev, show: false, record: null }))}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className={styles.hrModalBox}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Modal Header */}
+                  <div className={styles.modalHeader}>
+                    <div>
+                      <h3 className={styles.modalTitle}>HR Refund Setup & Approval</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Configure the refund calculation method and approve this application
+                      </p>
+                    </div>
+                    <button
+                      className={styles.modalClose}
+                      onClick={() => setHrSetupModal(prev => ({ ...prev, show: false, record: null }))}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className={styles.modalBody}>
+                    {/* Staff Context Card */}
+                    <div className={styles.hrStaffCard}>
+                      <div className={styles.hrStaffRow}>
+                        <div>
+                          <div className={styles.hrStaffName}>{hrSetupModal.record.name}</div>
+                          <div className={styles.hrStaffMeta}>
+                            Staff ID: {hrSetupModal.record.staff_id} &bull; {hrSetupModal.record.department || 'Department N/A'}
+                          </div>
+                        </div>
+                        <div className={styles.hrSalaryTag}>
+                          Gross: ₦{fmt(grossSalary)}
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px dashed var(--border)', paddingTop: '0.4rem' }}>
+                        <strong>Reason:</strong> {hrSetupModal.record.reason}
+                      </div>
+                    </div>
+
+                    {/* If staff gross salary is missing/zero, provide override input */}
+                    {grossSalary <= 0 && hrSetupModal.refundType === 'days' && (
+                      <div className={styles.formGroup} style={{ marginBottom: '1rem' }}>
+                        <label className={styles.label} style={{ color: '#b45309' }}>
+                          Staff Gross Salary (₦) * (No salary structure found)
+                        </label>
+                        <div className={styles.inputGroup}>
+                          <NairaSign className={styles.inputIcon} size={16} />
+                          <input
+                            type="number"
+                            step="0.01"
+                            className={`${styles.input} ${styles.inputWithIcon}`}
+                            placeholder="Enter staff gross salary"
+                            value={hrSetupModal.grossSalaryOverride}
+                            onChange={(e) => setHrSetupModal(prev => ({ ...prev, grossSalaryOverride: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dual Mode Toggle Switch */}
+                    <div className={styles.toggleContainer}>
+                      <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${hrSetupModal.refundType === 'days' ? styles.toggleBtnActive : ''}`}
+                        onClick={() => setHrSetupModal(prev => ({ ...prev, refundType: 'days' }))}
+                      >
+                        <Calculator size={16} />
+                        <span>Select Number of Days</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${hrSetupModal.refundType === 'amount' ? styles.toggleBtnActive : ''}`}
+                        onClick={() => setHrSetupModal(prev => ({ ...prev, refundType: 'amount' }))}
+                      >
+                        <NairaSign size={16} />
+                        <span>Enter Amount</span>
+                      </button>
+                    </div>
+
+                    {/* Mode 1: Select Number of Days */}
+                    {hrSetupModal.refundType === 'days' ? (
+                      <div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.85rem' }}>
+                          <div className={styles.formGroup}>
+                            <label className={styles.label}>Select Refund Month *</label>
+                            <div className={styles.inputGroup}>
+                              <Calendar className={styles.inputIcon} size={16} />
+                              <input
+                                type="month"
+                                className={`${styles.input} ${styles.inputWithIcon}`}
+                                value={hrSetupModal.selectedMonth}
+                                onChange={(e) => setHrSetupModal(prev => ({ ...prev, selectedMonth: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+
+                          <div className={styles.formGroup}>
+                            <label className={styles.label}>Number of Days to Return *</label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="0.5"
+                              className={styles.input}
+                              placeholder="e.g. 1"
+                              value={hrSetupModal.days}
+                              onChange={(e) => setHrSetupModal(prev => ({ ...prev, days: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Calculation Tiles Breakdown */}
+                        <div className={styles.calcGrid}>
+                          <div className={styles.calcTile}>
+                            <span className={styles.calcTileLabel}>Staff Gross Salary</span>
+                            <span className={styles.calcTileValue}>₦{fmt(grossSalary)}</span>
+                          </div>
+
+                          <div className={styles.calcTile}>
+                            <span className={styles.calcTileLabel}>
+                              Month Days ({formatMonthYear(hrSetupModal.selectedMonth)})
+                            </span>
+                            <span className={styles.calcTileValue}>{daysInMonth} Days</span>
+                          </div>
+
+                          <div className={styles.calcTile}>
+                            <span className={styles.calcTileLabel}>1-Day Salary Rate</span>
+                            <span className={styles.calcTileValue}>₦{fmt(dailyRate)} / day</span>
+                          </div>
+
+                          <div className={`${styles.calcTile} ${styles.calcTileHighlight}`}>
+                            <span className={styles.calcTileLabel}>
+                              Total Refund ({numDays} {numDays === 1 ? 'day' : 'days'})
+                            </span>
+                            <span className={styles.calcTileValue}>₦{fmt(calculatedTotal)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Mode 2: Direct Amount */
+                      <div className={styles.formGroup} style={{ marginBottom: '1.25rem' }}>
+                        <label className={styles.label}>Refund Amount (₦) *</label>
+                        <div className={styles.inputGroup}>
+                          <NairaSign className={styles.inputIcon} size={16} />
+                          <input
+                            type="number"
+                            step="0.01"
+                            className={`${styles.input} ${styles.inputWithIcon}`}
+                            placeholder="Enter refund amount"
+                            value={hrSetupModal.amount}
+                            onChange={(e) => setHrSetupModal(prev => ({ ...prev, amount: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remarks Input */}
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>Approval Remarks / Trail Notes (Optional)</label>
+                      <textarea
+                        className={styles.modalTextarea}
+                        rows={2}
+                        placeholder="Add any setup comments or notes for Audit and Finance..."
+                        value={hrSetupModal.remarks}
+                        onChange={(e) => setHrSetupModal(prev => ({ ...prev, remarks: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className={styles.modalFooter} style={{ gap: '0.65rem' }}>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary}`}
+                      onClick={() => setHrSetupModal(prev => ({ ...prev, show: false, record: null }))}
+                      disabled={actionLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.confirmActionBtn} ${styles.successBtn}`}
+                      onClick={handleHrSetupSubmit}
+                      disabled={actionLoading || finalAmount <= 0}
+                    >
+                      {actionLoading ? (
+                        <>
+                          <Loader2 className={styles.loadingSpinner} size={16} />
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} />
+                          <span>Approve & Setup Refund (₦{fmt(finalAmount)})</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })()}
+        </AnimatePresence>
+
       </AnimatePresence>
 
     </div>

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Users,
+  UserCheck,
+  UserX,
   Search,
   Loader2,
   FileText,
@@ -18,6 +20,7 @@ import {
   Check,
   X,
   Edit2,
+  Printer,
 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -50,6 +53,7 @@ export default function RetentionActivationPage() {
   // Data States
   const [staffRecords, setStaffRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [staffStatusFilter, setStaffStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
   const [selectedIds, setSelectedIds] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isAdminStaff, setIsAdminStaff] = useState(false);
@@ -67,7 +71,7 @@ export default function RetentionActivationPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  }, [searchQuery, itemsPerPage, staffStatusFilter]);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -76,12 +80,15 @@ export default function RetentionActivationPage() {
 
   // Fetch initial data
   const fetchData = useCallback(async (silent = false) => {
-    const cacheKey = 'hrms_retention_act_cache';
+    const cacheKey = 'hrms_retention_act_cache_v2';
     if (!silent && typeof window !== 'undefined') {
       try {
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
-          setStaffRecords(JSON.parse(cached));
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && (parsed.length === 0 || parsed[0]?.staff_status !== undefined)) {
+            setStaffRecords(parsed);
+          }
         }
       } catch (err) {
         console.error('Failed to parse cached retention data:', err);
@@ -113,7 +120,15 @@ export default function RetentionActivationPage() {
   useEffect(() => {
     let hasCache = false;
     if (typeof window !== 'undefined') {
-      hasCache = !!sessionStorage.getItem('hrms_retention_act_cache');
+      const cached = sessionStorage.getItem('hrms_retention_act_cache_v2');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && (parsed.length === 0 || parsed[0]?.staff_status !== undefined)) {
+            hasCache = true;
+          }
+        } catch { /* ignore */ }
+      }
     }
     if (!hasCache) {
       const timer = setTimeout(() => {
@@ -121,9 +136,11 @@ export default function RetentionActivationPage() {
       }, 50);
       return () => clearTimeout(timer);
     } else {
-      const cached = sessionStorage.getItem('hrms_retention_act_cache');
+      const cached = sessionStorage.getItem('hrms_retention_act_cache_v2');
       if (cached) {
-        setStaffRecords(JSON.parse(cached));
+        try {
+          setStaffRecords(JSON.parse(cached));
+        } catch { /* ignore */ }
       }
       fetchData(true);
     }
@@ -365,18 +382,103 @@ export default function RetentionActivationPage() {
   };
 
 
+  // Calculate staff status counts
+  const countAllStaff = staffRecords.length;
+  const countActiveStaff = staffRecords.filter(r => Number(r.staff_status !== undefined ? r.staff_status : 1) === 1).length;
+  const countInactiveStaff = staffRecords.filter(r => Number(r.staff_status) === 0).length;
+
   // Filtered staff list
-  const filteredRecords = staffRecords.filter(r =>
-    r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.fileNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    String(r.id).includes(searchQuery)
-  );
+  const filteredRecords = staffRecords.filter(r => {
+    const staffStatusNum = Number(r.staff_status !== undefined ? r.staff_status : 1);
+    if (staffStatusFilter === 'active' && staffStatusNum !== 1) {
+      return false;
+    }
+    if (staffStatusFilter === 'inactive' && staffStatusNum !== 0) {
+      return false;
+    }
+
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return r.name?.toLowerCase().includes(q) ||
+      r.fileNo?.toLowerCase().includes(q) ||
+      String(r.id).includes(q);
+  });
 
   // Statistics
   const totalPersonnel = staffRecords.length;
   const activeRetentionCount = staffRecords.filter(r => r.reten_act === 1).length;
   const inactiveRetentionCount = totalPersonnel - activeRetentionCount;
   const totalRetentionDeducted = staffRecords.reduce((acc, r) => acc + (parseFloat(r.total_retention_deducted) || 0), 0);
+
+  // Filtered statistics for reports
+  const filteredActiveStaffCount = filteredRecords.filter(r => Number(r.staff_status !== undefined ? r.staff_status : 1) === 1).length;
+  const filteredInactiveStaffCount = filteredRecords.filter(r => Number(r.staff_status) === 0).length;
+  const filteredActiveRetentionCount = filteredRecords.filter(r => r.reten_act === 1).length;
+  const filteredInactiveRetentionCount = filteredRecords.filter(r => r.reten_act !== 1).length;
+  const filteredTotalGrossSalary = filteredRecords.reduce((acc, r) => acc + (parseFloat(r.gross_salary) || 0), 0);
+  const filteredTotalMonthlyRetention = filteredRecords.reduce((acc, r) => acc + (parseFloat(r.monthly_retention) || 0), 0);
+  const filteredTotalRetentionDeducted = filteredRecords.reduce((acc, r) => acc + (parseFloat(r.total_retention_deducted) || 0), 0);
+
+  // CSV Export Function
+  const exportToCSV = () => {
+    if (filteredRecords.length === 0) {
+      showToast('No staff records available to export.', 'error');
+      return;
+    }
+
+    const headers = [
+      'S/N',
+      'Staff ID',
+      'Staff Name',
+      'Staff Status',
+      'File No',
+      'Department',
+      'First Gross Salary (NGN)',
+      'Monthly Retention 5% (NGN)',
+      'Retention Status',
+      'Total Deducted (NGN)',
+      'Deducted Months',
+      'Remaining Months'
+    ];
+
+    const rows = filteredRecords.map((r, i) => [
+      i + 1,
+      r.id || '',
+      `"${(r.name || '').replace(/"/g, '""')}"`,
+      Number(r.staff_status) === 0 ? 'Inactive Staff' : 'Active Staff',
+      `"${(r.fileNo || '').replace(/"/g, '""')}"`,
+      `"${(r.department || 'N/A').replace(/"/g, '""')}"`,
+      parseFloat(r.gross_salary) || 0,
+      parseFloat(r.monthly_retention) || 0,
+      r.reten_act === 1 ? 'Active' : 'Inactive',
+      parseFloat(r.total_retention_deducted) || 0,
+      r.deducted_months ?? 0,
+      r.remaining_months ?? 0
+    ]);
+
+    const csvData = [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const statusSuffix = staffStatusFilter === 'active' ? '_active_staff' : staffStatusFilter === 'inactive' ? '_inactive_staff' : '_all_staff';
+    link.setAttribute('download', `staff_retention_activation${statusSuffix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filteredRecords.length} staff retention record(s) to CSV.`);
+  };
+
+  // Print Statement / Report
+  const handlePrint = () => {
+    if (filteredRecords.length === 0) {
+      showToast('No records available to print.', 'error');
+      return;
+    }
+    window.print();
+  };
 
   // Pagination calculation
   const totalPages = itemsPerPage === 'all'
@@ -390,24 +492,132 @@ export default function RetentionActivationPage() {
       );
 
   return (
-    <div className={styles.container}>
-      {/* Toast Feedback */}
-      {toast && (
-        <div className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
-          {toast.type === 'success' ? (
-            <CheckCircle2 size={18} className={styles.toastSuccessIcon} />
-          ) : (
-            <AlertCircle size={18} className={styles.toastErrorIcon} />
-          )}
-          <span>{toast.message}</span>
-        </div>
-      )}
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .retentionPrintArea {
+          display: none;
+        }
 
-      {/* Page Header */}
-      <div className={styles.header}>
-        <h1>Staff Retention Activation</h1>
-        <p>Manage and configure retention deduction status for active personnel individually or in bulk via spreadsheet imports.</p>
-      </div>
+        @media print {
+          @page {
+            size: landscape;
+            margin: 8mm 6mm 10mm 6mm;
+          }
+
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Hide screen UI */
+          .screen-content,
+          aside,
+          nav,
+          header,
+          footer,
+          button,
+          form,
+          .no-print {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          /* Show Print Layout */
+          .retentionPrintArea {
+            display: block !important;
+            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            z-index: 99999 !important;
+          }
+
+          .retentionPrintArea * {
+            visibility: visible !important;
+          }
+        }
+      `}} />
+
+      <div className={`${styles.container} screen-content`}>
+        {/* Toast Feedback */}
+        {toast && (
+          <div className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
+            {toast.type === 'success' ? (
+              <CheckCircle2 size={18} className={styles.toastSuccessIcon} />
+            ) : (
+              <AlertCircle size={18} className={styles.toastErrorIcon} />
+            )}
+            <span>{toast.message}</span>
+          </div>
+        )}
+
+        {/* Page Header */}
+        <div className={styles.header}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+            <div>
+              <h1 style={{ margin: 0 }}>Staff Retention Activation</h1>
+              <p style={{ margin: '4px 0 0' }}>Manage and configure retention deduction status for active personnel individually or in bulk via spreadsheet imports.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={exportToCSV}
+                disabled={filteredRecords.length === 0}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#334155',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  cursor: filteredRecords.length === 0 ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+                title="Export Configurations to CSV"
+              >
+                <Download size={16} />
+                <span>Export CSV ({filteredRecords.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={filteredRecords.length === 0}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#334155',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  cursor: filteredRecords.length === 0 ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+                title="Print Staff Retention Report"
+              >
+                <Printer size={16} />
+                <span>Print ({filteredRecords.length})</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
       {/* Tabs */}
       <div className={styles.tabs}>
@@ -587,6 +797,185 @@ export default function RetentionActivationPage() {
                     <option value="all">All Records</option>
                   </select>
                 </div>
+                <button
+                  type="button"
+                  onClick={exportToCSV}
+                  disabled={filteredRecords.length === 0}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#334155',
+                    fontSize: '0.825rem',
+                    fontWeight: 500,
+                    cursor: filteredRecords.length === 0 ? 'not-allowed' : 'pointer',
+                  }}
+                  title="Export Configurations to CSV"
+                >
+                  <Download size={15} />
+                  <span>Export CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  disabled={filteredRecords.length === 0}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#334155',
+                    fontSize: '0.825rem',
+                    fontWeight: 500,
+                    cursor: filteredRecords.length === 0 ? 'not-allowed' : 'pointer',
+                  }}
+                  title="Print Staff Retention Report"
+                >
+                  <Printer size={15} />
+                  <span>Print</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Staff Status Toggle Filters */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.85rem 1.25rem',
+              backgroundColor: '#f8fafc',
+              borderBottom: '1px solid var(--border, #e2e8f0)',
+              flexWrap: 'wrap',
+              gap: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#475569', marginRight: '0.25rem' }}>
+                  Staff Filter:
+                </span>
+
+                {/* Toggle: All Active & Inactive Staff */}
+                <button
+                  type="button"
+                  onClick={() => { setStaffStatusFilter('all'); setCurrentPage(1); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.42rem 0.9rem',
+                    borderRadius: '8px',
+                    fontSize: '0.825rem',
+                    fontWeight: staffStatusFilter === 'all' ? 600 : 500,
+                    border: staffStatusFilter === 'all' ? '1.5px solid var(--primary, #3b82f6)' : '1px solid #cbd5e1',
+                    backgroundColor: staffStatusFilter === 'all' ? 'var(--primary, #3b82f6)' : '#ffffff',
+                    color: staffStatusFilter === 'all' ? '#ffffff' : '#334155',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: staffStatusFilter === 'all' ? '0 1px 3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+                  }}
+                  title="View all staff (Active and Inactive)"
+                >
+                  <Users size={15} />
+                  <span>All (Active & Inactive Staff)</span>
+                  <span style={{
+                    marginLeft: '4px',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    fontSize: '0.725rem',
+                    fontWeight: 600,
+                    backgroundColor: staffStatusFilter === 'all' ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                    color: staffStatusFilter === 'all' ? '#ffffff' : '#64748b'
+                  }}>
+                    {countAllStaff}
+                  </span>
+                </button>
+
+                {/* Toggle: Active Staff */}
+                <button
+                  type="button"
+                  onClick={() => { setStaffStatusFilter('active'); setCurrentPage(1); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.42rem 0.9rem',
+                    borderRadius: '8px',
+                    fontSize: '0.825rem',
+                    fontWeight: staffStatusFilter === 'active' ? 600 : 500,
+                    border: staffStatusFilter === 'active' ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                    backgroundColor: staffStatusFilter === 'active' ? '#059669' : '#ffffff',
+                    color: staffStatusFilter === 'active' ? '#ffffff' : '#334155',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: staffStatusFilter === 'active' ? '0 1px 3px rgba(5, 150, 105, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+                  }}
+                  title="Toggle to view Active Staff"
+                >
+                  <UserCheck size={15} />
+                  <span>Active Staff</span>
+                  <span style={{
+                    marginLeft: '4px',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    fontSize: '0.725rem',
+                    fontWeight: 600,
+                    backgroundColor: staffStatusFilter === 'active' ? 'rgba(255,255,255,0.25)' : '#ecfdf5',
+                    color: staffStatusFilter === 'active' ? '#ffffff' : '#059669'
+                  }}>
+                    {countActiveStaff}
+                  </span>
+                </button>
+
+                {/* Toggle: Inactive Staff */}
+                <button
+                  type="button"
+                  onClick={() => { setStaffStatusFilter('inactive'); setCurrentPage(1); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.42rem 0.9rem',
+                    borderRadius: '8px',
+                    fontSize: '0.825rem',
+                    fontWeight: staffStatusFilter === 'inactive' ? 600 : 500,
+                    border: staffStatusFilter === 'inactive' ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                    backgroundColor: staffStatusFilter === 'inactive' ? '#dc2626' : '#ffffff',
+                    color: staffStatusFilter === 'inactive' ? '#ffffff' : '#334155',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: staffStatusFilter === 'inactive' ? '0 1px 3px rgba(220, 38, 38, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+                  }}
+                  title="Toggle to view Inactive Staff"
+                >
+                  <UserX size={15} />
+                  <span>Inactive Staff</span>
+                  <span style={{
+                    marginLeft: '4px',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    fontSize: '0.725rem',
+                    fontWeight: 600,
+                    backgroundColor: staffStatusFilter === 'inactive' ? 'rgba(255,255,255,0.25)' : '#fef2f2',
+                    color: staffStatusFilter === 'inactive' ? '#ffffff' : '#dc2626'
+                  }}>
+                    {countInactiveStaff}
+                  </span>
+                </button>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                Showing <strong>{filteredRecords.length}</strong> of <strong>{countAllStaff}</strong> staff
+                {staffStatusFilter !== 'all' && (
+                  <span style={{ marginLeft: '4px', fontWeight: 600, color: staffStatusFilter === 'active' ? '#059669' : '#dc2626' }}>
+                    ({staffStatusFilter === 'active' ? 'Active staff only' : 'Inactive staff only'})
+                  </span>
+                )}
               </div>
             </div>
 
@@ -653,7 +1042,30 @@ export default function RetentionActivationPage() {
                             />
                           </td>
                           <td className={styles.tdPrimary}>{row.id}</td>
-                          <td style={{ fontWeight: 600 }}>{row.name}</td>
+                          <td style={{ fontWeight: 600 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                              <span>{row.name}</span>
+                              {Number(row.staff_status) === 0 && (
+                                <span
+                                  title="Inactive Staff"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '1px 6px',
+                                    borderRadius: '9999px',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 600,
+                                    backgroundColor: '#fee2e2',
+                                    color: '#dc2626',
+                                    border: '1px solid #fca5a5',
+                                    lineHeight: 1.2
+                                  }}
+                                >
+                                  Inactive Staff
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>
                             {row.gross_salary > 0
                               ? `₦${row.gross_salary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -1010,5 +1422,111 @@ export default function RetentionActivationPage() {
         </div>
       )}
     </div>
+
+    {/* Printable Report View (Visible only during window.print()) */}
+    <div className="retentionPrintArea">
+      <div style={{ paddingBottom: '10px', borderBottom: '2px solid #0f172a', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '15pt', fontWeight: '800', textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.5px' }}>
+              ISALU HOSPITALS LIMITED
+            </h1>
+            <h2 style={{ margin: '3px 0 0', fontSize: '11pt', fontWeight: '700', color: '#334155' }}>
+              STAFF RETENTION ACTIVATION & DEDUCTION DIRECTORY
+            </h2>
+            <p style={{ margin: '2px 0 0', fontSize: '8pt', color: '#64748b' }}>
+              Official record of staff retention activation status, salary base, monthly retention (5%), and total accumulated deductions
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '8pt', color: '#475569', lineHeight: 1.4 }}>
+            <div><strong>Generated:</strong> {new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            <div><strong>Staff Filter:</strong> {staffStatusFilter === 'active' ? 'Active Staff Only' : staffStatusFilter === 'inactive' ? 'Inactive Staff Only' : 'All Staff (Active & Inactive)'}</div>
+            {searchQuery.trim() && <div><strong>Search:</strong> "{searchQuery.trim()}"</div>}
+            <div><strong>Total Records:</strong> {filteredRecords.length}</div>
+          </div>
+        </div>
+
+        {/* Metrics Summary Banner */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 16px', marginTop: '10px', padding: '6px 10px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '8pt' }}>
+          <div>Total Staff: <strong>{countAllStaff}</strong></div>
+          <div>Active Staff: <strong style={{ color: '#059669' }}>{filteredActiveStaffCount}</strong></div>
+          <div>Inactive Staff: <strong style={{ color: '#dc2626' }}>{filteredInactiveStaffCount}</strong></div>
+          <div>Active Retention: <strong style={{ color: '#059669' }}>{filteredActiveRetentionCount}</strong></div>
+          <div>Inactive Retention: <strong style={{ color: '#64748b' }}>{filteredInactiveRetentionCount}</strong></div>
+          <div>Total Gross Salaries: <strong>₦{filteredTotalGrossSalary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+          <div>Total Monthly Retention (5%): <strong>₦{filteredTotalMonthlyRetention.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+          <div>Total Accumulated Deductions: <strong style={{ color: '#059669' }}>₦{filteredTotalRetentionDeducted.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+        </div>
+      </div>
+
+      {/* Printable Data Table */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8pt', textAlign: 'left' }}>
+        <thead>
+          <tr style={{ background: '#0f172a', color: '#ffffff' }}>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '30px' }}>S/N</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', width: '65px' }}>Staff ID</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Staff Name</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '70px' }}>Staff Status</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Department</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>First Gross Salary</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Monthly Retention (5%)</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Retention Status</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Total Deducted</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Deducted / Remaining</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredRecords.map((row, idx) => (
+            <tr key={row.id} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{idx + 1}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '600' }}>{row.id}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '500' }}>{row.name}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '600', color: Number(row.staff_status) === 0 ? '#dc2626' : '#059669' }}>
+                {Number(row.staff_status) === 0 ? 'Inactive' : 'Active'}
+              </td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1' }}>{row.department || 'N/A'}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>
+                ₦{parseFloat(row.gross_salary || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>
+                ₦{parseFloat(row.monthly_retention || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '600', color: row.reten_act === 1 ? '#059669' : '#dc2626' }}>
+                {row.reten_act === 1 ? 'Active' : 'Inactive'}
+              </td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: '600' }}>
+                ₦{parseFloat(row.total_retention_deducted || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>
+                {row.deducted_months ?? 0} / {row.remaining_months ?? 0} mos
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ background: '#f1f5f9', fontWeight: '700' }}>
+            <td colSpan={5} style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL:</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>
+              ₦{filteredTotalGrossSalary.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>
+              ₦{filteredTotalMonthlyRetention.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>
+              ₦{filteredTotalRetentionDeducted.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* Print Footer */}
+      <div style={{ marginTop: '14px', paddingTop: '8px', borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', fontSize: '7.5pt', color: '#64748b' }}>
+        <div>Isalu Hospitals Limited &bull; Human Resources & Payroll System</div>
+        <div>Confidential &bull; Page 1 of 1</div>
+      </div>
+    </div>
+  </>
   );
 }

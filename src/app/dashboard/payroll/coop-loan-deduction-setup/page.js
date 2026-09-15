@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, TrendingUp, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Settings, Calendar, Percent, Power, Upload } from 'lucide-react';
+import { Users, UserCheck, UserX, TrendingUp, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, X, Settings, Calendar, Percent, Power, Upload, Download, Printer } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
 
@@ -40,6 +40,7 @@ export default function CoopLoanDeductionSetupPage() {
   const [staffList, setStaffList] = useState([]);
   const [setups, setSetups] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [staffStatusFilter, setStaffStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
 
   // Dropdown Autocomplete Staff State
   const [dropdownSearch, setDropdownSearch] = useState('');
@@ -83,7 +84,7 @@ export default function CoopLoanDeductionSetupPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  }, [searchQuery, itemsPerPage, staffStatusFilter]);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -117,14 +118,19 @@ export default function CoopLoanDeductionSetupPage() {
 
   // Fetch dynamic coop loan deduction setups list
   const fetchSetups = useCallback(async (silent = false) => {
-    const cacheKeySetups = 'hrms_coop_loan_deductions_cache';
+    const cacheKeySetups = 'hrms_coop_loan_deductions_cache_v2';
     let hasCache = false;
 
     if (typeof window !== 'undefined') {
       const cachedSetups = sessionStorage.getItem(cacheKeySetups);
       if (cachedSetups) {
-        setSetups(JSON.parse(cachedSetups));
-        hasCache = true;
+        try {
+          const parsed = JSON.parse(cachedSetups);
+          if (Array.isArray(parsed) && (parsed.length === 0 || parsed[0]?.staff_status !== undefined)) {
+            setSetups(parsed);
+            hasCache = true;
+          }
+        } catch { /* ignore */ }
       }
     }
 
@@ -158,7 +164,7 @@ export default function CoopLoanDeductionSetupPage() {
   useEffect(() => {
     let hasCache = false;
     if (typeof window !== 'undefined') {
-      hasCache = !!(sessionStorage.getItem('hrms_coop_loan_deductions_cache') && sessionStorage.getItem('hrms_coop_loans_staff_cache'));
+      hasCache = !!(sessionStorage.getItem('hrms_coop_loan_deductions_cache_v2') && sessionStorage.getItem('hrms_coop_loans_staff_cache'));
     }
     const timer = setTimeout(() => {
       fetchStaffData();
@@ -508,12 +514,30 @@ export default function CoopLoanDeductionSetupPage() {
         s.department?.toLowerCase().includes(dropdownSearch.toLowerCase())
       );
 
+  const baseSetupsForCounts = selectedStaff ? setups.filter(s => s.staffId === selectedStaff.id) : setups;
+  const countAllStaff = baseSetupsForCounts.length;
+  const countActiveStaff = baseSetupsForCounts.filter(s => Number(s.staff_status !== undefined ? s.staff_status : 1) === 1).length;
+  const countInactiveStaff = baseSetupsForCounts.filter(s => Number(s.staff_status) === 0).length;
+
   const filteredSetups = setups.filter(s => {
     if (selectedStaff && s.staffId !== selectedStaff.id) {
       return false;
     }
-    return s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(s.staffId).includes(searchQuery);
+
+    // Filter by staff_status toggle:
+    // staff_status = 1 (Active Staff), staff_status = 0 (Inactive Staff)
+    const staffStatusNum = Number(s.staff_status !== undefined ? s.staff_status : 1);
+    if (staffStatusFilter === 'active' && staffStatusNum !== 1) {
+      return false;
+    }
+    if (staffStatusFilter === 'inactive' && staffStatusNum !== 0) {
+      return false;
+    }
+
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return s.name?.toLowerCase().includes(q) ||
+      String(s.staffId).includes(q);
   });
 
   const totalPages = itemsPerPage === 'all'
@@ -540,6 +564,77 @@ export default function CoopLoanDeductionSetupPage() {
   const isConfigurator = true;
   const canActivateDeactivate = userCtx.isSuperAdmin || userCtx.isFinanceStaff;
 
+  const totalLoanSum = filteredSetups.reduce((acc, curr) => acc + (parseFloat(curr.loan_amount) || 0), 0);
+  const totalMonthlyDeductSum = filteredSetups.reduce((acc, curr) => acc + (parseFloat(curr.monthly_deduction) || 0), 0);
+  const totalBalanceSum = filteredSetups.reduce((acc, curr) => acc + (parseFloat(curr.balance_remaining) || 0), 0);
+  const activeCount = filteredSetups.filter(s => s.is_active === 1).length;
+  const inactiveCount = filteredSetups.filter(s => s.is_active !== 1).length;
+  const filteredActiveStaffCount = filteredSetups.filter(s => Number(s.staff_status !== undefined ? s.staff_status : 1) === 1).length;
+  const filteredInactiveStaffCount = filteredSetups.filter(s => Number(s.staff_status) === 0).length;
+
+  // CSV Export Function
+  const exportToCSV = () => {
+    if (filteredSetups.length === 0) {
+      showToast('No setup records available to export.', 'error');
+      return;
+    }
+
+    const headers = [
+      'S/N',
+      'Staff ID',
+      'Staff Name',
+      'Staff Status',
+      'Department',
+      'Loan Amount (NGN)',
+      'Interest Rate (%)',
+      'Duration (Months)',
+      'Monthly Deduction (NGN)',
+      'Balance Remaining (NGN)',
+      'Start Month',
+      'End Month',
+      'Loan Setup Status'
+    ];
+
+    const rows = filteredSetups.map((s, i) => [
+      i + 1,
+      s.staffId || '',
+      `"${(s.name || '').replace(/"/g, '""')}"`,
+      Number(s.staff_status) === 0 ? 'Inactive Staff' : 'Active Staff',
+      `"${(s.department || 'N/A').replace(/"/g, '""')}"`,
+      parseFloat(s.loan_amount) || 0,
+      parseFloat(s.interest_rate) || 0,
+      s.duration_months || 0,
+      parseFloat(s.monthly_deduction) || 0,
+      parseFloat(s.balance_remaining) || 0,
+      s.start_month || '',
+      s.end_month || '',
+      s.is_active === 1 ? 'Active' : 'Inactive'
+    ]);
+
+    const csvData = [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const statusSuffix = staffStatusFilter === 'active' ? '_active_staff' : staffStatusFilter === 'inactive' ? '_inactive_staff' : '_all_staff';
+    link.setAttribute('download', `coop_loan_deduction_setups${statusSuffix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filteredSetups.length} setup record(s) to CSV.`);
+  };
+
+  // Print Statement / Report
+  const handlePrint = () => {
+    if (filteredSetups.length === 0) {
+      showToast('No records available to print.', 'error');
+      return;
+    }
+    window.print();
+  };
+
   if (!mounted) {
     return (
       <div className={styles.container} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
@@ -549,11 +644,95 @@ export default function CoopLoanDeductionSetupPage() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Cooperative Loan Deduction Setup</h1>
-        <p className={styles.subtitle}>Configure how cooperative loan deductions are recovered monthly from employee salaries, including interest and durations.</p>
-      </div>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        .coopLoanPrintArea {
+          display: none;
+        }
+
+        @media print {
+          @page {
+            size: landscape;
+            margin: 8mm 6mm 10mm 6mm;
+          }
+
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Hide screen UI */
+          .screen-content,
+          aside,
+          nav,
+          header,
+          footer,
+          button,
+          form,
+          .no-print {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          /* Show Print Layout */
+          .coopLoanPrintArea {
+            display: block !important;
+            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            z-index: 99999 !important;
+          }
+
+          .coopLoanPrintArea * {
+            visibility: visible !important;
+          }
+        }
+      `}} />
+
+      <div className={`${styles.container} screen-content`}>
+        <div className={styles.header}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+            <div>
+              <h1 className={styles.title}>Cooperative Loan Deduction Setup</h1>
+              <p className={styles.subtitle}>Configure how cooperative loan deductions are recovered monthly from employee salaries, including interest and durations.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={exportToCSV}
+                disabled={filteredSetups.length === 0}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                style={{ fontSize: '0.85rem' }}
+                title="Export Configurations to CSV"
+              >
+                <Download size={16} />
+                <span>Export CSV ({filteredSetups.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                disabled={filteredSetups.length === 0}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                style={{ fontSize: '0.85rem' }}
+                title="Print Cooperative Loan Deduction Setup Report"
+              >
+                <Printer size={16} />
+                <span>Print ({filteredSetups.length})</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
       {isConfigurator && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -859,23 +1038,182 @@ export default function CoopLoanDeductionSetupPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className={styles.perPageGroup}>
-            <span className={styles.perPageLabel}>Show:</span>
-            <select
-              className={styles.perPageSelect}
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(e.target.value);
-                setCurrentPage(1);
-              }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={exportToCSV}
+              disabled={filteredSetups.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+              title="Export Configurations to CSV"
             >
-              <option value="10">10 records</option>
-              <option value="20">20 records</option>
-              <option value="30">30 records</option>
-              <option value="50">50 records</option>
-              <option value="100">100 records</option>
-              <option value="all">All Records</option>
-            </select>
+              <Download size={15} />
+              <span>Export CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={filteredSetups.length === 0}
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem' }}
+              title="Print Cooperative Loan Setup Report"
+            >
+              <Printer size={15} />
+              <span>Print</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Staff Status Toggle Filters */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.85rem 1.5rem',
+          backgroundColor: '#f8fafc',
+          borderBottom: '1px solid var(--border, #e2e8f0)',
+          flexWrap: 'wrap',
+          gap: '0.75rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#475569', marginRight: '0.25rem' }}>
+              Staff Filter:
+            </span>
+
+            {/* Toggle: All Active & Inactive Staff */}
+            <button
+              type="button"
+              onClick={() => { setStaffStatusFilter('all'); setCurrentPage(1); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.42rem 0.9rem',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: staffStatusFilter === 'all' ? 600 : 500,
+                border: staffStatusFilter === 'all' ? '1.5px solid var(--primary, #3b82f6)' : '1px solid #cbd5e1',
+                backgroundColor: staffStatusFilter === 'all' ? 'var(--primary, #3b82f6)' : '#ffffff',
+                color: staffStatusFilter === 'all' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: staffStatusFilter === 'all' ? '0 1px 3px rgba(59, 130, 246, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="View all staff (Active and Inactive)"
+            >
+              <Users size={15} />
+              <span>All (Active & Inactive Staff)</span>
+              <span style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                borderRadius: '9999px',
+                fontSize: '0.725rem',
+                fontWeight: 600,
+                backgroundColor: staffStatusFilter === 'all' ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                color: staffStatusFilter === 'all' ? '#ffffff' : '#64748b'
+              }}>
+                {countAllStaff}
+              </span>
+            </button>
+
+            {/* Toggle: Active Staff */}
+            <button
+              type="button"
+              onClick={() => { setStaffStatusFilter('active'); setCurrentPage(1); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.42rem 0.9rem',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: staffStatusFilter === 'active' ? 600 : 500,
+                border: staffStatusFilter === 'active' ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                backgroundColor: staffStatusFilter === 'active' ? '#059669' : '#ffffff',
+                color: staffStatusFilter === 'active' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: staffStatusFilter === 'active' ? '0 1px 3px rgba(5, 150, 105, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="Toggle to view Active Staff"
+            >
+              <UserCheck size={15} />
+              <span>Active Staff</span>
+              <span style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                borderRadius: '9999px',
+                fontSize: '0.725rem',
+                fontWeight: 600,
+                backgroundColor: staffStatusFilter === 'active' ? 'rgba(255,255,255,0.25)' : '#ecfdf5',
+                color: staffStatusFilter === 'active' ? '#ffffff' : '#059669'
+              }}>
+                {countActiveStaff}
+              </span>
+            </button>
+
+            {/* Toggle: Inactive Staff */}
+            <button
+              type="button"
+              onClick={() => { setStaffStatusFilter('inactive'); setCurrentPage(1); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.42rem 0.9rem',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: staffStatusFilter === 'inactive' ? 600 : 500,
+                border: staffStatusFilter === 'inactive' ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                backgroundColor: staffStatusFilter === 'inactive' ? '#dc2626' : '#ffffff',
+                color: staffStatusFilter === 'inactive' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: staffStatusFilter === 'inactive' ? '0 1px 3px rgba(220, 38, 38, 0.3)' : '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="Toggle to view Inactive Staff"
+            >
+              <UserX size={15} />
+              <span>Inactive Staff</span>
+              <span style={{
+                marginLeft: '4px',
+                padding: '1px 6px',
+                borderRadius: '9999px',
+                fontSize: '0.725rem',
+                fontWeight: 600,
+                backgroundColor: staffStatusFilter === 'inactive' ? 'rgba(255,255,255,0.25)' : '#fef2f2',
+                color: staffStatusFilter === 'inactive' ? '#ffffff' : '#dc2626'
+              }}>
+                {countInactiveStaff}
+              </span>
+            </button>
+          </div>
+
+          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+            Showing <strong>{filteredSetups.length}</strong> of <strong>{countAllStaff}</strong> setups
+            {staffStatusFilter !== 'all' && (
+              <span style={{ marginLeft: '4px', fontWeight: 600, color: staffStatusFilter === 'active' ? '#059669' : '#dc2626' }}>
+                ({staffStatusFilter === 'active' ? 'Active staff only' : 'Inactive staff only'})
+              </span>
+            )}
           </div>
         </div>
 
@@ -906,7 +1244,28 @@ export default function CoopLoanDeductionSetupPage() {
                     <tr key={s.id}>
                       <td>
                         <div className={styles.staffCell}>
-                          <span className={styles.staffName}>{s.name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                            <span className={styles.staffName}>{s.name}</span>
+                            {Number(s.staff_status) === 0 && (
+                              <span
+                                title="Inactive Staff"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  padding: '1px 6px',
+                                  borderRadius: '9999px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  backgroundColor: '#fee2e2',
+                                  color: '#dc2626',
+                                  border: '1px solid #fca5a5',
+                                  lineHeight: 1.2
+                                }}
+                              >
+                                Inactive Staff
+                              </span>
+                            )}
+                          </div>
                           <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
                         </div>
                       </td>
@@ -1088,5 +1447,101 @@ export default function CoopLoanDeductionSetupPage() {
         </div>
       )}
     </div>
+
+    {/* Printable Report View (Visible only during window.print()) */}
+    <div className="coopLoanPrintArea">
+      <div style={{ paddingBottom: '10px', borderBottom: '2px solid #0f172a', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '15pt', fontWeight: '800', textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.5px' }}>
+              ISALU HOSPITALS LIMITED
+            </h1>
+            <h2 style={{ margin: '3px 0 0', fontSize: '11pt', fontWeight: '700', color: '#334155' }}>
+              COOPERATIVE LOAN DEDUCTION SETUP DIRECTORY
+            </h2>
+            <p style={{ margin: '2px 0 0', fontSize: '8pt', color: '#64748b' }}>
+              Official record of staff cooperative loan deduction schedules, interest rates, and balances
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '8pt', color: '#475569', lineHeight: 1.4 }}>
+            <div><strong>Generated:</strong> {mounted ? new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</div>
+            <div><strong>Staff Filter:</strong> {staffStatusFilter === 'active' ? 'Active Staff Only' : staffStatusFilter === 'inactive' ? 'Inactive Staff Only' : 'All Staff (Active & Inactive)'}</div>
+            {searchQuery.trim() && <div><strong>Search:</strong> "{searchQuery.trim()}"</div>}
+            <div><strong>Total Records:</strong> {filteredSetups.length}</div>
+          </div>
+        </div>
+
+        {/* Metrics Summary Banner */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px 16px', marginTop: '10px', padding: '6px 10px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '8pt' }}>
+          <div>Total Configurations: <strong>{countAllStaff}</strong></div>
+          <div>Active Staff: <strong style={{ color: '#059669' }}>{filteredActiveStaffCount}</strong></div>
+          <div>Inactive Staff: <strong style={{ color: '#dc2626' }}>{filteredInactiveStaffCount}</strong></div>
+          <div>Active Loan Setups: <strong style={{ color: '#059669' }}>{activeCount}</strong></div>
+          <div>Inactive Loan Setups: <strong style={{ color: '#64748b' }}>{inactiveCount}</strong></div>
+          <div>Total Loan Principal: <strong>₦{fmt(totalLoanSum)}</strong></div>
+          <div>Total Monthly Deductions: <strong>₦{fmt(totalMonthlyDeductSum)}</strong></div>
+          <div>Total Balance Outstanding: <strong style={{ color: '#dc2626' }}>₦{fmt(totalBalanceSum)}</strong></div>
+        </div>
+      </div>
+
+      {/* Printable Data Table */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8pt', textAlign: 'left' }}>
+        <thead>
+          <tr style={{ background: '#0f172a', color: '#ffffff' }}>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '30px' }}>S/N</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', width: '65px' }}>Staff ID</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Staff Name</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center', width: '70px' }}>Staff Status</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155' }}>Department</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Loan Amount</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Interest</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Duration</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Monthly Deduction</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'right' }}>Balance Remaining</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Period</th>
+            <th style={{ padding: '6px 8px', border: '1px solid #334155', textAlign: 'center' }}>Loan Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredSetups.map((s, idx) => (
+            <tr key={s.id} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{idx + 1}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '600' }}>{s.staffId}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', fontWeight: '500' }}>{s.name}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '600', color: Number(s.staff_status) === 0 ? '#dc2626' : '#059669' }}>
+                {Number(s.staff_status) === 0 ? 'Inactive' : 'Active'}
+              </td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1' }}>{s.department || 'N/A'}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(s.loan_amount)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.interest_rate}%</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.duration_months} Mos</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(s.monthly_deduction)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: '600' }}>₦{fmt(s.balance_remaining)}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.start_month} to {s.end_month}</td>
+              <td style={{ padding: '5px 8px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: '600', color: s.is_active === 1 ? '#059669' : '#dc2626' }}>
+                {s.is_active === 1 ? 'Active' : 'Inactive'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ background: '#f1f5f9', fontWeight: '700' }}>
+            <td colSpan={5} style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>TOTAL:</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalLoanSum)}</td>
+            <td colSpan={2} style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalMonthlyDeductSum)}</td>
+            <td style={{ padding: '6px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>₦{fmt(totalBalanceSum)}</td>
+            <td colSpan={2} style={{ padding: '6px 8px', border: '1px solid #cbd5e1' }}></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {/* Print Footer */}
+      <div style={{ marginTop: '14px', paddingTop: '8px', borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', fontSize: '7.5pt', color: '#64748b' }}>
+        <div>Isalu Hospitals Limited &bull; Human Resources & Payroll System</div>
+        <div>Confidential &bull; Page 1 of 1</div>
+      </div>
+    </div>
+  </>
   );
 }
