@@ -133,9 +133,9 @@ export default function HRCalibrationApprovalsPage() {
 
   const filtered = submissions.filter(item => {
     const name = `${item.staff_surname} ${item.staff_firstname}`.toLowerCase();
-    const fileNo = (item.staff_file_no || '').toLowerCase();
+    const staffId = String(item.staffID || item.staff_id || '').toLowerCase();
     const dept = (item.department_name || '').toLowerCase();
-    const matchesSearch = name.includes(searchTerm.toLowerCase()) || fileNo.includes(searchTerm.toLowerCase()) || dept.includes(searchTerm.toLowerCase());
+    const matchesSearch = name.includes(searchTerm.toLowerCase()) || staffId.includes(searchTerm.toLowerCase()) || dept.includes(searchTerm.toLowerCase());
     const matchesGrade = gradeFilter === 'all' || (item.performance_grade && item.performance_grade.startsWith(gradeFilter));
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     return matchesSearch && matchesGrade && matchesStatus;
@@ -249,7 +249,7 @@ export default function HRCalibrationApprovalsPage() {
                 <tr key={item.id}>
                   <td>
                     <div style={{ fontWeight: '600', color: '#1e293b' }}>{item.staff_surname} {item.staff_firstname}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{item.staff_file_no}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Staff ID: {item.staffID || item.staff_id || '—'}</div>
                   </td>
                   <td>{item.department_name || '—'}</td>
                   <td>
@@ -343,7 +343,7 @@ export default function HRCalibrationApprovalsPage() {
                     HR Moderation: {selectedSub.staff_surname} {selectedSub.staff_firstname}
                   </h2>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                    File No: {selectedSub.staff_file_no} • Department: {selectedSub.department_name}
+                    Staff ID: {selectedSub.staffID || selectedSub.staff_id || '—'} • Department: {selectedSub.department_name}
                   </p>
                 </div>
                 <button
