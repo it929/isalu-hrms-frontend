@@ -261,6 +261,10 @@ export default function ResignationSettlementPage() {
   // Open Audit Dialog
   const handleOpenAuditDialog = (rec, e) => {
     if (e) e.stopPropagation();
+    if (!canAudit) {
+      showToast('Permission denied: Only Audit Head and Super Admin can check and approve audit.', 'error');
+      return;
+    }
     setAuditDialog({
       open: true,
       record: rec,
@@ -330,6 +334,10 @@ export default function ResignationSettlementPage() {
   // Open Finance Payment / Recovery Dialog
   const handleOpenFinanceDialog = (rec, e) => {
     if (e) e.stopPropagation();
+    if (!canFinance) {
+      showToast('Permission denied: Only Finance Head and Super Admin can mark exit settlement as paid.', 'error');
+      return;
+    }
     const isRecoverable = rec.settlement_type === 'recoverable' || parseFloat(rec.net_settlement) < 0;
     setFinanceDialog({
       open: true,
@@ -754,9 +762,35 @@ export default function ResignationSettlementPage() {
     window.print();
   };
 
-  const canAudit = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_audit_staff || activeRoleName === 'audit head' || activeRoleName === 'head of audit');
-  const canFinance = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff || activeRoleName === 'finance head' || activeRoleName === 'head of finance');
-  const canResubmitToAudit = isPrivilegedUser && (userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff || activeRoleName === 'hr head' || activeRoleName === 'head of hr' || activeRoleName === 'finance head' || activeRoleName === 'head of finance');
+  const isSuperAdmin = Boolean(
+    userPermissions.is_super_admin ||
+    activeRoleName === 'super admin' ||
+    activeRoleName === 'super administrator' ||
+    activeRoleName === 'administrator' ||
+    activeRoleName === 'admin'
+  );
+
+  const isAuditHead = Boolean(
+    userPermissions.is_audit_staff ||
+    activeRoleName === 'audit head' ||
+    activeRoleName === 'head of audit' ||
+    activeRoleName === 'audit staff'
+  );
+
+  const isFinanceHead = Boolean(
+    userPermissions.is_finance_staff ||
+    activeRoleName === 'finance head' ||
+    activeRoleName === 'head of finance' ||
+    activeRoleName === 'finance staff'
+  );
+
+  // For AUDIT HEAD approve: only AUDIT HEAD AND SUPER ADMIN can perform the action
+  const canAudit = !isStaffRole && (isSuperAdmin || isAuditHead);
+
+  // For mark as paid: only FINANCE HEAD AND SUPER ADMIN can perform the action
+  const canFinance = !isStaffRole && (isSuperAdmin || isFinanceHead);
+
+  const canResubmitToAudit = isPrivilegedUser && (isSuperAdmin || userPermissions.is_admin_staff || isFinanceHead || activeRoleName === 'hr head' || activeRoleName === 'head of hr');
 
   if (!mounted) return null;
 
@@ -1097,7 +1131,7 @@ export default function ResignationSettlementPage() {
                             type="button"
                             className={`${styles.actionBtn} ${styles.btnAudit}`}
                             onClick={(e) => handleOpenAuditDialog(r, e)}
-                            title="Audit Head: Check & Approve for Payment / Recovery"
+                            title="Audit Head & Super Admin: Check & Approve for Payment / Recovery"
                           >
                             <ShieldCheck size={14} />
                             <span>Audit</span>
@@ -1123,7 +1157,7 @@ export default function ResignationSettlementPage() {
                             type="button"
                             className={`${styles.actionBtn} ${r.settlement_type === 'recoverable' ? styles.btnRecover : styles.btnFinance}`}
                             onClick={(e) => handleOpenFinanceDialog(r, e)}
-                            title={r.settlement_type === 'recoverable' ? 'Finance Head: Record Debt Recovery from Staff' : 'Finance Head: Mark as Paid'}
+                            title={r.settlement_type === 'recoverable' ? 'Finance Head & Super Admin: Record Debt Recovery from Staff' : 'Finance Head & Super Admin: Mark as Paid'}
                           >
                             <CreditCard size={14} />
                             <span>{r.settlement_type === 'recoverable' ? 'Recover' : 'Pay'}</span>
@@ -1643,7 +1677,7 @@ export default function ResignationSettlementPage() {
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
                 <ShieldCheck size={20} style={{ color: '#3b82f6' }} />
-                Audit Head: Verification & Payment Approval
+                Audit Head & Super Admin: Verification & Payment Approval
               </h3>
               <button
                 type="button"
@@ -1719,8 +1753,8 @@ export default function ResignationSettlementPage() {
               <h3 className={styles.modalTitle}>
                 <CreditCard size={20} style={{ color: financeDialog.isRecoverable ? '#8b5cf6' : '#10b981' }} />
                 {financeDialog.isRecoverable
-                  ? 'Finance Head: Record Debt Recovery & Clearance'
-                  : 'Finance Head: Disburse & Mark as Paid'}
+                  ? 'Finance Head & Super Admin: Record Debt Recovery & Clearance'
+                  : 'Finance Head & Super Admin: Disburse & Mark as Paid'}
               </h3>
               <button
                 type="button"

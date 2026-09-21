@@ -14,6 +14,9 @@ import {
   Users, 
   Clock, 
   ShieldAlert,
+  ShieldCheck,
+  Info,
+  RefreshCw,
   Play
 } from 'lucide-react';
 import axios from 'axios';
@@ -41,7 +44,12 @@ export default function AppraisalPeriodsPage() {
   const [dispatchingId, setDispatchingId] = useState(null);
   const [periods, setPeriods] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [selectedPeriodForDispatch, setSelectedPeriodForDispatch] = useState(null);
+  const [dispatchTemplateId, setDispatchTemplateId] = useState('');
+  const [dispatchDepartmentId, setDispatchDepartmentId] = useState('');
   const [toast, setToast] = useState(null);
 
   // New Cycle Form
@@ -63,13 +71,15 @@ export default function AppraisalPeriodsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [pRes, tRes] = await Promise.all([
+      const [pRes, tRes, deptRes] = await Promise.all([
         axios.get(`${API_BASE}/appraisals/periods`, { headers: buildHeaders() }),
         axios.get(`${API_BASE}/appraisals/templates`, { headers: buildHeaders() }),
+        axios.get(`${API_BASE}/hod-assignments`, { headers: buildHeaders() }).catch(() => ({ data: { departments: [] } })),
       ]);
 
       if (pRes.data.status === 'success') setPeriods(pRes.data.data || []);
       if (tRes.data.status === 'success') setTemplates(tRes.data.data || []);
+      if (deptRes?.data?.departments) setDepartments(deptRes.data.departments || []);
     } catch (err) {
       console.error('Error loading periods', err);
       showToast('Failed to load appraisal cycles', 'error');
@@ -118,21 +128,34 @@ export default function AppraisalPeriodsPage() {
     }
   };
 
-  const handleDispatch = async (periodId) => {
-    const confirmDispatch = confirm('Are you sure you want to initialize appraisal forms for all active staff for this cycle?');
-    if (!confirmDispatch) return;
+  const openDispatchModal = (period) => {
+    setSelectedPeriodForDispatch(period);
+    setDispatchTemplateId('');
+    setDispatchDepartmentId('');
+    setShowDispatchModal(true);
+  };
 
-    setDispatchingId(periodId);
+  const handleConfirmDispatch = async () => {
+    if (!selectedPeriodForDispatch) return;
+
+    setDispatchingId(selectedPeriodForDispatch.id);
     try {
       const res = await axios.post(
-        `${API_BASE}/appraisals/periods/${periodId}/dispatch`,
-        {},
+        `${API_BASE}/appraisals/periods/${selectedPeriodForDispatch.id}/dispatch`,
+        {
+          template_id: dispatchTemplateId || null,
+          department_id: dispatchDepartmentId || null,
+        },
         { headers: buildHeaders() }
       );
 
       if (res.data.status === 'success') {
-        showToast(res.data.message);
+        showToast(res.data.message || 'Staff appraisal forms dispatched successfully.');
+        setShowDispatchModal(false);
+        setSelectedPeriodForDispatch(null);
         loadData();
+      } else {
+        showToast(res.data.message || 'Dispatch failed', 'error');
       }
     } catch (err) {
       showToast(err.response?.data?.message || 'Dispatch failed', 'error');
@@ -190,7 +213,7 @@ export default function AppraisalPeriodsPage() {
                 <button
                   type="button"
                   disabled={dispatchingId === period.id}
-                  onClick={() => handleDispatch(period.id)}
+                  onClick={() => openDispatchModal(period)}
                   className={styles.btnDispatch}
                 >
                   {dispatchingId === period.id ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
@@ -364,6 +387,110 @@ export default function AppraisalPeriodsPage() {
                 >
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   Launch Review Cycle
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Re-Dispatch & Add New Staff Custom Modal */}
+      <AnimatePresence>
+        {showDispatchModal && selectedPeriodForDispatch && (
+          <div className={styles.modalBackdrop}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={styles.modalContent}
+            >
+              <div className={styles.modalHeader}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: '700' }}>Re-Dispatch / Add New Staff</h2>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                    Cycle: <strong>{selectedPeriodForDispatch.title}</strong>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDispatchModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  <X size={24} color="#64748b" />
+                </button>
+              </div>
+
+              <div className={styles.modalBody}>
+                <div className={styles.dispatchCallout}>
+                  <ShieldCheck size={24} color="#2563eb" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div className={styles.dispatchCalloutTitle}>Safe Incremental Dispatch</div>
+                    <p className={styles.dispatchCalloutText}>
+                      This operation scans for active staff who do not yet have an appraisal form for this review cycle, automatically assigns their department Head of Department (HOD) as their appraiser, and generates their forms.
+                      <br />
+                      <strong>Note:</strong> Existing submissions, self-scores, and appraiser ratings will <u>not</u> be overwritten or modified.
+                    </p>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Target Department Scope:</label>
+                  <select
+                    value={dispatchDepartmentId}
+                    onChange={(e) => setDispatchDepartmentId(e.target.value)}
+                    className={styles.input}
+                  >
+                    <option value="">All Hospital Departments (Entire Active Staff)</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.department || d.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem', display: 'block' }}>
+                    Select a department to only initialize newly joined staff in that department, or keep "All Hospital Departments".
+                  </span>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Appraisal Template to Apply:</label>
+                  <select
+                    value={dispatchTemplateId}
+                    onChange={(e) => setDispatchTemplateId(e.target.value)}
+                    className={styles.input}
+                  >
+                    <option value="">Default Standard Template</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button
+                  type="button"
+                  disabled={dispatchingId === selectedPeriodForDispatch.id}
+                  onClick={() => setShowDispatchModal(false)}
+                  className={styles.btnSecondary}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={dispatchingId === selectedPeriodForDispatch.id}
+                  onClick={handleConfirmDispatch}
+                  className={styles.btnConfirmDispatch}
+                >
+                  {dispatchingId === selectedPeriodForDispatch.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Send size={16} />
+                  )}
+                  Confirm & Dispatch
                 </button>
               </div>
             </motion.div>

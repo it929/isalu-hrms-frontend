@@ -222,8 +222,8 @@ export default function TeamAppraisalsPage() {
 
   const filteredTeam = teamList.filter(item => {
     const fullName = `${item.staff_surname || ''} ${item.staff_firstname || ''}`.toLowerCase();
-    const fileNo = (item.staff_file_no || '').toLowerCase();
-    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || fileNo.includes(searchTerm.toLowerCase());
+    const staffId = String(item.staffID || item.staff_id || '').toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || staffId.includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -292,7 +292,7 @@ export default function TeamAppraisalsPage() {
           <Search size={18} color="#94a3b8" />
           <input
             type="text"
-            placeholder="Search by staff name or file number..."
+            placeholder="Search by staff name or staff ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -345,7 +345,7 @@ export default function TeamAppraisalsPage() {
                 <tr key={item.id}>
                   <td>
                     <div className={styles.staffName}>{item.staff_surname} {item.staff_firstname}</div>
-                    <div className={styles.staffMeta}>{item.staff_file_no} • {item.designation_name || 'Staff'}</div>
+                    <div className={styles.staffMeta}>Staff ID: {item.staffID || item.staff_id || '—'} • {item.designation_name || 'Staff'}</div>
                   </td>
                   <td>{item.department_name || 'General'}</td>
                   <td>{item.period_title}</td>
@@ -397,7 +397,7 @@ export default function TeamAppraisalsPage() {
                 <div>
                   <h2>Appraisal Assessment: {formDetail?.submission?.staff_surname} {formDetail?.submission?.staff_firstname}</h2>
                   <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                    {formDetail?.submission?.staff_file_no} • {formDetail?.submission?.department_name} • {formDetail?.submission?.period_title}
+                    Staff ID: {formDetail?.submission?.staffID || formDetail?.submission?.staff_id || '—'} • {formDetail?.submission?.department_name} • {formDetail?.submission?.period_title}
                   </p>
                 </div>
                 <button
