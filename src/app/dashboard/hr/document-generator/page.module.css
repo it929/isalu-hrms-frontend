@@ -472,24 +472,57 @@
 }
 
 .signatoryBlock {
-  margin-top: 3rem;
+  margin-top: 2.5rem;
   font-size: 0.95rem;
   line-height: 1.4;
+}
+
+.valediction {
+  margin-bottom: 0.35rem;
+  font-family: inherit;
+  color: #111827;
+}
+
+.signatureArea {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  margin-bottom: 0.35rem;
+}
+
+.signatureImage {
+  display: block;
+  max-height: 52px;
+  max-width: 175px;
+  object-fit: contain;
+  object-position: left bottom;
+  margin-bottom: 2px;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 .signatureLine {
   width: 180px;
   border-bottom: 1px solid #374151;
-  margin-bottom: 0.5rem;
-  height: 40px;
+  margin-bottom: 0.4rem;
+  height: 0px;
+}
+
+.signatureLineBlank {
+  height: 38px;
 }
 
 .signatoryName {
   font-weight: 700;
+  color: #111827;
 }
 
 .signatoryTitle {
   color: #4b5563;
+}
+
+.signatoryOrg {
+  font-weight: 700;
+  color: #0284c7;
 }
 
 /* ── Toast ── */
@@ -561,10 +594,40 @@
     min-height: auto !important;
   }
   .officialHeader {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
     padding: 0.45rem 1.25rem 0.45rem 0.75rem !important;
     border-bottom: 2px solid #0284c7 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+  .headerContentGrid {
+    display: flex !important;
+    visibility: visible !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  .headerLeftBlock {
+    display: block !important;
+    visibility: visible !important;
+    padding-left: 1.6rem !important;
+    font-size: 0.56rem !important;
+  }
+  .headerLeftBlock * {
+    visibility: visible !important;
+  }
+  .headerRightBlock {
+    display: flex !important;
+    visibility: visible !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+  }
+  .headerRightBlock * {
+    visibility: visible !important;
   }
   .headerArcWrapper {
     width: 32px !important;
@@ -625,6 +688,18 @@
     background: transparent !important;
     color: transparent !important;
     margin: 0 !important;
+  }
+  .signatureImage {
+    max-height: 52px !important;
+    max-width: 175px !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .signatoryOrg {
+    color: #0284c7 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .noPrint {
     display: none !important;

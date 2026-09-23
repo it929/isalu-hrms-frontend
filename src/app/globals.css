@@ -205,7 +205,10 @@ button, input, select, textarea {
     border: none !important;
   }
 
-  header,
+  /* Hide dashboard navigation bars and sidebars on print */
+  body > header,
+  [class*="layout"] > header,
+  [class*="mainContainer"] > header,
   aside,
   nav,
   [class*="navbar"],
@@ -217,6 +220,24 @@ button, input, select, textarea {
     padding: 0 !important;
     position: absolute !important;
     visibility: hidden !important;
+  }
+
+  /* Ensure document generator and printable letterheads are never hidden */
+  [class*="paperContainer"] header,
+  [class*="paperContainer"] footer,
+  [class*="paperContainer"] [class*="officialHeader"],
+  [class*="paperContainer"] [class*="officialFooter"],
+  [class*="printableArea"] header,
+  [class*="printableArea"] footer,
+  [class*="sheetPaper"] header,
+  [class*="sheetPaper"] footer {
+    display: block !important;
+    height: auto !important;
+    width: auto !important;
+    position: relative !important;
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   body * {

@@ -45,6 +45,8 @@ function DocumentGeneratorContent() {
   const [letterData, setLetterData] = useState(null);
   const [includeHeading, setIncludeHeading] = useState(true);
   const [includeFooter, setIncludeFooter] = useState(true);
+  const [includeSignature, setIncludeSignature] = useState(true);
+  const [hrSignature, setHrSignature] = useState(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -88,23 +90,51 @@ function DocumentGeneratorContent() {
     fetchStaffList();
   }, [fetchStaffList]);
 
+  // Pre-load HR Head signature as backup
+  useEffect(() => {
+    const fetchHrSig = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/payroll/hr-signature`, { headers: buildHeaders() });
+        if (res.data?.status === 'success' && res.data.signature) {
+          setHrSignature(res.data.signature);
+        }
+      } catch {
+        /* ignore fallback error */
+      }
+    };
+    fetchHrSig();
+  }, []);
+
   // Read URL Search Parameters (if navigated from Resignation page)
   useEffect(() => {
     const paramType = searchParams.get('type');
     const paramStaffId = searchParams.get('staff_id');
     const paramResigId = searchParams.get('resignation_id');
+    const paramResigDate = searchParams.get('resignation_date');
 
     if (paramType) setTemplateType(paramType);
     if (paramResigId) setResignationId(paramResigId);
+    if (paramResigDate) setEffectiveDate(paramResigDate);
 
     if (paramStaffId && staffList.length > 0) {
       const found = staffList.find(s => String(s.id) === String(paramStaffId));
       if (found) {
         setSelectedStaff(found);
         setDropdownSearch(found.name);
+        if (found.resignation_id) setResignationId(found.resignation_id);
+        if (found.resignation_date && !paramResigDate) {
+          setEffectiveDate(found.resignation_date);
+        }
       }
     }
   }, [searchParams, staffList]);
+
+  // Auto-populate resignation date into Effective/Issue Date when template is Resignation Acceptance
+  useEffect(() => {
+    if (templateType === 'resignation_acceptance' && selectedStaff?.resignation_date) {
+      setEffectiveDate(selectedStaff.resignation_date);
+    }
+  }, [templateType, selectedStaff]);
 
   // Generate Letter Handler
   const handleGenerate = async () => {
@@ -230,11 +260,17 @@ function DocumentGeneratorContent() {
                             setSelectedStaff(staff);
                             setDropdownSearch(staff.name);
                             setShowDropdown(false);
+                            if (staff.resignation_id) {
+                              setResignationId(staff.resignation_id);
+                            }
+                            if (staff.resignation_date) {
+                              setEffectiveDate(staff.resignation_date);
+                            }
                           }}
                         >
                           <div>
                             <strong>{staff.name}</strong>
-                            <div style={{ fontSize: '0.72rem', color: '#6b7280', display: 'flex', gap: '0.4rem', marginTop: '0.1rem' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#6b7280', display: 'flex', gap: '0.4rem', marginTop: '0.1rem', flexWrap: 'wrap' }}>
                               <span>StaffID: {staff.id}</span>
                               <span style={{ 
                                 color: staff.staff_status === 1 ? '#059669' : '#d97706',
@@ -242,6 +278,11 @@ function DocumentGeneratorContent() {
                               }}>
                                 • {staff.staff_status === 1 ? 'Active' : 'Inactive'}
                               </span>
+                              {staff.resignation_date && (
+                                <span style={{ color: '#2563eb', fontWeight: 600 }}>
+                                  • Resigned: {staff.resignation_date}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -258,7 +299,17 @@ function DocumentGeneratorContent() {
                 type="date"
                 className={styles.input}
                 value={effectiveDate}
-                onChange={(e) => setEffectiveDate(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEffectiveDate(val);
+                  if (val) {
+                    const parsed = new Date(val + 'T00:00:00');
+                    if (!isNaN(parsed.getTime())) {
+                      const formatted = parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+                      setLetterData(prev => prev ? ({ ...prev, date: formatted }) : null);
+                    }
+                  }
+                }}
               />
             </div>
 
@@ -313,6 +364,15 @@ function DocumentGeneratorContent() {
                 />
                 <span>Services Footer</span>
               </label>
+              <label className={styles.toggleLabel} title="Toggle authorized HR Head signature">
+                <input
+                  type="checkbox"
+                  className={styles.toggleCheckbox}
+                  checked={includeSignature}
+                  onChange={(e) => setIncludeSignature(e.target.checked)}
+                />
+                <span>HR Head Signature</span>
+              </label>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -345,7 +405,7 @@ function DocumentGeneratorContent() {
               <>
                 {/* Redesigned Official ISALU HOSPITAL Letter Heading */}
                 {includeHeading ? (
-                  <header className={styles.officialHeader}>
+                  <div className={styles.officialHeader}>
                     {/* Top Left Gradient Arc SVG */}
                     <div className={styles.headerArcWrapper}>
                       <svg
@@ -402,7 +462,7 @@ function DocumentGeneratorContent() {
                         </div>
                       </div>
                     </div>
-                  </header>
+                  </div>
                 ) : (
                   <div className={styles.preprintedSpacer}>
                     <strong>Pre-printed Letterhead Mode</strong>
@@ -415,7 +475,18 @@ function DocumentGeneratorContent() {
                   {/* Ref & Date */}
                   <div className={styles.metaRow}>
                     <div className={styles.refNumber}>Ref: {letterData.ref_number}</div>
-                    <div className={styles.letterDate}>Date: {letterData.date}</div>
+                    <div
+                      className={styles.letterDate}
+                      contentEditable
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const raw = e.target.innerText.replace(/^Date:\s*/i, '').trim();
+                        setLetterData(prev => prev ? ({ ...prev, date: raw }) : null);
+                      }}
+                      title="Click to edit date"
+                    >
+                      Date: {letterData.date}
+                    </div>
                   </div>
 
                   {/* Recipient */}
@@ -452,17 +523,33 @@ function DocumentGeneratorContent() {
 
                   {/* Signatory */}
                   <div className={styles.signatoryBlock}>
-                    <div>Yours faithfully,</div>
-                    <div className={styles.signatureLine}></div>
+                    <div className={styles.valediction}>Yours faithfully,</div>
+                    <div className={styles.signatureArea}>
+                      {includeSignature && (letterData.signatory?.signature_url || hrSignature) ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={letterData.signatory?.signature_url || hrSignature}
+                          alt="Head of Human Resources Signature"
+                          className={styles.signatureImage}
+                        />
+                      ) : null}
+                      <div
+                        className={`${styles.signatureLine} ${
+                          !includeSignature || !(letterData.signatory?.signature_url || hrSignature)
+                            ? styles.signatureLineBlank
+                            : ''
+                        }`}
+                      ></div>
+                    </div>
                     <div className={styles.signatoryName}>{letterData.signatory.name}</div>
                     <div className={styles.signatoryTitle}>{letterData.signatory.title}</div>
-                    <div style={{ fontWeight: 700, color: '#0284c7' }}>{letterData.signatory.org}</div>
+                    <div className={styles.signatoryOrg}>{letterData.signatory.org}</div>
                   </div>
                 </div>
 
                 {/* Redesigned Official Letterhead Footer */}
                 {includeFooter && (
-                  <footer className={styles.officialFooter}>
+                  <div className={styles.officialFooter}>
                     <div className={styles.footerGrid}>
                       {/* Col 1 */}
                       <div className={styles.footerCol}>
@@ -556,7 +643,7 @@ function DocumentGeneratorContent() {
                         />
                       </svg>
                     </div>
-                  </footer>
+                  </div>
                 )}
               </>
             ) : null}
