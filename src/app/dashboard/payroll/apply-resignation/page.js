@@ -1147,7 +1147,7 @@ export default function ApplyResignationPage() {
                                 className={`${styles.iconBtn} ${styles.approveBtn}`}
                                 title="Generate Acceptance Letter (ISALU HOSPITAL)"
                                 style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669', borderColor: '#10b981' }}
-                                onClick={() => window.open(`/dashboard/hr/document-generator?type=resignation_acceptance&staff_id=${row.staff_id}&resignation_id=${row.id}`, '_blank')}
+                                onClick={() => window.open(`/dashboard/hr/document-generator?type=resignation_acceptance&staff_id=${row.staff_id}&resignation_id=${row.id}&resignation_date=${row.resignation_date || ''}`, '_blank')}
                               >
                                 <Sparkles size={16} />
                               </button>
@@ -1403,7 +1403,7 @@ export default function ApplyResignationPage() {
                     type="button"
                     className={styles.submitBtn}
                     style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', padding: '0.4rem 0.85rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-                    onClick={() => window.open(`/dashboard/hr/document-generator?type=resignation_acceptance&staff_id=${detailRecord.staff_id}&resignation_id=${detailRecord.id}`, '_blank')}
+                    onClick={() => window.open(`/dashboard/hr/document-generator?type=resignation_acceptance&staff_id=${detailRecord.staff_id}&resignation_id=${detailRecord.id}&resignation_date=${detailRecord.resignation_date || ''}`, '_blank')}
                   >
                     <Sparkles size={15} />
                     Generate Acceptance Letter
