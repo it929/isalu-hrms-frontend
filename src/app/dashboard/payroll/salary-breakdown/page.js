@@ -900,7 +900,7 @@ export default function SalaryBreakdownPage() {
                       )}
                       {(deductions?.leave_of_absence?.days_absent || 0) > 0 && (
                         <span style={{ fontSize: '0.78rem', color: '#dc2626', marginLeft: '5px' }}>
-                          ({deductions.leave_of_absence.days_absent} LOA)
+                          ({deductions.leave_of_absence.days_absent} days Leave of Absence)
                         </span>
                       )}
                     </strong></span>
