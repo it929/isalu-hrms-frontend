@@ -56,7 +56,7 @@ export default function SalaryStructurePage() {
 
   // Form Fields
   const [grossSalary, setGrossSalary] = useState('');
-  const [structureType, setStructureType] = useState('current'); // 'first' | 'current'
+  const [structureType, setStructureType] = useState('first'); // 'first' | 'current'
 
   // Helper: Format numbers with thousand-separator commas
   const formatNumberWithCommas = (val) => {
@@ -217,6 +217,7 @@ export default function SalaryStructurePage() {
     setSelectedStaff(null);
     setDropdownSearch('');
     resetFormFieldsExceptStaff();
+    setStructureType('first');
   };
 
   // Submit manual salary structure
@@ -485,21 +486,21 @@ export default function SalaryStructurePage() {
                       <input
                         type="radio"
                         name="structureType"
-                        value="current"
-                        checked={structureType === 'current'}
-                        onChange={() => setStructureType('current')}
-                      />
-                      Current Salary Structure (For Adjustments)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                      <input
-                        type="radio"
-                        name="structureType"
                         value="first"
                         checked={structureType === 'first'}
                         onChange={() => setStructureType('first')}
                       />
                       First Salary Structure
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      <input
+                        type="radio"
+                        name="structureType"
+                        value="current"
+                        checked={structureType === 'current'}
+                        onChange={() => setStructureType('current')}
+                      />
+                      Current Salary Structure (For Adjustments)
                     </label>
                   </div>
                 </div>
