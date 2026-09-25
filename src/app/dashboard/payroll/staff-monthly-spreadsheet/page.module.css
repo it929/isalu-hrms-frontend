@@ -142,24 +142,137 @@
   overflow: visible;
 }
 
-/* Filter Controls Grid */
-.filterGrid {
+/* Filter Layout (2-row clean responsive design) */
+.filterLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  width: 100%;
+}
+
+.filterBottomRow {
   display: grid;
-  grid-template-columns: 2.2fr 1fr 1fr auto;
-  gap: 1.25rem;
+  grid-template-columns: minmax(135px, 1.25fr) minmax(105px, 0.95fr) minmax(135px, 1.25fr) minmax(105px, 0.95fr) auto;
+  gap: 1.15rem;
   align-items: flex-end;
+  width: 100%;
 }
 
 @media (max-width: 960px) {
-  .filterGrid {
+  .filterBottomRow {
     grid-template-columns: 1fr 1fr;
+  }
+  .submitGroup {
+    grid-column: 1 / -1;
+  }
+  .btnLoad {
+    width: 100% !important;
   }
 }
 
-@media (max-width: 600px) {
-  .filterGrid {
+@media (max-width: 550px) {
+  .filterBottomRow {
     grid-template-columns: 1fr;
   }
+  .submitGroup {
+    grid-column: auto;
+  }
+}
+
+.select {
+  width: 100%;
+  height: 42px;
+  padding: 0.55rem 2.25rem 0.55rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: 8px;
+  background-color: var(--bg-input, #ffffff);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 16px;
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.select:hover {
+  border-color: #94a3b8;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.staffInput {
+  padding-left: 2.5rem;
+  padding-right: 4.5rem;
+}
+
+.staffInputControls {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 5;
+}
+
+.clearBtn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.clearBtn:hover {
+  color: #0f172a;
+}
+
+.dropdownToggleBtn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.dropdownToggleBtn:hover {
+  color: #0f172a;
+}
+
+.submitGroup {
+  display: flex;
+  align-items: flex-end;
+}
+
+.btnLoad {
+  height: 42px;
+  padding: 0 1.35rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .formGroup {
@@ -170,6 +283,9 @@
 }
 
 .label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   font-size: 0.825rem;
   font-weight: 600;
   color: var(--text-primary, #334155);
@@ -1031,58 +1147,809 @@
   color: #ffffff;
 }
 
-/* Print Styles */
+/* Screen hidden for print-only elements */
+.printDocHeader,
+.printFooter,
+.printDisclaimer,
+.modalPrintHeader,
+.modalPrintFooter,
+.modalPrintDisclaimer {
+  display: none;
+}
+
+.bankPaymentInfoBox {
+  background: var(--bg-subtle, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  margin-top: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRINT STYLES (A4 Landscape Multi-Year Monthly Spreadsheet)
+   ═══════════════════════════════════════════════════════════════════ */
 @media print {
-  .headerActions,
-  .cardHeader,
-  .filterGrid,
-  .btn,
-  .noPrint,
-  .modalOverlay {
-    display: none !important;
+  @page {
+    size: A4 landscape;
+    margin: 6mm 8mm;
+  }
+
+  /* Force all contents to be visible, sharp, and high-contrast */
+  .container,
+  .container * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-sizing: border-box !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: geometricPrecision !important;
   }
 
   .container {
     padding: 0 !important;
+    margin: 0 !important;
     max-width: 100% !important;
+    width: 100% !important;
     background: #ffffff !important;
     color: #000000 !important;
+    min-height: 0 !important;
+    gap: 0 !important;
   }
 
-  .card {
-    border: none !important;
+  /* Elements to hide on print */
+  .noPrint,
+  .noPrint *,
+  .header,
+  .headerActions,
+  .filterCard,
+  .cardHeader,
+  .filterGrid,
+  .btn,
+  .actionCell,
+  .toast,
+  .dropdownList,
+  .spinner {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     OFFICIAL SPREADSHEET PRINT HEADER (Razor-Sharp High Contrast)
+     ══════════════════════════════════════════════════════════ */
+  .printDocHeader {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    border-bottom: 2.5px solid #000000 !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 8px !important;
+    width: 100% !important;
+  }
+
+  .printHeaderLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .printHospitalName {
+    font-size: 14pt !important;
+    font-weight: 900 !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 1.1 !important;
+  }
+
+  .printHospitalSub {
+    font-size: 8pt !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    margin: 2px 0 2px 0 !important;
+  }
+
+  .printDocTitle {
+    font-size: 10pt !important;
+    font-weight: 900 !important;
+    color: #002d72 !important;
+    margin: 0 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .printHeaderRight {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5px;
+    text-align: right;
+    font-size: 7.5pt !important;
+  }
+
+  .printMetaRow {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .printMetaLabel {
+    color: #334155 !important;
+    font-weight: 700 !important;
+  }
+
+  .printMetaVal {
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     STAFF PROFILE BANNER
+     ══════════════════════════════════════════════════════════ */
+  .staffBanner {
+    background: #f8fafc !important;
+    border: 1.5px solid #1e293b !important;
+    border-radius: 4px !important;
+    padding: 5px 12px !important;
+    margin-bottom: 8px !important;
     box-shadow: none !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .staffAvatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    background: #002d72 !important;
+    color: #ffffff !important;
+    border: 1.5px solid #000000 !important;
+  }
+
+  .staffName {
+    font-size: 10pt !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+  }
+
+  .staffMeta {
+    font-size: 7.5pt !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    gap: 6px !important;
+  }
+
+  .staffMetaTag {
+    background: #e2e8f0 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    padding: 1px 5px !important;
+    border: 1px solid #64748b !important;
+    border-radius: 3px !important;
+  }
+
+  .bannerStatLabel {
+    font-size: 7pt !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
+  }
+
+  .bannerStatValue {
+    font-size: 9.5pt !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     YEAR SECTION & SPREADSHEET TABLE (Razor-Sharp Grid)
+     ══════════════════════════════════════════════════════════ */
+  .yearSection {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 10px !important;
+  }
+
+  .yearSectionHeader {
+    padding: 2px 0 4px 0 !important;
+  }
+
+  .yearSectionTitle {
+    font-size: 9pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    gap: 6px !important;
+    margin: 0 !important;
+  }
+
+  .yearBadge {
+    background: #f1f5f9 !important;
+    color: #000000 !important;
+    font-size: 7pt !important;
+    font-weight: 700 !important;
+    padding: 1.5px 6px !important;
+    border: 1px solid #475569 !important;
+    border-radius: 3px !important;
   }
 
   .tableContainer {
     overflow: visible !important;
-    border: none !important;
+    border: 1.5px solid #0f172a !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    width: 100% !important;
+    margin-bottom: 4px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 7pt !important;
+    table-layout: auto !important;
   }
 
   .table th {
-    background: #e2e8f0 !important;
+    position: static !important;
+    background: #f1f5f9 !important;
     color: #000000 !important;
+    font-size: 7pt !important;
+    font-weight: 800 !important;
+    padding: 4px 5px !important;
+    border: 1px solid #64748b !important;
+    border-bottom: 2px solid #000000 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.2px !important;
   }
 
   .table td {
+    padding: 3px 5px !important;
+    font-size: 7pt !important;
+    font-weight: 600 !important;
+    border: 1px solid #94a3b8 !important;
     color: #000000 !important;
   }
 
-  .staffBanner {
+  .table tbody tr:nth-child(even) td {
+    background: #f8fafc !important;
+  }
+
+  .monthCell {
+    color: #000000 !important;
+    font-weight: 800 !important;
+    text-decoration: none !important;
+  }
+
+  .amountCol {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .grossCol {
+    font-weight: 800 !important;
+    color: #0369a1 !important;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .deductCol {
+    font-weight: 700 !important;
+    color: #991b1b !important;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .netCol {
+    font-weight: 900 !important;
+    color: #14532d !important;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .totalRow td {
+    background: #e2e8f0 !important;
+    font-weight: 900 !important;
+    color: #000000 !important;
+    border-top: 2px solid #000000 !important;
+    border-bottom: 2.5px solid #000000 !important;
+    font-size: 7.2pt !important;
+  }
+
+  .totalRowLabel {
+    font-weight: 900 !important;
+    color: #000000 !important;
+  }
+
+  .statusBadge {
+    font-size: 6pt !important;
+    font-weight: 700 !important;
+    padding: 1px 4px !important;
+    border: 1px solid #475569 !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     GRAND TOTALS CARD (Spreadsheet)
+     ══════════════════════════════════════════════════════════ */
+  .grandTotalsCard {
+    background: #f8fafc !important;
+    border: 2px solid #0f172a !important;
+    border-radius: 4px !important;
+    color: #000000 !important;
+    padding: 6px 10px !important;
+    box-shadow: none !important;
+    margin-top: 6px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .grandTotalsCard h3 {
+    color: #000000 !important;
+    font-size: 9pt !important;
+    font-weight: 800 !important;
+  }
+
+  .grandTotalsGrid {
+    gap: 6px !important;
+    margin-top: 4px !important;
+  }
+
+  .grandStatItem {
+    background: #ffffff !important;
+    border: 1px solid #475569 !important;
+    border-radius: 4px !important;
+    padding: 4px 6px !important;
+    color: #000000 !important;
+  }
+
+  .grandStatLabel {
+    font-size: 6.5pt !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
+  }
+
+  .grandStatValue {
+    font-size: 9pt !important;
+    color: #000000 !important;
+    font-weight: 900 !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     PRINT FOOTER & VERIFICATION (Spreadsheet)
+     ══════════════════════════════════════════════════════════ */
+  .printFooter {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 20px !important;
+    margin-top: 15px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    padding-top: 6px !important;
+  }
+
+  .printSignatureBlock {
+    flex: 1;
+    text-align: center;
+  }
+
+  .printSignatureLine {
+    border-bottom: 1.5px solid #000000 !important;
+    height: 22px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .printSignatureRole {
+    font-size: 7.5pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    text-transform: uppercase !important;
+  }
+
+  .printDisclaimer {
+    display: block !important;
+    text-align: center !important;
+    font-size: 6.5pt !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    margin-top: 8px !important;
+    border-top: 1px solid #64748b !important;
+    padding-top: 3px !important;
+  }
+
+  /* ── When Breakdown Modal is Open During Print: Fit Strictly On A Single Page ── */
+  .modalOpenForPrint {
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .modalOpenForPrint .spreadsheetMain,
+  .modalOpenForPrint .printDocHeader,
+  .modalOpenForPrint .printFooter,
+  .modalOpenForPrint .printDisclaimer,
+  .modalOpenForPrint .modalHeader,
+  .modalOpenForPrint .modalCloseBtn,
+  .modalOpenForPrint .modalFooter {
+    display: none !important;
+  }
+
+  .modalOpenForPrint .modalOverlay {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    inset: auto !important;
+    backdrop-filter: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .modalOpenForPrint .modalBox {
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     COMPACT & RAZOR-SHARP MODAL PRINT HEADER
+     ══════════════════════════════════════════════════════════ */
+  .modalOpenForPrint .modalPrintHeader {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    border-bottom: 2px solid #000000 !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .modalOpenForPrint .modalPrintHeader .printHospitalName {
+    font-size: 12pt !important;
+    font-weight: 900 !important;
+    color: #000000 !important;
+    line-height: 1.1 !important;
+    margin: 0 !important;
+  }
+
+  .modalOpenForPrint .modalPrintHeader .printHospitalSub {
+    font-size: 7.5pt !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    margin: 1px 0 !important;
+  }
+
+  .modalOpenForPrint .modalPrintHeader .printDocTitle {
+    font-size: 9pt !important;
+    font-weight: 900 !important;
+    margin: 0 !important;
+    color: #002d72 !important;
+  }
+
+  .modalOpenForPrint .modalPrintHeader .printHeaderRight {
+    font-size: 7.5pt !important;
+    gap: 2px !important;
+  }
+
+  .modalOpenForPrint .modalPrintHeader .printMetaLabel {
+    color: #334155 !important;
+    font-weight: 700 !important;
+  }
+
+  .modalOpenForPrint .modalPrintHeader .printMetaVal {
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+
+  .modalOpenForPrint .modalBody {
+    padding: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SHARP 3-KPI SUMMARY CARDS
+     ══════════════════════════════════════════════════════════ */
+  .modalOpenForPrint .modalKpiRow {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .modalOpenForPrint .kpiCardHorizontal {
+    border: 1.5px solid #1e293b !important;
+    border-radius: 4px !important;
+    padding: 4px 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background: #ffffff !important;
+  }
+
+  .modalOpenForPrint .kpiIconWrap {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 4px !important;
+  }
+
+  .modalOpenForPrint .kpiLabel {
+    font-size: 7pt !important;
+    font-weight: 700 !important;
+    color: #334155 !important;
+    line-height: 1.1 !important;
+  }
+
+  .modalOpenForPrint .kpiValueGross {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+    color: #0369a1 !important;
+    line-height: 1.1 !important;
+  }
+
+  .modalOpenForPrint .kpiValueDeductions {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+    color: #991b1b !important;
+    line-height: 1.1 !important;
+  }
+
+  .modalOpenForPrint .kpiValueNet {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+    color: #14532d !important;
+    line-height: 1.1 !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SHARP EARNINGS & DEDUCTIONS BREAKDOWN GRID
+     ══════════════════════════════════════════════════════════ */
+  .modalOpenForPrint .breakdownGrid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-bottom: 6px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .modalOpenForPrint .breakdownCard {
+    border: 1.5px solid #1e293b !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+
+  .modalOpenForPrint .breakdownCardHeader {
+    padding: 3.5px 8px !important;
+    font-size: 7.8pt !important;
+    font-weight: 800 !important;
+    border-bottom: 1.5px solid #1e293b !important;
     background: #f1f5f9 !important;
     color: #000000 !important;
-    border: 1px solid #cbd5e1 !important;
   }
 
-  .staffName {
+  .modalOpenForPrint .breakdownCardHeaderEarnings {
+    background: #f1f5f9 !important;
     color: #000000 !important;
   }
 
-  .staffMeta {
+  .modalOpenForPrint .breakdownCardHeaderDeductions {
+    background: #f1f5f9 !important;
+    color: #000000 !important;
+  }
+
+  .modalOpenForPrint .breakdownCardHeader svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .modalOpenForPrint .breakdownList {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .modalOpenForPrint .breakdownListItem {
+    padding: 2.2px 8px !important;
+    font-size: 7.2pt !important;
+    font-weight: 600 !important;
+    color: #000000 !important;
+    line-height: 1.25 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+
+  .modalOpenForPrint .breakdownListItem span {
+    font-size: 7.2pt !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
+  }
+
+  .modalOpenForPrint .breakdownListItem strong {
+    font-size: 7.2pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+  }
+
+  /* Standalone Non-Gross Additions */
+  .modalOpenForPrint .breakdownCard[style*="border: 1px solid #bfdbfe"] {
+    border: 1.5px solid #1e293b !important;
+    margin-bottom: 6px !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SHARP BALANCES & SAVINGS OVERVIEW CARD
+     ══════════════════════════════════════════════════════════ */
+  .modalOpenForPrint .balancesOverviewCard {
+    border: 1.5px solid #1e293b !important;
+    border-radius: 4px !important;
+    padding: 4px 8px !important;
+    margin-top: 0 !important;
+    margin-bottom: 5px !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .modalOpenForPrint .balancesOverviewHeader {
+    margin-bottom: 3px !important;
+    padding-bottom: 2px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+
+  .modalOpenForPrint .balancesOverviewTitle {
+    font-size: 7.8pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    gap: 4px !important;
+    margin: 0 !important;
+  }
+
+  .modalOpenForPrint .balancesOverviewTitle svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .modalOpenForPrint .balancesOverviewSub {
+    display: none !important;
+  }
+
+  .modalOpenForPrint .balancesOverviewGrid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .modalOpenForPrint .overviewCardItem {
+    padding: 3px 6px !important;
+    border-radius: 3px !important;
+    border: 1px solid #475569 !important;
+    background: #ffffff !important;
+    gap: 5px !important;
+  }
+
+  .modalOpenForPrint .overviewIconWrap {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 3px !important;
+  }
+
+  .modalOpenForPrint .overviewIconWrap svg {
+    width: 11px !important;
+    height: 11px !important;
+  }
+
+  .modalOpenForPrint .overviewItemLabel {
+    font-size: 6.2pt !important;
+    font-weight: 700 !important;
+    color: #334155 !important;
+    line-height: 1.1 !important;
+    margin-bottom: 1px !important;
+  }
+
+  .modalOpenForPrint .overviewItemValue,
+  .modalOpenForPrint .overviewItemValueSavings {
+    font-size: 8.8pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    line-height: 1.1 !important;
+  }
+
+  .modalOpenForPrint .overviewItemDetail {
+    font-size: 5.8pt !important;
+    font-weight: 600 !important;
     color: #475569 !important;
+    margin-top: 1px !important;
+    line-height: 1 !important;
   }
 
-  .bannerStatValue {
+  /* ══════════════════════════════════════════════════════════
+     SHARP BANK & PAYMENT INFO BOX
+     ══════════════════════════════════════════════════════════ */
+  .modalOpenForPrint .bankPaymentInfoBox {
+    background: #ffffff !important;
+    border: 1.5px solid #1e293b !important;
+    border-radius: 4px !important;
+    padding: 3px 8px !important;
+    margin-top: 0 !important;
+    font-size: 7pt !important;
+    font-weight: 600 !important;
     color: #000000 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .modalOpenForPrint .bankPaymentInfoBox strong {
+    color: #000000 !important;
+    font-weight: 800 !important;
+  }
+
+  .modalOpenForPrint .bankPaymentInfoBox svg {
+    width: 11px !important;
+    height: 11px !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SHARP MODAL PRINT SIGNATURES & VERIFICATION
+     ══════════════════════════════════════════════════════════ */
+  .modalOpenForPrint .modalPrintFooter {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 15px !important;
+    margin-top: 8px !important;
+    padding-top: 2px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .modalOpenForPrint .modalPrintFooter .printSignatureBlock {
+    flex: 1 !important;
+    text-align: center !important;
+  }
+
+  .modalOpenForPrint .modalPrintFooter .printSignatureLine {
+    border-bottom: 1.5px solid #000000 !important;
+    height: 16px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .modalOpenForPrint .modalPrintFooter .printSignatureRole {
+    font-size: 6.8pt !important;
+    font-weight: 800 !important;
+    color: #000000 !important;
+    text-transform: uppercase !important;
+  }
+
+  .modalOpenForPrint .modalPrintDisclaimer {
+    display: block !important;
+    text-align: center !important;
+    font-size: 6pt !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    margin-top: 4px !important;
+    border-top: 1px solid #475569 !important;
+    padding-top: 2px !important;
+    page-break-inside: avoid !important;
   }
 }
