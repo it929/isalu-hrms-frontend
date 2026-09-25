@@ -34,6 +34,21 @@ const AVAILABLE_YEARS = [
   2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030
 ];
 
+const MONTHS = [
+  { value: 1, name: 'January' },
+  { value: 2, name: 'February' },
+  { value: 3, name: 'March' },
+  { value: 4, name: 'April' },
+  { value: 5, name: 'May' },
+  { value: 6, name: 'June' },
+  { value: 7, name: 'July' },
+  { value: 8, name: 'August' },
+  { value: 9, name: 'September' },
+  { value: 10, name: 'October' },
+  { value: 11, name: 'November' },
+  { value: 12, name: 'December' },
+];
+
 function getUserId() {
   if (typeof window === 'undefined') return null;
   try {
@@ -78,7 +93,9 @@ export default function StaffMonthlySpreadsheetPage() {
 
   // Filter Controls
   const currentYear = new Date().getFullYear();
+  const [fromMonth, setFromMonth] = useState(1);
   const [fromYear, setFromYear] = useState(2025);
+  const [toMonth, setToMonth] = useState(12);
   const [toYear, setToYear] = useState(2026);
 
   // Spreadsheet Data State
@@ -123,21 +140,23 @@ export default function StaffMonthlySpreadsheetPage() {
   }, [selectedStaff]);
 
   // Load Spreadsheet Data
-  const fetchSpreadsheet = useCallback(async (staffId = null, fYear = null, tYear = null) => {
+  const fetchSpreadsheet = useCallback(async (staffId = null, fYear = null, tYear = null, fMonth = null, tMonth = null) => {
     const sId = staffId || selectedStaff?.id;
     if (!sId) {
       showToast('Please select a staff member.', 'error');
       return;
     }
 
-    const fromY = fYear || fromYear;
-    const toY = tYear || toYear;
+    const fromY = fYear !== null ? fYear : fromYear;
+    const toY = tYear !== null ? tYear : toYear;
+    const fromM = fMonth !== null ? fMonth : fromMonth;
+    const toM = tMonth !== null ? tMonth : toMonth;
 
     setLoading(true);
     try {
       const headers = buildHeaders();
       const res = await axios.get(
-        `${API_BASE}/payroll/staff-spreadsheet?staff_id=${sId}&from_year=${fromY}&to_year=${toY}`,
+        `${API_BASE}/payroll/staff-spreadsheet?staff_id=${sId}&from_year=${fromY}&to_year=${toY}&from_month=${fromM}&to_month=${toM}`,
         { headers }
       );
 
@@ -152,7 +171,7 @@ export default function StaffMonthlySpreadsheetPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStaff, fromYear, toYear, showToast]);
+  }, [selectedStaff, fromYear, toYear, fromMonth, toMonth, showToast]);
 
   useEffect(() => {
     fetchStaffList();
@@ -162,9 +181,9 @@ export default function StaffMonthlySpreadsheetPage() {
   // Auto-fetch spreadsheet when staff is selected on initial mount
   useEffect(() => {
     if (selectedStaff?.id && !spreadsheetData) {
-      fetchSpreadsheet(selectedStaff.id, fromYear, toYear);
+      fetchSpreadsheet(selectedStaff.id, fromYear, toYear, fromMonth, toMonth);
     }
-  }, [selectedStaff, spreadsheetData, fromYear, toYear, fetchSpreadsheet]);
+  }, [selectedStaff, spreadsheetData, fromYear, toYear, fromMonth, toMonth, fetchSpreadsheet]);
 
   // Handle Outside Click for Dropdown
   useEffect(() => {
@@ -189,15 +208,14 @@ export default function StaffMonthlySpreadsheetPage() {
         const q = dropdownSearch.toLowerCase().trim();
         const nameMatch = s.name ? String(s.name).toLowerCase().includes(q) : false;
         const idMatch = s.id ? String(s.id).toLowerCase().includes(q) : false;
-        const fileMatch = s.file_no ? String(s.file_no).toLowerCase().includes(q) : false;
-        return nameMatch || idMatch || fileMatch;
+        return nameMatch || idMatch;
       });
 
   const handleSelectStaff = (staff) => {
     setSelectedStaff(staff);
     setDropdownSearch(staff.name);
     setShowDropdown(false);
-    fetchSpreadsheet(staff.id, fromYear, toYear);
+    fetchSpreadsheet(staff.id, fromYear, toYear, fromMonth, toMonth);
   };
 
   // Export to CSV
@@ -211,14 +229,16 @@ export default function StaffMonthlySpreadsheetPage() {
     try {
       const headers = buildHeaders();
       const res = await axios.get(
-        `${API_BASE}/payroll/staff-spreadsheet/export?staff_id=${selectedStaff.id}&from_year=${fromYear}&to_year=${toYear}`,
+        `${API_BASE}/payroll/staff-spreadsheet/export?staff_id=${selectedStaff.id}&from_year=${fromYear}&to_year=${toYear}&from_month=${fromMonth}&to_month=${toMonth}`,
         {
           headers,
           responseType: 'blob'
         }
       );
 
-      const filename = `Staff_Monthly_Spreadsheet_${selectedStaff.file_no || selectedStaff.id}_${fromYear}_${toYear}.csv`;
+      const fromMName = MONTHS.find(m => m.value === fromMonth)?.name?.slice(0, 3) || 'Jan';
+      const toMName = MONTHS.find(m => m.value === toMonth)?.name?.slice(0, 3) || 'Dec';
+      const filename = `Staff_Monthly_Spreadsheet_${selectedStaff.file_no || selectedStaff.id}_${fromMName}_${fromYear}_to_${toMName}_${toYear}.csv`;
       const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -237,6 +257,10 @@ export default function StaffMonthlySpreadsheetPage() {
   };
 
   const handlePrint = () => {
+    if (!breakdownModal && !spreadsheetData) {
+      showToast('Please load a spreadsheet before printing.', 'error');
+      return;
+    }
     window.print();
   };
 
@@ -249,17 +273,46 @@ export default function StaffMonthlySpreadsheetPage() {
   const staff = spreadsheetData?.staff || null;
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${styles.printableArea} printableArea printCard paperContainer ${breakdownModal ? styles.modalOpenForPrint : ''}`}>
       {/* Toast */}
       {toast && (
-        <div className={`${styles.toast} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
+        <div className={`${styles.toast} ${styles.noPrint} ${toast.type === 'success' ? styles.toastSuccess : styles.toastError}`}>
           {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Header */}
-      <div className={styles.header}>
+      {/* Official Print Header (Visible on print only) */}
+      <div className={styles.printDocHeader}>
+        <div className={styles.printHeaderLeft}>
+          <h2 className={styles.printHospitalName}>ISALU HOSPITALS LIMITED</h2>
+          <p className={styles.printHospitalSub}>Human Resources & Payroll Administration System</p>
+          <h3 className={styles.printDocTitle}>STAFF MONTHLY PAYROLL SPREADSHEET STATEMENT</h3>
+        </div>
+        <div className={styles.printHeaderRight}>
+          <div className={styles.printMetaRow}>
+            <span className={styles.printMetaLabel}>Employee:</span>
+            <strong className={styles.printMetaVal}>{staff ? `${staff.name} (${staff.id})` : selectedStaff ? `${selectedStaff.name} (${selectedStaff.id})` : 'N/A'}</strong>
+          </div>
+          <div className={styles.printMetaRow}>
+            <span className={styles.printMetaLabel}>Department:</span>
+            <span className={styles.printMetaVal}>{staff?.department || selectedStaff?.department || 'N/A'} • {staff?.designation || selectedStaff?.designation || 'Staff'}</span>
+          </div>
+          <div className={styles.printMetaRow}>
+            <span className={styles.printMetaLabel}>Spreadsheet Period:</span>
+            <span className={styles.printMetaVal}>
+              {spreadsheetData?.period_label || `${MONTHS.find(m => m.value === fromMonth)?.name || ''} ${fromYear} – ${MONTHS.find(m => m.value === toMonth)?.name || ''} ${toYear}`}
+            </span>
+          </div>
+          <div className={styles.printMetaRow}>
+            <span className={styles.printMetaLabel}>Date Printed:</span>
+            <span className={styles.printMetaVal}>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Screen Header */}
+      <div className={`${styles.header} ${styles.noPrint}`}>
         <div className={styles.titleArea}>
           <h1 className={styles.title}>
             <FileSpreadsheet size={24} style={{ color: '#3b82f6' }} />
@@ -275,6 +328,7 @@ export default function StaffMonthlySpreadsheetPage() {
             type="button"
             className={`${styles.btn} ${styles.btnSecondary}`}
             onClick={handlePrint}
+            disabled={!spreadsheetData || loading}
           >
             <Printer size={16} />
             Print
@@ -301,16 +355,18 @@ export default function StaffMonthlySpreadsheetPage() {
         </div>
 
         <div className={styles.cardBody}>
-          <div className={styles.filterGrid}>
-            {/* Staff Selector */}
-            {/* Staff Search Autocomplete */}
+          <div className={styles.filterLayout}>
+            {/* Row 1: Staff Search Autocomplete (Full Width) */}
             <div className={styles.formGroup} ref={dropdownRef}>
-              <label className={styles.label}>Select Staff Member *</label>
+              <label className={styles.label}>
+                <User size={14} style={{ color: '#3b82f6' }} />
+                Select Staff Member *
+              </label>
               <div className={styles.inputGroup}>
                 <User className={styles.inputIcon} size={16} />
                 <input
                   type="text"
-                  className={`${styles.input} ${styles.inputWithIcon} ${!canSelectStaff ? styles.readonly : ''}`}
+                  className={`${styles.input} ${styles.staffInput} ${!canSelectStaff ? styles.readonly : ''}`}
                   placeholder={!canSelectStaff ? "Readonly employee view" : "Type staff name or ID..."}
                   value={dropdownSearch}
                   onChange={(e) => {
@@ -341,7 +397,7 @@ export default function StaffMonthlySpreadsheetPage() {
                 />
 
                 {canSelectStaff && (
-                  <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 5 }}>
+                  <div className={styles.staffInputControls}>
                     {dropdownSearch && (
                       <button
                         type="button"
@@ -350,15 +406,7 @@ export default function StaffMonthlySpreadsheetPage() {
                           setDropdownSearch('');
                           setShowDropdown(true);
                         }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#94a3b8',
-                          cursor: 'pointer',
-                          padding: '2px',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}
+                        className={styles.clearBtn}
                         title="Clear search"
                       >
                         <X size={14} />
@@ -366,8 +414,7 @@ export default function StaffMonthlySpreadsheetPage() {
                     )}
                     <button
                       type="button"
-                      className={styles.inputRightBtn}
-                      style={{ position: 'static', transform: 'none' }}
+                      className={styles.dropdownToggleBtn}
                       onClick={() => setShowDropdown(!showDropdown)}
                       title={showDropdown ? "Close menu" : "Open staff list"}
                     >
@@ -412,13 +459,33 @@ export default function StaffMonthlySpreadsheetPage() {
               )}
             </div>
 
-            {/* From Year */}
-            <div className={styles.formGroup}>
-              <label className={styles.label}>From Year</label>
-              <div className={styles.inputGroup}>
-                <Calendar className={styles.inputIcon} size={16} />
+            {/* Row 2: Date Range Selects & Load Button */}
+            <div className={styles.filterBottomRow}>
+              {/* From Month */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>
+                  <Calendar size={13} style={{ color: '#3b82f6' }} />
+                  From Month
+                </label>
                 <select
-                  className={`${styles.input} ${styles.inputWithIcon}`}
+                  className={styles.select}
+                  value={fromMonth}
+                  onChange={(e) => setFromMonth(Number(e.target.value))}
+                >
+                  {MONTHS.map(m => (
+                    <option key={m.value} value={m.value}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* From Year */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>
+                  <Calendar size={13} style={{ color: '#3b82f6' }} />
+                  From Year
+                </label>
+                <select
+                  className={styles.select}
                   value={fromYear}
                   onChange={(e) => setFromYear(Number(e.target.value))}
                 >
@@ -427,15 +494,32 @@ export default function StaffMonthlySpreadsheetPage() {
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* To Year */}
-            <div className={styles.formGroup}>
-              <label className={styles.label}>To Year</label>
-              <div className={styles.inputGroup}>
-                <Calendar className={styles.inputIcon} size={16} />
+              {/* To Month */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>
+                  <Calendar size={13} style={{ color: '#3b82f6' }} />
+                  To Month
+                </label>
                 <select
-                  className={`${styles.input} ${styles.inputWithIcon}`}
+                  className={styles.select}
+                  value={toMonth}
+                  onChange={(e) => setToMonth(Number(e.target.value))}
+                >
+                  {MONTHS.map(m => (
+                    <option key={m.value} value={m.value}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* To Year */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>
+                  <Calendar size={13} style={{ color: '#3b82f6' }} />
+                  To Year
+                </label>
+                <select
+                  className={styles.select}
                   value={toYear}
                   onChange={(e) => setToYear(Number(e.target.value))}
                 >
@@ -444,36 +528,37 @@ export default function StaffMonthlySpreadsheetPage() {
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* Submit / Load Button */}
-            <div>
-              <button
-                type="button"
-                className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => fetchSpreadsheet(selectedStaff?.id, fromYear, toYear)}
-                disabled={loading || staffLoading || !selectedStaff}
-                style={{ width: '100%', height: '42px', justifyContent: 'center' }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={16} className={styles.spinner} />
-                    Loading…
-                  </>
-                ) : (
-                  <>
-                    <FileSpreadsheet size={16} />
-                    Load Spreadsheet
-                  </>
-                )}
-              </button>
+              {/* Submit / Load Button */}
+              <div className={styles.submitGroup}>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnPrimary} ${styles.btnLoad}`}
+                  onClick={() => fetchSpreadsheet(selectedStaff?.id, fromYear, toYear, fromMonth, toMonth)}
+                  disabled={loading || staffLoading || !selectedStaff}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className={styles.spinner} />
+                      Loading…
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet size={16} />
+                      Load Spreadsheet
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Staff Profile Banner */}
-      {staff && (
+      {/* ── Main Spreadsheet Printable Area ── */}
+      <div className={styles.spreadsheetMain}>
+        {/* Staff Profile Banner */}
+        {staff && (
         <div className={styles.staffBanner}>
           <div className={styles.staffBannerLeft}>
             <div className={styles.staffAvatar}>
@@ -499,7 +584,7 @@ export default function StaffMonthlySpreadsheetPage() {
             <div className={styles.bannerStat}>
               <span className={styles.bannerStatLabel}>Spreadsheet Period</span>
               <span className={styles.bannerStatValue}>
-                {spreadsheetData.from_year} – {spreadsheetData.to_year}
+                {spreadsheetData.period_label || `${spreadsheetData.from_year} – ${spreadsheetData.to_year}`}
               </span>
             </div>
           </div>
@@ -523,7 +608,7 @@ export default function StaffMonthlySpreadsheetPage() {
                 <h3 className={styles.yearSectionTitle}>
                   <Calendar size={20} style={{ color: '#3b82f6' }} />
                   <span>{yearObj.year} Payroll Year</span>
-                  <span className={styles.yearBadge}>January – December</span>
+                  <span className={styles.yearBadge}>{yearObj.period_badge || 'January – December'}</span>
                 </h3>
               </div>
 
@@ -532,7 +617,7 @@ export default function StaffMonthlySpreadsheetPage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th className={styles.actionCell}>Action</th>
+                      <th className={`${styles.actionCell} ${styles.noPrint}`}>Action</th>
                       <th>Month</th>
                       <th style={{ textAlign: 'right' }}>Basic (₦)</th>
                       <th style={{ textAlign: 'right' }}>Housing (₦)</th>
@@ -565,7 +650,7 @@ export default function StaffMonthlySpreadsheetPage() {
                     {yearObj.months.map((mRow) => (
                       <tr key={mRow.month_num}>
                         {/* Action: Breakdown button */}
-                        <td className={styles.actionCell}>
+                        <td className={`${styles.actionCell} ${styles.noPrint}`}>
                           <button
                             type="button"
                             className={styles.breakdownBtn}
@@ -628,7 +713,7 @@ export default function StaffMonthlySpreadsheetPage() {
 
                     {/* Year Total Row (Summing all 12 months) */}
                     <tr className={styles.totalRow}>
-                      <td className={styles.actionCell}>—</td>
+                      <td className={`${styles.actionCell} ${styles.noPrint}`}>—</td>
                       <td className={styles.totalRowLabel}>TOTAL ({yearObj.year})</td>
                       <td className={styles.amountCol}>{fmt(yearObj.year_totals.basic)}</td>
                       <td className={styles.amountCol}>{fmt(yearObj.year_totals.housing)}</td>
@@ -662,16 +747,16 @@ export default function StaffMonthlySpreadsheetPage() {
             </div>
           ))}
 
-          {/* Grand Multi-Year Summary Card (if range spans multiple years) */}
+          {/* Grand Multi-Year Summary Card (if range spans multiple years or months) */}
           {spreadsheetData.years.length > 1 && spreadsheetData.grand_totals && (
             <div className={styles.grandTotalsCard}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Layers size={20} style={{ color: '#38bdf8' }} />
-                  Grand Cumulative Total ({spreadsheetData.from_year} – {spreadsheetData.to_year})
+                  Grand Cumulative Total ({spreadsheetData.period_label || `${spreadsheetData.from_year} – ${spreadsheetData.to_year}`})
                 </h3>
                 <span style={{ fontSize: '0.8rem', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-                  {spreadsheetData.years.length * 12} Total Months
+                  {spreadsheetData.years.reduce((acc, y) => acc + (y.months?.length || 0), 0)} Total Months
                 </span>
               </div>
 
@@ -726,6 +811,25 @@ export default function StaffMonthlySpreadsheetPage() {
               </div>
             </div>
           )}
+
+          {/* Official Print Verification & Signature Block */}
+          <div className={styles.printFooter}>
+            <div className={styles.printSignatureBlock}>
+              <div className={styles.printSignatureLine}></div>
+              <span className={styles.printSignatureRole}>Prepared By: Payroll Officer</span>
+            </div>
+            <div className={styles.printSignatureBlock}>
+              <div className={styles.printSignatureLine}></div>
+              <span className={styles.printSignatureRole}>Checked By: Internal Audit / HR</span>
+            </div>
+            <div className={styles.printSignatureBlock}>
+              <div className={styles.printSignatureLine}></div>
+              <span className={styles.printSignatureRole}>Approved By: Medical Director / CFO</span>
+            </div>
+          </div>
+          <div className={styles.printDisclaimer}>
+            Confidential Payroll Record &bull; Generated from Isalu HRMS Payroll Computation Engine &bull; All Rights Reserved
+          </div>
         </>
       ) : (
         <div className={styles.card} style={{ padding: '3rem', textAlign: 'center' }}>
@@ -735,12 +839,43 @@ export default function StaffMonthlySpreadsheetPage() {
           </p>
         </div>
       )}
+      </div>
 
       {/* ═══════════════ SALARY BREAKDOWN MODAL ═══════════════ */}
       {breakdownModal && (
-        <div className={styles.modalOverlay} onClick={() => setBreakdownModal(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
+        <div className={`${styles.modalOverlay} modalOverlay`} onClick={() => setBreakdownModal(null)}>
+          <div
+            className={`${styles.modalBox} ${styles.modalContent} ${styles.paperContainer} ${styles.printCard} modalContent printCard paperContainer`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Official Print Header (Visible only when printing modal) */}
+            <div className={styles.modalPrintHeader}>
+              <div className={styles.printHeaderLeft}>
+                <h2 className={styles.printHospitalName}>ISALU HOSPITALS LIMITED</h2>
+                <p className={styles.printHospitalSub}>Human Resources & Payroll Administration System</p>
+                <h3 className={styles.printDocTitle}>STAFF SALARY BREAKDOWN STATEMENT – {breakdownModal.period}</h3>
+              </div>
+              <div className={styles.printHeaderRight}>
+                <div className={styles.printMetaRow}>
+                  <span className={styles.printMetaLabel}>Employee:</span>
+                  <strong className={styles.printMetaVal}>{breakdownModal.staff?.name} ({breakdownModal.staff?.id})</strong>
+                </div>
+                <div className={styles.printMetaRow}>
+                  <span className={styles.printMetaLabel}>Department:</span>
+                  <span className={styles.printMetaVal}>{breakdownModal.staff?.department} • {breakdownModal.staff?.designation}</span>
+                </div>
+                <div className={styles.printMetaRow}>
+                  <span className={styles.printMetaLabel}>Period:</span>
+                  <span className={styles.printMetaVal}>{breakdownModal.period}</span>
+                </div>
+                <div className={styles.printMetaRow}>
+                  <span className={styles.printMetaLabel}>Printed:</span>
+                  <span className={styles.printMetaVal}>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={`${styles.modalHeader} ${styles.noPrint}`}>
               <div>
                 <h3 className={styles.modalTitle}>
                   Salary Breakdown – {breakdownModal.period}
@@ -1059,7 +1194,7 @@ export default function StaffMonthlySpreadsheetPage() {
               </div>
 
               {/* Bank & Payment Info Box */}
-              <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.8rem' }}>
+              <div className={styles.bankPaymentInfoBox}>
                 <span style={{ color: 'var(--text-secondary)' }}>
                   <CreditCard size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
                   Disbursement Bank: <strong>{breakdownModal.staff?.bank_name || 'N/A'}</strong> | Acc: <strong>{breakdownModal.staff?.account_number || 'N/A'}</strong>
@@ -1068,9 +1203,28 @@ export default function StaffMonthlySpreadsheetPage() {
                   RSA PIN: <strong>{breakdownModal.staff?.rsa_pin || 'N/A'}</strong>
                 </span>
               </div>
+
+              {/* Official Modal Print Verification & Signature Block */}
+              <div className={styles.modalPrintFooter}>
+                <div className={styles.printSignatureBlock}>
+                  <div className={styles.printSignatureLine}></div>
+                  <span className={styles.printSignatureRole}>Prepared By: Payroll Officer</span>
+                </div>
+                <div className={styles.printSignatureBlock}>
+                  <div className={styles.printSignatureLine}></div>
+                  <span className={styles.printSignatureRole}>Checked By: Internal Audit / HR</span>
+                </div>
+                <div className={styles.printSignatureBlock}>
+                  <div className={styles.printSignatureLine}></div>
+                  <span className={styles.printSignatureRole}>Approved By: Medical Director / CFO</span>
+                </div>
+              </div>
+              <div className={styles.modalPrintDisclaimer}>
+                Confidential Staff Salary Statement &bull; Isalu Hospitals Limited Payroll System &bull; Generated from Isalu HRMS Engine
+              </div>
             </div>
 
-            <div className={styles.modalFooter}>
+            <div className={`${styles.modalFooter} ${styles.noPrint}`}>
               <button
                 type="button"
                 className={`${styles.btn} ${styles.btnSecondary}`}
