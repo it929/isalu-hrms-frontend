@@ -1377,8 +1377,8 @@ export default function ResignationSettlementPage() {
                       </span>
                     </div>
                     <div className={styles.metaItem}>
-                      <span className={styles.metaLabel}>Declared Base Salary:</span>
-                      <span className={styles.metaValue} style={{ color: '#3b82f6' }}>₦{fmt(settlementData.salary_structure.declared_salary)}</span>
+                      <span className={styles.metaLabel}>Gross Salary:</span>
+                      <span className={styles.metaValue} style={{ color: '#3b82f6' }}>₦{fmt(settlementData.salary_structure?.monthly_gross || settlementData.salary_structure?.declared_salary)}</span>
                     </div>
                   </div>
 
