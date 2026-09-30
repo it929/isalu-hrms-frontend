@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload } from 'lucide-react';
+import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload, Building2, Clock, AlertTriangle, TrendingDown } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
-import styles from '../apply-coop-loan/page.module.css';
+import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -27,6 +27,17 @@ function fmt(n) {
   const num = parseFloat(n);
   if (isNaN(num)) return '0.00';
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getInitials(name) {
+  if (!name) return 'ST';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
 
 export default function AbsencePenaltyDeductionSetupPage() {
@@ -99,9 +110,10 @@ export default function AbsencePenaltyDeductionSetupPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState('10');
 
-  useEffect(() => {
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  };
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -241,6 +253,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
 
   useEffect(() => {
     if (selectedStaff) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchStaffNetPay(selectedStaff.id);
       fetchStaffSalary(selectedStaff.id);
     } else {
@@ -520,6 +533,13 @@ export default function AbsencePenaltyDeductionSetupPage() {
         (currentPage - 1) * parseInt(itemsPerPage, 10),
         currentPage * parseInt(itemsPerPage, 10)
       );
+  const totalFilteredDeductions = useMemo(() => {
+    return filteredSetups.reduce((acc, s) => acc + (parseFloat(s.total_amount) || 0), 0);
+  }, [filteredSetups]);
+
+  const activeSetupsCount = useMemo(() => {
+    return filteredSetups.filter(s => s.is_active === 1).length;
+  }, [filteredSetups]);
 
   const isConfigurator = true;
 
@@ -539,7 +559,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
       </div>
 
       {isConfigurator && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div className={styles.topGrid}>
           {/* Setup Form */}
           <div className={styles.card} style={{ marginBottom: 0 }}>
             <div className={styles.cardHeader}>
@@ -891,41 +911,60 @@ export default function AbsencePenaltyDeductionSetupPage() {
 
       {/* Setup Configurations Table */}
       <div className={styles.card}>
-        <div className={styles.searchBar}>
-          <div className={styles.searchInputWrapper}>
-            <Search size={18} className={styles.inputIcon} />
-            <input
-              type="text"
-              className={`${styles.input} ${styles.inputWithIcon}`}
-              placeholder="Search setups by staff name, ID, remarks, or period..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className={styles.tableToolbar}>
+          <div className={styles.searchBar}>
+            <div className={styles.searchInputWrapper}>
+              <Search size={16} className={styles.inputIcon} />
+              <input
+                type="text"
+                className={`${styles.input} ${styles.inputWithIcon}`}
+                placeholder="Search setups by staff name, ID, department, or period..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+            </div>
           </div>
-          <div className={styles.perPageGroup}>
-            <span className={styles.perPageLabel}>Show:</span>
-            <select
-              className={styles.perPageSelect}
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="10">10 records</option>
-              <option value="20">20 records</option>
-              <option value="30">30 records</option>
-              <option value="50">50 records</option>
-              <option value="100">100 records</option>
-              <option value="all">All Records</option>
-            </select>
+
+          <div className={styles.toolbarStats}>
+            <div className={styles.statBadge}>
+              <span>Setups:</span>
+              <strong>{filteredSetups.length}</strong>
+            </div>
+            <div className={`${styles.statBadge} ${styles.statBadgeActive}`}>
+              <span className={`${styles.statusDot} ${styles.statusDotActive}`} />
+              <span>Active:</span>
+              <strong>{activeSetupsCount}</strong>
+            </div>
+            <div className={`${styles.statBadge} ${styles.statBadgeDeduction}`}>
+              <TrendingDown size={13} />
+              <span>Total Deductions:</span>
+              <strong>₦{fmt(totalFilteredDeductions)}</strong>
+            </div>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <div className={styles.cardBody} style={{ padding: 0 }}>
           {loading ? (
             <div className={styles.emptyState}>
-              <Loader2 size={32} className="animate-spin emptyIcon" />
+              <Loader2 size={36} className="animate-spin emptyIcon" />
               <p>Retrieving configurations...</p>
             </div>
           ) : paginatedSetups.length > 0 ? (
@@ -933,16 +972,16 @@ export default function AbsencePenaltyDeductionSetupPage() {
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>Staff Info</th>
+                    <th>Staff Member</th>
                     <th>Department</th>
                     <th>Payroll Period</th>
-                    <th>Days Absent</th>
-                    <th>Penalty Days (3×)</th>
-                    <th>Daily Rate</th>
-                    <th>Net Pay Deduction</th>
+                    <th className={styles.thCenter}>Days Absent</th>
+                    <th className={styles.thCenter}>Penalty Days (3×)</th>
+                    <th className={styles.thRight}>Daily Rate</th>
+                    <th className={styles.thRight}>Net Pay Deduction</th>
                     <th>Remarks</th>
-                    <th>Status</th>
-                    {isConfigurator && <th>Actions</th>}
+                    <th className={styles.thCenter}>Status</th>
+                    {isConfigurator && <th className={styles.thCenter}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -953,53 +992,81 @@ export default function AbsencePenaltyDeductionSetupPage() {
                       <tr key={s.id}>
                         <td>
                           <div className={styles.staffCell}>
-                            <span className={styles.staffName}>{s.name}</span>
-                            <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
+                            <div className={styles.staffAvatar}>
+                              {getInitials(s.name)}
+                            </div>
+                            <div className={styles.staffInfo}>
+                              <span className={styles.staffName}>{s.name}</span>
+                              <span className={styles.staffFile}>ID: {s.staffId}</span>
+                            </div>
                           </div>
                         </td>
-                        <td>{s.department || 'N/A'}</td>
                         <td>
-                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {s.start_month}
+                          <div className={styles.deptBadge}>
+                            <Building2 size={13} style={{ color: '#64748b' }} />
+                            <span>{s.department || 'General'}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className={styles.periodBadge}>
+                            <Calendar size={13} style={{ color: '#3b82f6' }} />
+                            <span>{s.start_month}</span>
+                          </div>
+                        </td>
+                        <td className={styles.thCenter}>
+                          {days ? (
+                            <span className={styles.absentPill}>
+                              <Clock size={12} />
+                              {days} {days === 1 ? 'day' : 'days'}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8' }}>—</span>
+                          )}
+                        </td>
+                        <td className={styles.thCenter}>
+                          {pDays ? (
+                            <span className={styles.penaltyPill}>
+                              <AlertTriangle size={12} />
+                              <span>{pDays} days</span>
+                              <span className={styles.penaltyMultiplier}>3×</span>
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8' }}>—</span>
+                          )}
+                        </td>
+                        <td className={styles.thRight}>
+                          <span className={styles.rateNumber}>
+                            {s.daily_salary ? `₦${fmt(s.daily_salary)}` : '—'}
+                          </span>
+                        </td>
+                        <td className={styles.thRight}>
+                          <span className={styles.deductionBadge}>
+                            ₦{fmt(s.total_amount)}
                           </span>
                         </td>
                         <td>
-                          {days ? (
-                            <span style={{ fontWeight: 600, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
-                              {days} {days === 1 ? 'day' : 'days'}
-                            </span>
-                          ) : '—'}
-                        </td>
-                        <td>
-                          {pDays ? (
-                            <span style={{ fontWeight: 700, color: '#ef4444' }}>
-                              {pDays} days
-                            </span>
-                          ) : '—'}
-                        </td>
-                        <td>
-                          {s.daily_salary ? `₦${fmt(s.daily_salary)}` : '—'}
-                        </td>
-                        <td>
-                          <strong style={{ color: '#b45309' }}>₦{fmt(s.total_amount)}</strong>
-                        </td>
-                        <td>
-                          <div style={{ maxWidth: '180px', whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '0.85rem', color: s.remarks ? 'inherit' : 'var(--secondary, #94a3b8)' }}>
-                            {s.remarks || '—'}
+                          <div className={styles.remarksText}>
+                            {s.remarks ? (
+                              <span>{s.remarks}</span>
+                            ) : (
+                              <span className={styles.remarksEmpty}>No remarks</span>
+                            )}
                           </div>
                         </td>
-                        <td>
+                        <td className={styles.thCenter}>
                           <button
                             type="button"
                             className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
                             onClick={() => isConfigurator && handleToggleStatus(s.id)}
                             style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
+                            title={isConfigurator ? 'Click to toggle active status' : undefined}
                           >
+                            <span className={`${styles.statusDot} ${s.is_active === 1 ? styles.statusDotActive : styles.statusDotInactive}`} />
                             {s.is_active === 1 ? 'Active' : 'Inactive'}
                           </button>
                         </td>
                         {isConfigurator && (
-                          <td>
+                          <td className={styles.thCenter}>
                             <div className={styles.rowActions}>
                               <button
                                 type="button"
