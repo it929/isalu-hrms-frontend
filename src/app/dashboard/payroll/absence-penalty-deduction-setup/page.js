@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Users, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Settings, Calendar, Power, Upload, Building2, Clock, AlertTriangle, TrendingDown } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
-import styles from './page.module.css';
+import styles from '../apply-coop-loan/page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
 
@@ -559,7 +559,7 @@ export default function AbsencePenaltyDeductionSetupPage() {
       </div>
 
       {isConfigurator && (
-        <div className={styles.topGrid}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
           {/* Setup Form */}
           <div className={styles.card} style={{ marginBottom: 0 }}>
             <div className={styles.cardHeader}>
