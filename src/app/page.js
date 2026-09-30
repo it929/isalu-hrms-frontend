@@ -47,7 +47,7 @@ export default function Login() {
         username: username.trim(),
         password
       }, {
-        timeout: 15000
+        timeout: 30000
       });
 
       if (response.data.status === 'success') {
