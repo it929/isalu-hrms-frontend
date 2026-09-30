@@ -264,12 +264,13 @@ export default function MedicalLoanRecordsPage() {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const nameMatch = r.name ? r.name.toLowerCase().includes(q) : false;
+    const staffIdMatch = (r.staffId || r.staff_id) ? String(r.staffId || r.staff_id).toLowerCase().includes(q) : false;
     const fileMatch = r.fileNo ? r.fileNo.toLowerCase().includes(q) : false;
     const reasonMatch = r.reason ? r.reason.toLowerCase().includes(q) : false;
     const dateMatch = r.loan_date ? r.loan_date.includes(q) : false;
     const amountMatch = String(r.amount).includes(q);
     const creatorMatch = r.creator_name ? r.creator_name.toLowerCase().includes(q) : false;
-    return nameMatch || fileMatch || reasonMatch || dateMatch || amountMatch || creatorMatch;
+    return nameMatch || staffIdMatch || fileMatch || reasonMatch || dateMatch || amountMatch || creatorMatch;
   });
 
   // Client-side pagination
@@ -291,9 +292,10 @@ export default function MedicalLoanRecordsPage() {
     if (!staffDropdownSearch.trim()) return true;
     const q = staffDropdownSearch.toLowerCase();
     const name = s.name ? s.name.toLowerCase() : '';
+    const staffId = (s.staffId || s.id) ? String(s.staffId || s.id).toLowerCase() : '';
     const file = s.fileNo ? s.fileNo.toLowerCase() : '';
     const dept = s.department ? s.department.toLowerCase() : '';
-    return name.includes(q) || file.includes(q) || dept.includes(q);
+    return name.includes(q) || staffId.includes(q) || file.includes(q) || dept.includes(q);
   });
 
   // Export to CSV
@@ -303,12 +305,12 @@ export default function MedicalLoanRecordsPage() {
       return;
     }
 
-    const headers = ['S/N', 'Loan Date', 'Staff Name', 'File No', 'Department', 'Loan Amount (NGN)', 'Balance Before (NGN)', 'Balance After (NGN)', 'Monthly Deduction (NGN)', 'Duration (Months)', 'Reason', 'Recorded By', 'Created At'];
+    const headers = ['S/N', 'Loan Date', 'Staff Name', 'Staff ID', 'Department', 'Loan Amount (NGN)', 'Balance Before (NGN)', 'Balance After (NGN)', 'Monthly Deduction (NGN)', 'Duration (Months)', 'Reason', 'Recorded By', 'Created At'];
     const rows = records.map((r, i) => [
       i + 1,
       r.loan_date,
       `"${(r.name || '').replace(/"/g, '""')}"`,
-      r.fileNo || '',
+      r.staffId || r.staff_id || r.fileNo || '',
       `"${(r.department || '').replace(/"/g, '""')}"`,
       r.amount,
       r.balance_before,
@@ -452,7 +454,7 @@ export default function MedicalLoanRecordsPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <User size={18} style={{ color: '#ec4899' }} />
             <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-              Showing Statement for: <strong style={{ color: '#ec4899' }}>{selectedStaff.name}</strong> ({selectedStaff.fileNo || 'No File No.'}) — <em>{selectedStaff.department || 'No Dept'}</em>
+              Showing Statement for: <strong style={{ color: '#ec4899' }}>{selectedStaff.name}</strong> (Staff ID: {selectedStaff.staffId || selectedStaff.id}) — <em>{selectedStaff.department || 'No Dept'}</em>
             </span>
           </div>
           <button 
@@ -481,7 +483,7 @@ export default function MedicalLoanRecordsPage() {
         }}>
           <Info size={18} style={{ color: '#3b82f6' }} />
           <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-            Personal Medical Loan Statement for: <strong>{userCtx.employee.surname} {userCtx.employee.first_name} {userCtx.employee.othernames}</strong> ({userCtx.employee.fileNo})
+            Personal Medical Loan Statement for: <strong>{userCtx.employee.surname} {userCtx.employee.first_name} {userCtx.employee.othernames}</strong> (Staff ID: {userCtx.employee.staffId || userCtx.employee.id || userCtx.employee.fileNo})
           </span>
         </div>
       ) : null}
@@ -658,7 +660,7 @@ export default function MedicalLoanRecordsPage() {
                   }}
                 >
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {selectedStaff ? `${selectedStaff.name} (${selectedStaff.fileNo})` : 'All Staff Members'}
+                    {selectedStaff ? `${selectedStaff.name} (Staff ID: ${selectedStaff.staffId || selectedStaff.id})` : 'All Staff Members'}
                   </span>
                   <ChevronDown size={16} />
                 </div>
@@ -668,7 +670,7 @@ export default function MedicalLoanRecordsPage() {
                     <div style={{ padding: '0.35rem 0.35rem 0.5rem' }}>
                       <input 
                         type="text"
-                        placeholder="Search staff name or file no..."
+                        placeholder="Search staff name or staff ID..."
                         value={staffDropdownSearch}
                         onChange={(e) => setStaffDropdownSearch(e.target.value)}
                         className={styles.input}
@@ -699,7 +701,7 @@ export default function MedicalLoanRecordsPage() {
                         <div>
                           <div style={{ fontWeight: 500 }}>{s.name}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {s.fileNo} • {s.department || 'No Dept'}
+                            Staff ID: {s.staffId || s.id} • {s.department || 'No Dept'}
                           </div>
                         </div>
                       </div>
@@ -793,14 +795,14 @@ export default function MedicalLoanRecordsPage() {
                 <th style={{ width: '40px' }}>#</th>
                 <th>Loan Date</th>
                 {isPrivileged && !selectedStaff && <th>Staff Member</th>}
-                <th className={styles.tdNum}>Loan Amount</th>
-                <th className={styles.tdNum}>Bal. Before</th>
-                <th className={styles.tdNum}>Bal. After</th>
-                <th className={styles.tdNum}>Monthly Deduction</th>
-                <th>Duration</th>
+                <th className={styles.thRight}>Loan Amount</th>
+                <th className={styles.thRight}>Bal. Before</th>
+                <th className={styles.thRight}>Bal. After</th>
+                <th className={styles.thRight}>Monthly Deduction</th>
+                <th className={styles.thCenter}>Duration</th>
                 <th>Purpose / Reason</th>
                 <th>Disbursed By</th>
-                <th style={{ textAlign: 'center' }}>Action</th>
+                <th className={styles.thCenter}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -840,62 +842,74 @@ export default function MedicalLoanRecordsPage() {
                   const sNo = itemsPerPage === 'all' ? idx + 1 : (currentPage - 1) * parseInt(itemsPerPage, 10) + idx + 1;
                   return (
                     <tr key={row.id}>
-                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{sNo}</td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{sNo}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <Calendar size={13} style={{ color: '#ec4899' }} />
+                        <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.84rem' }}>
+                          <Calendar size={13} style={{ color: '#ec4899', flexShrink: 0 }} />
                           {formatDate(row.loan_date)}
                         </div>
                       </td>
 
                       {isPrivileged && !selectedStaff && (
                         <td>
-                          <div>
-                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {row.fileNo} • {row.department || 'General'}
+                          <div className={styles.staffCell}>
+                            <div className={styles.staffAvatar}>
+                              {(row.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div className={styles.staffInfo}>
+                              <span className={styles.staffName} title={row.name}>{row.name}</span>
+                              <div className={styles.staffMeta}>
+                                <span className={styles.staffIdBadge}>Staff ID: {row.staffId || row.staff_id}</span>
+                                {row.department && (
+                                  <span className={styles.staffDeptBadge}>{row.department}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
                       )}
 
                       <td className={styles.tdNum}>
-                        <span style={{ color: '#ec4899', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                          <NairaSign size={13} /> {fmt(row.amount)}
+                        <span className={styles.amountLoan}>
+                          ₦{fmt(row.amount)}
                         </span>
                       </td>
 
-                      <td className={styles.tdNum} style={{ color: 'var(--text-secondary)' }}>
-                        ₦{fmt(row.balance_before)}
+                      <td className={styles.tdNum}>
+                        <span className={styles.amountBefore}>
+                          ₦{fmt(row.balance_before)}
+                        </span>
                       </td>
 
-                      <td className={styles.tdNum} style={{ color: '#ef4444', fontWeight: 600 }}>
-                        ₦{fmt(row.balance_after)}
+                      <td className={styles.tdNum}>
+                        <span className={styles.amountAfter}>
+                          ₦{fmt(row.balance_after)}
+                        </span>
                       </td>
 
-                      <td className={styles.tdNum} style={{ color: '#10b981', fontWeight: 600 }}>
-                        ₦{fmt(row.monthly_deduction)}
+                      <td className={styles.tdNum}>
+                        <span className={styles.amountDeduction}>
+                          ₦{fmt(row.monthly_deduction)}
+                        </span>
                       </td>
 
-                      <td>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <span className={`${styles.badge} ${styles.badgePink}`}>
                           {row.duration_months} {row.duration_months === 1 ? 'month' : 'months'}
                         </span>
                       </td>
 
-                      <td style={{ maxWidth: '240px' }}>
-                        <div style={{ 
-                          whiteSpace: 'nowrap', 
-                          overflow: 'hidden', 
-                          textOverflow: 'ellipsis',
-                          fontSize: '0.85rem' 
-                        }} title={row.reason}>
-                          {row.reason}
+                      <td>
+                        <div className={styles.purposeCell} title={row.reason}>
+                          {row.reason || '—'}
                         </div>
                       </td>
 
-                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        {row.creator_name}
+                      <td>
+                        <div className={styles.disbursedCell}>
+                          <User size={12} className="text-slate-400 shrink-0" />
+                          <span>{row.creator_name || 'Admin'}</span>
+                        </div>
                       </td>
 
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -905,7 +919,7 @@ export default function MedicalLoanRecordsPage() {
                           className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
                           title="View Statement Breakdown"
                         >
-                          <FileText size={14} />
+                          <FileText size={13} />
                           <span>Details</span>
                         </button>
                       </td>
@@ -1010,7 +1024,7 @@ export default function MedicalLoanRecordsPage() {
                     {viewRecord.name}
                   </div>
                   <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                    File No: <strong>{viewRecord.fileNo}</strong> • Department: <strong>{viewRecord.department || 'General'}</strong>
+                    Staff ID: <strong>{viewRecord.staffId || viewRecord.staff_id}</strong> • Department: <strong>{viewRecord.department || 'General'}</strong>
                   </div>
                 </div>
 
