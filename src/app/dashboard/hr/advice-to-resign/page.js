@@ -380,15 +380,6 @@ export default function AdviceToResignPage() {
     };
   }, [statusFilter, searchQuery]);
 
-  // ─── Quick Deadline Setter Helper ──────────────────────────────────────────
-  const addDaysToDeadline = (days) => {
-    const base = formData.issue_date ? new Date(formData.issue_date) : new Date();
-    base.setDate(base.getDate() + days);
-    setFormData(prev => ({
-      ...prev,
-      deadline_date: base.toISOString().split('T')[0]
-    }));
-  };
 
   // ─── Handle Open Issue / Edit Modal ───────────────────────────────────────
   const handleOpenIssue = (record = null) => {
@@ -1700,12 +1691,6 @@ Isalu Hospitals Limited`;
                         onChange={(e) => setFormData({ ...formData, deadline_date: e.target.value })}
                         required
                       />
-                      <div className={styles.deadlineHelperButtons}>
-                        <button type="button" onClick={() => addDaysToDeadline(1)}>+24 Hours</button>
-                        <button type="button" onClick={() => addDaysToDeadline(2)}>+48 Hours</button>
-                        <button type="button" onClick={() => addDaysToDeadline(3)}>+3 Days</button>
-                        <button type="button" onClick={() => addDaysToDeadline(7)}>+1 Week</button>
-                      </div>
                     </div>
                   </div>
                 </div>
