@@ -1364,35 +1364,52 @@ export default function SalaryBreakdownPage() {
                 )}
 
                 {deductions?.other_deductions?.amount > 0 && (
-                  <div className={styles.listItem}>
-                    <div className={styles.itemLeft}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span className={styles.itemName}>Other Deductions</span>
-                        {deductions.other_deductions.remarks && (
-                          <span
-                            className={styles.badge}
-                            style={{
-                              background: 'rgba(245, 158, 11, 0.12)',
-                              color: '#b45309',
-                              border: '1px solid rgba(245, 158, 11, 0.25)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              letterSpacing: 'normal',
-                              padding: '2px 8px',
-                              borderRadius: '4px'
-                            }}
-                          >
-                            {deductions.other_deductions.remarks}
-                          </span>
-                        )}
+                  <div className={styles.listItem} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <div className={styles.itemLeft}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span className={styles.itemName}>Other Deductions</span>
+                          {deductions.other_deductions.remarks && (
+                            <span
+                              className={styles.badge}
+                              style={{
+                                background: 'rgba(245, 158, 11, 0.12)',
+                                color: '#b45309',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                letterSpacing: 'normal',
+                                padding: '2px 8px',
+                                borderRadius: '4px'
+                              }}
+                            >
+                              {deductions.other_deductions.remarks}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.itemRight}>
+                        <span className={`${styles.itemAmount} ${styles.itemAmountDeduction}`}>
+                          - ₦{formatCurrency(deductions.other_deductions.amount)}
+                        </span>
                       </div>
                     </div>
-                    <div className={styles.itemRight}>
-                      <span className={`${styles.itemAmount} ${styles.itemAmountDeduction}`}>
-                        - ₦{formatCurrency(deductions.other_deductions.amount)}
-                      </span>
-                    </div>
+                    {Array.isArray(deductions.other_deductions.items) && deductions.other_deductions.items.length > 1 && (
+                      <div style={{ marginTop: '8px', paddingLeft: '12px', borderLeft: '2px solid #fed7aa', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {deductions.other_deductions.items.map((item, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#64748b' }}>
+                            <span>
+                              {item.calculation_mode === 'days' ? `${item.deduction_days} Day(s) Deduct` : 'Deduction'}
+                              {item.remarks ? ` (${item.remarks})` : ''}
+                            </span>
+                            <span style={{ fontWeight: 600, color: '#dc2626' }}>
+                              - ₦{formatCurrency(item.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2927,16 +2944,33 @@ export default function SalaryBreakdownPage() {
                         <span>Regular Loan Repayment</span>
                         <span>{formatCurrency(modalStaffBreakdown.deductions?.regular_loan?.amount ?? modalStaffBreakdown.deductions?.regular_loan?.monthly_deduction)}</span>
                       </div>
-                      <div className={styles.sheetRow}>
-                        <span>
-                          Other Deductions
-                          {modalStaffBreakdown.deductions?.other_deductions?.remarks && (
-                            <span style={{ fontSize: '0.75rem', color: '#b45309', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
-                              {modalStaffBreakdown.deductions.other_deductions.remarks}
-                            </span>
-                          )}
-                        </span>
-                        <span>{formatCurrency(modalStaffBreakdown.deductions?.other_deductions?.amount ?? modalStaffBreakdown.deductions?.other_deductions?.monthly_deduction)}</span>
+                      <div className={styles.sheetRow} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <span>
+                            Other Deductions
+                            {modalStaffBreakdown.deductions?.other_deductions?.remarks && (
+                              <span style={{ fontSize: '0.75rem', color: '#b45309', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
+                                {modalStaffBreakdown.deductions.other_deductions.remarks}
+                              </span>
+                            )}
+                          </span>
+                          <span>{formatCurrency(modalStaffBreakdown.deductions?.other_deductions?.amount ?? modalStaffBreakdown.deductions?.other_deductions?.monthly_deduction)}</span>
+                        </div>
+                        {Array.isArray(modalStaffBreakdown.deductions?.other_deductions?.items) && modalStaffBreakdown.deductions.other_deductions.items.length > 1 && (
+                          <div style={{ marginTop: '6px', paddingLeft: '10px', borderLeft: '2px solid #fed7aa', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {modalStaffBreakdown.deductions.other_deductions.items.map((it, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#64748b' }}>
+                                <span>
+                                  {it.calculation_mode === 'days' ? `${it.deduction_days} Day(s) Deduct` : 'Deduction'}
+                                  {it.remarks ? ` (${it.remarks})` : ''}
+                                </span>
+                                <span style={{ fontWeight: 600, color: '#dc2626' }}>
+                                  - ₦{formatCurrency(it.amount)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className={`${styles.sheetRow} ${styles.sheetTotalRow}`} style={{ color: '#dc2626' }}>
                         <span>TOTAL DEDUCTIONS</span>
