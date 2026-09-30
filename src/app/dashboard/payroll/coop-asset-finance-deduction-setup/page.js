@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Building2, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Upload } from 'lucide-react';
+import { Building2, Search, Loader2, FileText, AlertCircle, CheckCircle2, Edit2, Trash2, Plus, Upload, Calendar, Clock, TrendingDown, ArrowRight } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from '../apply-coop-loan/page.module.css';
 
@@ -27,6 +27,17 @@ function fmt(n) {
   const num = parseFloat(n);
   if (isNaN(num)) return '0.00';
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getInitials(name) {
+  if (!name) return 'ST';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
 
 export default function CoopAssetFinanceDeductionSetupPage() {
@@ -71,9 +82,10 @@ export default function CoopAssetFinanceDeductionSetupPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState('10');
 
-  useEffect(() => {
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  };
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -159,6 +171,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
     const amount = parseFloat(totalAmount);
     const months = parseInt(durationMonths);
     if (!isNaN(amount) && amount > 0 && !isNaN(months) && months > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMonthlyDeduction((amount / months).toFixed(2));
     } else {
       setMonthlyDeduction('');
@@ -175,6 +188,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
         date.setMonth(date.getMonth() + months - 1);
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setEndMonth(`${y}-${m}`);
       }
     } else {
@@ -217,6 +231,7 @@ export default function CoopAssetFinanceDeductionSetupPage() {
 
   useEffect(() => {
     if (selectedStaff) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchStaffNetPay(selectedStaff.id);
     } else {
       setStaffNetPay(null);
@@ -382,8 +397,25 @@ export default function CoopAssetFinanceDeductionSetupPage() {
 
   const filteredSetups = setups.filter(s =>
     s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    String(s.staffId).includes(searchQuery)
+    String(s.staffId).includes(searchQuery) ||
+    (s.department && s.department.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  const totalFinancedAmount = useMemo(() => {
+    return filteredSetups.reduce((acc, s) => acc + (parseFloat(s.total_amount) || 0), 0);
+  }, [filteredSetups]);
+
+  const totalMonthlyDeduction = useMemo(() => {
+    return filteredSetups.reduce((acc, s) => acc + (parseFloat(s.monthly_deduction) || 0), 0);
+  }, [filteredSetups]);
+
+  const totalOutstandingBalance = useMemo(() => {
+    return filteredSetups.reduce((acc, s) => acc + (parseFloat(s.balance_remaining) || 0), 0);
+  }, [filteredSetups]);
+
+  const activeSetupsCount = useMemo(() => {
+    return filteredSetups.filter(s => s.is_active === 1).length;
+  }, [filteredSetups]);
 
   const totalPages = itemsPerPage === 'all'
     ? 1
@@ -703,42 +735,68 @@ export default function CoopAssetFinanceDeductionSetupPage() {
 
       {/* Setups Table */}
       <div className={styles.card}>
-        <div className={styles.searchBar}>
-          <div className={styles.searchInputWrapper}>
-            <Search size={18} className={styles.inputIcon} />
-            <input
-              id="cafd-search"
-              type="text"
-              className={`${styles.input} ${styles.inputWithIcon}`}
-              placeholder="Search setups by staff name or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className={styles.tableToolbar}>
+          <div className={styles.searchBar}>
+            <div className={styles.searchInputWrapper}>
+              <Search size={16} className={styles.inputIcon} />
+              <input
+                id="cafd-search"
+                type="text"
+                className={`${styles.input} ${styles.inputWithIcon}`}
+                placeholder="Search by staff name, ID, or department..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+            </div>
           </div>
-          <div className={styles.perPageGroup}>
-            <span className={styles.perPageLabel}>Show:</span>
-            <select
-              className={styles.perPageSelect}
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="10">10 records</option>
-              <option value="20">20 records</option>
-              <option value="30">30 records</option>
-              <option value="50">50 records</option>
-              <option value="100">100 records</option>
-              <option value="all">All Records</option>
-            </select>
+
+          <div className={styles.toolbarStats}>
+            <div className={styles.statBadge}>
+              <span>Setups:</span>
+              <strong>{filteredSetups.length}</strong>
+            </div>
+            <div className={`${styles.statBadge} ${styles.statBadgeActive}`}>
+              <span className={`${styles.statusDot} ${styles.statusDotActive}`} />
+              <span>Active:</span>
+              <strong>{activeSetupsCount}</strong>
+            </div>
+            <div className={`${styles.statBadge} ${styles.statBadgeFinanced}`}>
+              <span>Financed:</span>
+              <strong>₦{fmt(totalFinancedAmount)}</strong>
+            </div>
+            <div className={`${styles.statBadge} ${styles.statBadgeMonthly}`}>
+              <span>Monthly:</span>
+              <strong>₦{fmt(totalMonthlyDeduction)}</strong>
+            </div>
+            <div className={`${styles.statBadge} ${styles.statBadgeOutstanding}`}>
+              <span>Balance:</span>
+              <strong>₦{fmt(totalOutstandingBalance)}</strong>
+            </div>
+            <div className={styles.perPageGroup}>
+              <span className={styles.perPageLabel}>Show:</span>
+              <select
+                className={styles.perPageSelect}
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="10">10 records</option>
+                <option value="20">20 records</option>
+                <option value="30">30 records</option>
+                <option value="50">50 records</option>
+                <option value="100">100 records</option>
+                <option value="all">All Records</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <div className={styles.cardBody} style={{ padding: 0 }}>
           {loading ? (
             <div className={styles.emptyState}>
-              <Loader2 size={32} className="animate-spin" />
+              <Loader2 size={36} className="animate-spin emptyIcon" />
               <p>Retrieving configurations…</p>
             </div>
           ) : paginatedSetups.length > 0 ? (
@@ -746,73 +804,120 @@ export default function CoopAssetFinanceDeductionSetupPage() {
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Staff Info</th>
+                    <th className={styles.thCenter}>#</th>
+                    <th>Staff Member</th>
                     <th>Department</th>
-                    <th>Total Amount</th>
-                    <th>Duration</th>
-                    <th>Monthly Deduction</th>
-                    <th>Balance Remaining</th>
-                    <th>Period (Start – End)</th>
-                    <th>Status</th>
-                    {isConfigurator && <th>Actions</th>}
+                    <th className={styles.thRight}>Total Financed</th>
+                    <th className={styles.thCenter}>Duration</th>
+                    <th className={styles.thRight}>Monthly Deduction</th>
+                    <th className={styles.thRight}>Balance Remaining</th>
+                    <th className={styles.thCenter}>Period (Start – End)</th>
+                    <th className={styles.thCenter}>Status</th>
+                    {isConfigurator && <th className={styles.thCenter}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedSetups.map((s, idx) => (
-                    <tr key={s.id}>
-                      <td>{(itemsPerPage === 'all' ? 0 : (currentPage - 1) * parseInt(itemsPerPage, 10)) + idx + 1}</td>
-                      <td>
-                        <div className={styles.staffCell}>
-                          <span className={styles.staffName}>{s.name}</span>
-                          <span className={styles.staffFile}>Staff ID: {s.staffId}</span>
-                        </div>
-                      </td>
-                      <td>{s.department || '—'}</td>
-                      <td>₦{fmt(s.total_amount)}</td>
-                      <td>{s.duration_months} Months</td>
-                      <td>₦{fmt(s.monthly_deduction)}</td>
-                      <td style={{ color: parseFloat(s.balance_remaining) <= 0 ? '#ef4444' : 'inherit', fontWeight: parseFloat(s.balance_remaining) <= 0 ? 600 : 400 }}>
-                        ₦{fmt(s.balance_remaining)}
-                      </td>
-                      <td>{s.start_month} to {s.end_month || '—'}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
-                          onClick={() => isConfigurator && handleToggleStatus(s.id)}
-                          style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
-                          title={isConfigurator ? (s.is_active ? 'Click to deactivate' : 'Click to activate') : ''}
-                        >
-                          {s.is_active === 1 ? 'Active' : 'Inactive'}
-                        </button>
-                      </td>
-                      {isConfigurator && (
+                  {paginatedSetups.map((s, idx) => {
+                    const bal = parseFloat(s.balance_remaining);
+                    const isCleared = bal <= 0;
+                    return (
+                      <tr key={s.id}>
+                        <td className={styles.thCenter}>
+                          <span className={styles.rowIndexBadge}>
+                            {(itemsPerPage === 'all' ? 0 : (currentPage - 1) * parseInt(itemsPerPage, 10)) + idx + 1}
+                          </span>
+                        </td>
                         <td>
-                          <div className={styles.rowActions}>
-                            <button
-                              id={`cafd-edit-${s.id}`}
-                              type="button"
-                              className={`${styles.actionBtn} ${styles.actionBtnEdit}`}
-                              onClick={() => handleEdit(s)}
-                              title="Edit Setup"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              id={`cafd-delete-${s.id}`}
-                              type="button"
-                              className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
-                              onClick={() => handleDelete(s.id)}
-                              title="Delete Setup"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          <div className={styles.staffCell}>
+                            <div className={styles.staffAvatar}>
+                              {getInitials(s.name)}
+                            </div>
+                            <div className={styles.staffInfo}>
+                              <span className={styles.staffName}>{s.name}</span>
+                              <span className={styles.staffFile}>ID: {s.staffId}</span>
+                            </div>
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td>
+                          <div className={styles.deptBadge}>
+                            <Building2 size={13} style={{ color: '#64748b' }} />
+                            <span>{s.department || 'General'}</span>
+                          </div>
+                        </td>
+                        <td className={styles.thRight}>
+                          <span className={styles.amountTotal}>
+                            ₦{fmt(s.total_amount)}
+                          </span>
+                        </td>
+                        <td className={styles.thCenter}>
+                          <span className={styles.durationBadge}>
+                            <Clock size={12} />
+                            {s.duration_months} Mos
+                          </span>
+                        </td>
+                        <td className={styles.thRight}>
+                          <span className={styles.monthlyDeductionPill}>
+                            ₦{fmt(s.monthly_deduction)}
+                          </span>
+                        </td>
+                        <td className={styles.thRight}>
+                          {isCleared ? (
+                            <span className={styles.balanceClearedBadge}>
+                              <CheckCircle2 size={12} /> Cleared
+                            </span>
+                          ) : (
+                            <span className={styles.balanceRemainingBadge}>
+                              ₦{fmt(s.balance_remaining)}
+                            </span>
+                          )}
+                        </td>
+                        <td className={styles.thCenter}>
+                          <div className={styles.periodPill}>
+                            <Calendar size={12} style={{ color: '#3b82f6' }} />
+                            <span>{s.start_month}</span>
+                            <ArrowRight size={11} className={styles.periodArrow} />
+                            <span>{s.end_month || '—'}</span>
+                          </div>
+                        </td>
+                        <td className={styles.thCenter}>
+                          <button
+                            type="button"
+                            className={`${styles.badge} ${s.is_active === 1 ? styles.badgeApproved : styles.badgeRejected}`}
+                            onClick={() => isConfigurator && handleToggleStatus(s.id)}
+                            style={{ border: 'none', cursor: isConfigurator ? 'pointer' : 'default' }}
+                            title={isConfigurator ? (s.is_active ? 'Click to deactivate' : 'Click to activate') : ''}
+                          >
+                            <span className={`${styles.statusDot} ${s.is_active === 1 ? styles.statusDotActive : styles.statusDotInactive}`} />
+                            {s.is_active === 1 ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+                        {isConfigurator && (
+                          <td className={styles.thCenter}>
+                            <div className={styles.rowActions}>
+                              <button
+                                id={`cafd-edit-${s.id}`}
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.actionBtnEdit}`}
+                                onClick={() => handleEdit(s)}
+                                title="Edit Setup"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                id={`cafd-delete-${s.id}`}
+                                type="button"
+                                className={`${styles.actionBtn} ${styles.actionBtnDelete}`}
+                                onClick={() => handleDelete(s.id)}
+                                title="Delete Setup"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
