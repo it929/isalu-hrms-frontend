@@ -249,46 +249,190 @@
 .tableWrapper {
   overflow-x: auto;
   width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border, #cbd5e1) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tableWrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tableWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+  background: var(--border, #cbd5e1);
+  border-radius: 9999px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #94a3b8);
 }
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  min-width: 1120px;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
-  font-size: 0.875rem;
+  font-size: 0.86rem;
 }
 
 .table th {
-  background: var(--bg-hover, rgba(0,0,0,0.02));
-  color: var(--text-secondary);
-  font-weight: 600;
-  padding: 0.875rem 1rem;
-  border-bottom: 1px solid var(--border);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.025));
+  color: var(--text-secondary, #64748b);
+  font-weight: 700;
+  padding: 0.95rem 1rem;
+  border-bottom: 1.5px solid var(--border, #e2e8f0);
   white-space: nowrap;
-  font-size: 0.775rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.table th.thRight {
+  text-align: right;
+}
+
+.table th.thCenter {
+  text-align: center;
 }
 
 .table td {
-  padding: 0.875rem 1rem;
-  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
   color: var(--text-primary);
   vertical-align: middle;
 }
 
-.table tr:last-child td {
-  border-bottom: none;
+.table tbody tr {
+  transition: background-color 0.15s ease;
 }
 
-.table tr:hover {
-  background: var(--bg-hover, rgba(0,0,0,0.02));
+.table tbody tr:hover {
+  background-color: var(--bg-hover, rgba(0, 0, 0, 0.02));
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .tdNum {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.amountLoan {
+  color: #db2777;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.amountBefore {
+  color: var(--text-secondary, #64748b);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.amountAfter {
+  color: #dc2626;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.amountDeduction {
+  color: #059669;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.staffCell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 190px;
+}
+
+.staffAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(168, 85, 247, 0.2));
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  color: #ec4899;
+  font-weight: 700;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.staffInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.staffName {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.staffMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.staffIdBadge {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: ui-monospace, monospace;
+}
+
+.staffDeptBadge {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.purposeCell {
+  max-width: 220px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.disbursedCell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* Badges */
@@ -296,10 +440,11 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.2rem 0.55rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .badgeActive {
@@ -315,9 +460,17 @@
 }
 
 .badgePink {
-  background: rgba(236, 72, 153, 0.12);
-  color: #ec4899;
-  border: 1px solid rgba(236, 72, 153, 0.25);
+  background: rgba(236, 72, 153, 0.1);
+  color: #db2777;
+  border: 1px solid rgba(236, 72, 153, 0.28);
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Buttons */
