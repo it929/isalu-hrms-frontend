@@ -29,6 +29,28 @@ function fmt(n) {
   return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function formatNumberWithCommas(val) {
+  if (val === null || val === undefined || val === '') return '';
+  const strVal = String(val).replace(/,/g, '');
+  const parts = strVal.split('.');
+  const integerPart = parts[0].replace(/\D/g, '');
+  if (!integerPart && parts.length === 1) return '';
+  
+  const formattedInteger = integerPart ? Number(integerPart).toLocaleString('en-US') : '0';
+  if (parts.length > 1) {
+    const decimalPart = parts[1].replace(/\D/g, '').slice(0, 2);
+    return `${formattedInteger}.${decimalPart}`;
+  }
+  return formattedInteger;
+}
+
+function parseCleanNumber(val) {
+  if (!val && val !== 0) return 0;
+  const clean = String(val).replace(/,/g, '');
+  const parsed = parseFloat(clean);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 function statusBadge(status) {
   const s = status ? status.toLowerCase() : '';
   switch (s) {
@@ -272,19 +294,21 @@ export default function ApplyCoopLoanPage() {
       return;
     }
 
-    if (!loanAmount || parseFloat(loanAmount) <= 0) {
+    const cleanAmount = parseCleanNumber(loanAmount);
+    if (!loanAmount || cleanAmount <= 0) {
       showToast('Please enter a valid loan amount.', 'error');
       return;
     }
 
     setSaving(true);
     try {
+      const cleanBalance = balance !== '' ? parseCleanNumber(balance) : cleanAmount;
       const payload = {
         id: editLoanId,
         staffId: selectedStaff.id,
         loan_type: loanType,
-        loan_amount: parseFloat(loanAmount),
-        balance: balance !== '' ? parseFloat(balance) : parseFloat(loanAmount),
+        loan_amount: cleanAmount,
+        balance: cleanBalance,
         monthly_deduction: 0.00,
         status: status,
       };
@@ -319,8 +343,8 @@ export default function ApplyCoopLoanPage() {
       setDropdownSearch(loan.name || 'Unknown Staff');
     }
 
-    setLoanAmount(loan.loan_amount);
-    setBalance(loan.balance);
+    setLoanAmount(formatNumberWithCommas(loan.loan_amount));
+    setBalance(formatNumberWithCommas(loan.balance));
     setMonthlyDeduction(loan.monthly_deduction);
     setStatus(loan.status);
 
@@ -531,16 +555,16 @@ export default function ApplyCoopLoanPage() {
               <div className={styles.formGroup}>
                 <label className={styles.label}>Cooperative Loan Amount (₦) *</label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   className={styles.input}
-                  placeholder="0.00"
+                  placeholder="e.g. 200,000"
                   value={loanAmount}
                   onChange={(e) => {
-                    setLoanAmount(e.target.value);
+                    const formatted = formatNumberWithCommas(e.target.value);
+                    setLoanAmount(formatted);
                     if (!editLoanId) {
-                      setBalance(e.target.value);
+                      setBalance(formatted);
                     }
                   }}
                 />

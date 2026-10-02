@@ -89,7 +89,7 @@ export default function SalaryIncrementPage() {
   const [loadingStaff, setLoadingStaff] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [exportingHistory, setExportingHistory] = useState(false);
+  const [exportingHistory, setExportingHistory] = useState(null); // 'xlsx' | 'csv' | null
 
   // Staff & Departments Data
   const [staffList, setStaffList] = useState([]);
@@ -143,6 +143,7 @@ export default function SalaryIncrementPage() {
   const [historySummary, setHistorySummary] = useState({ total_increments: 0, total_increase_amount: 0 });
   const [historySearch, setHistorySearch] = useState('');
   const [historyDeptFilter, setHistoryDeptFilter] = useState('');
+  const [historySort, setHistorySort] = useState('name_asc');
   const [historyPage, setHistoryPage] = useState(1);
 
   // Revert Modal State
@@ -188,6 +189,20 @@ export default function SalaryIncrementPage() {
       if (historySearch) params.append('search', historySearch);
       if (historyDeptFilter) params.append('department_id', historyDeptFilter);
 
+      if (historySort === 'name_asc') {
+        params.append('sort_by', 'name');
+        params.append('sort_order', 'asc');
+      } else if (historySort === 'name_desc') {
+        params.append('sort_by', 'name');
+        params.append('sort_order', 'desc');
+      } else if (historySort === 'newest') {
+        params.append('sort_by', 'id');
+        params.append('sort_order', 'desc');
+      } else if (historySort === 'oldest') {
+        params.append('sort_by', 'id');
+        params.append('sort_order', 'asc');
+      }
+
       const res = await axios.get(`${API_BASE}/payroll/salary-increments/history?${params.toString()}`, {
         headers: buildHeaders(),
       });
@@ -201,12 +216,15 @@ export default function SalaryIncrementPage() {
     } finally {
       setLoadingHistory(false);
     }
-  }, [historySearch, historyDeptFilter, showToast]);
+  }, [historySearch, historyDeptFilter, historySort, showToast]);
 
   useEffect(() => {
     fetchStaffData();
+  }, [fetchStaffData]);
+
+  useEffect(() => {
     fetchHistory(1);
-  }, [fetchStaffData, fetchHistory]);
+  }, [fetchHistory]);
 
   // Click outside listener for dropdown
   useEffect(() => {
@@ -698,21 +716,40 @@ export default function SalaryIncrementPage() {
     }
   };
 
-  // Export History to Excel
-  const handleExportHistoryExcel = async () => {
-    setExportingHistory(true);
+  // Export History to Excel or CSV
+  const handleExportHistory = async (format = 'xlsx') => {
+    setExportingHistory(format);
     try {
       const params = new URLSearchParams();
+      params.append('format', format);
       if (historySearch) params.append('search', historySearch);
       if (historyDeptFilter) params.append('department_id', historyDeptFilter);
+
+      if (historySort === 'name_asc') {
+        params.append('sort_by', 'name');
+        params.append('sort_order', 'asc');
+      } else if (historySort === 'name_desc') {
+        params.append('sort_by', 'name');
+        params.append('sort_order', 'desc');
+      } else if (historySort === 'newest') {
+        params.append('sort_by', 'id');
+        params.append('sort_order', 'desc');
+      } else if (historySort === 'oldest') {
+        params.append('sort_by', 'id');
+        params.append('sort_order', 'asc');
+      }
 
       const res = await axios.get(`${API_BASE}/payroll/salary-increments/export?${params.toString()}`, {
         headers: buildHeaders(),
         responseType: 'blob',
       });
 
-      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const filename = `Salary_Increments_Audit_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const mimeType = format === 'csv'
+        ? 'text/csv;charset=utf-8;'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const ext = format === 'csv' ? 'csv' : 'xlsx';
+      const blob = new Blob([res.data], { type: mimeType });
+      const filename = `Salary_Increments_Audit_${new Date().toISOString().split('T')[0]}.${ext}`;
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -728,11 +765,11 @@ export default function SalaryIncrementPage() {
         } catch { /* ignore */ }
       }, 150);
 
-      showToast('Salary increment audit spreadsheet exported!', 'success');
+      showToast(`Salary increment audit (${ext.toUpperCase()}) exported!`, 'success');
     } catch (err) {
       showToast('Failed to export history spreadsheet.', 'error');
     } finally {
-      setExportingHistory(false);
+      setExportingHistory(null);
     }
   };
 
@@ -2060,14 +2097,39 @@ export default function SalaryIncrementPage() {
               ))}
             </select>
 
+            <select
+              className={styles.formSelect}
+              value={historySort}
+              onChange={(e) => setHistorySort(e.target.value)}
+              style={{ width: '190px' }}
+              title="Sort Order"
+            >
+              <option value="name_asc">Staff Name (A → Z)</option>
+              <option value="name_desc">Staff Name (Z → A)</option>
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+
             <button
               type="button"
               className={`${styles.btn} ${styles.btnSuccess}`}
-              onClick={handleExportHistoryExcel}
-              disabled={exportingHistory || historyRecords.length === 0}
+              onClick={() => handleExportHistory('xlsx')}
+              disabled={!!exportingHistory || historyRecords.length === 0}
+              title="Export as Microsoft Excel (.xlsx)"
             >
-              {exportingHistory ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
-              Export to Excel (.xlsx)
+              {exportingHistory === 'xlsx' ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+              Excel (.xlsx)
+            </button>
+
+            <button
+              type="button"
+              className={`${styles.btn} ${styles.btnOutline}`}
+              onClick={() => handleExportHistory('csv')}
+              disabled={!!exportingHistory || historyRecords.length === 0}
+              title="Export as CSV (.csv)"
+            >
+              {exportingHistory === 'csv' ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              CSV (.csv)
             </button>
           </div>
         </div>
