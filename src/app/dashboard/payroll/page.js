@@ -928,6 +928,67 @@ export default function PayrollPage() {
               </div>
             </div>
 
+             {/* Salary Adjustment Notification Banner for Active Month */}
+             {Boolean(
+               (summary?.totalIncrements > 0 || summary?.totalDecrements > 0) ||
+               (data && data.some(r => r.salary_adjustment?.has_adjustment))
+             ) && (
+               <div style={{
+                 marginBottom: '1rem',
+                 padding: '0.75rem 1rem',
+                 borderRadius: '8px',
+                 backgroundColor: '#f8fafc',
+                 border: '1px solid #cbd5e1',
+                 display: 'flex',
+                 alignItems: 'center',
+                 justifyContent: 'space-between',
+                 flexWrap: 'wrap',
+                 gap: '0.75rem'
+               }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                   <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>
+                     📢 Salary Adjustments Effective in {month ? (MONTHS.find(m => m.id === month)?.name || month) : ''} {year}:
+                   </span>
+                   {((summary?.totalIncrements > 0) || (data && data.some(r => r.salary_adjustment?.is_increment))) && (
+                     <span style={{
+                       display: 'inline-flex',
+                       alignItems: 'center',
+                       gap: '4px',
+                       padding: '2px 8px',
+                       borderRadius: '9999px',
+                       backgroundColor: '#dcfce7',
+                       color: '#15803d',
+                       fontWeight: '700',
+                       fontSize: '0.78rem',
+                       border: '1px solid #86efac'
+                     }}>
+                       <TrendingUp size={13} />
+                       {summary?.totalIncrements || (data ? data.filter(r => r.salary_adjustment?.is_increment).length : 0)} Salary Increment{(summary?.totalIncrements || (data ? data.filter(r => r.salary_adjustment?.is_increment).length : 0)) > 1 ? 's' : ''}
+                       {summary?.totalIncrementAmount ? ` (+₦${parseFloat(summary.totalIncrementAmount).toLocaleString('en-NG', { minimumFractionDigits: 2 })})` : ''}
+                     </span>
+                   )}
+                   {((summary?.totalDecrements > 0) || (data && data.some(r => r.salary_adjustment?.is_decrement))) && (
+                     <span style={{
+                       display: 'inline-flex',
+                       alignItems: 'center',
+                       gap: '4px',
+                       padding: '2px 8px',
+                       borderRadius: '9999px',
+                       backgroundColor: '#fee2e2',
+                       color: '#b91c1c',
+                       fontWeight: '700',
+                       fontSize: '0.78rem',
+                       border: '1px solid #fca5a5'
+                     }}>
+                       <TrendingDown size={13} />
+                       {summary?.totalDecrements || (data ? data.filter(r => r.salary_adjustment?.is_decrement).length : 0)} Salary Decrement{(summary?.totalDecrements || (data ? data.filter(r => r.salary_adjustment?.is_decrement).length : 0)) > 1 ? 's' : ''}
+                       {summary?.totalDecrementAmount ? ` (-₦${parseFloat(summary.totalDecrementAmount).toLocaleString('en-NG', { minimumFractionDigits: 2 })})` : ''}
+                     </span>
+                   )}
+                 </div>
+               </div>
+             )}
+
              {/* Scrollable table */}
              {(() => {
                const currentStage = data[0]?.vstage ?? 0;
@@ -1102,6 +1163,40 @@ export default function PayrollPage() {
                               }
 
                              const val = row[col.key];
+                             const adj = row.salary_adjustment;
+
+                             if (col.key === 'NAME') {
+                               return (
+                                 <td key={col.key} className={col.cls}>
+                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                     <span style={{ fontWeight: 600 }}>{val}</span>
+                                     {adj && adj.has_adjustment && (
+                                       <span
+                                         style={{
+                                           display: 'inline-flex',
+                                           alignItems: 'center',
+                                           gap: '4px',
+                                           fontSize: '0.72rem',
+                                           fontWeight: 700,
+                                           padding: '2px 7px',
+                                           borderRadius: '9999px',
+                                           width: 'fit-content',
+                                           backgroundColor: adj.is_increment ? '#dcfce7' : '#fee2e2',
+                                           color: adj.is_increment ? '#15803d' : '#b91c1c',
+                                           border: `1px solid ${adj.is_increment ? '#86efac' : '#fca5a5'}`,
+                                           lineHeight: '1.2'
+                                         }}
+                                         title={adj.message || adj.title}
+                                       >
+                                         {adj.is_increment ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                                         {adj.is_increment ? 'INCREMENT' : 'DECREMENT'} ({adj.formatted_diff})
+                                       </span>
+                                     )}
+                                   </div>
+                                 </td>
+                               );
+                             }
+
                              if (col.key === 'BANK') {
                                return (
                                  <td key={col.key} className={col.cls}>
@@ -1126,6 +1221,31 @@ export default function PayrollPage() {
                              const NON_MONEY_KEYS = ['IDNO', 'NAME', 'DEPERTMENT', 'PAID DAYS', 'ACC. NO', 'BANK', 'CODE', 'PAYER ID', 'AUDIT_CHECK', 'PAID'];
                              const isMoney = !NON_MONEY_KEYS.includes(col.key);
                              const displayVal = isMoney ? fmt(val) : (val !== undefined && val !== null && val !== '' ? val : '—');
+
+                             if ((col.key === 'TOTAL INCOME' || col.key === 'BASIC') && adj && adj.has_adjustment) {
+                               return (
+                                 <td
+                                   key={col.key}
+                                   className={`${col.cls} ${cellTooltip ? styles.tooltip : ''}`}
+                                   data-tooltip={cellTooltip}
+                                 >
+                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px' }}>
+                                     <span>{displayVal}</span>
+                                     <span
+                                       style={{
+                                         fontSize: '0.72rem',
+                                         fontWeight: 800,
+                                         color: adj.is_increment ? '#16a34a' : '#dc2626',
+                                         cursor: 'help'
+                                       }}
+                                       title={adj.message}
+                                     >
+                                       {adj.is_increment ? '▲' : '▼'}
+                                     </span>
+                                   </div>
+                                 </td>
+                               );
+                             }
 
                              return (
                                <td 

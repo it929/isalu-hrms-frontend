@@ -317,6 +317,154 @@
   word-break: break-word;
 }
 
+/* ─── Salary Increment / Decrement Adjustment Notice ─── */
+.adjustmentBanner {
+  position: relative;
+  z-index: 1;
+  border-radius: 10px;
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.adjustmentBannerIncrement {
+  background: color-mix(in srgb, #10b981 8%, transparent);
+  border-color: #10b981;
+  border-left: 5px solid #10b981;
+}
+
+.adjustmentBannerDecrement {
+  background: color-mix(in srgb, #f59e0b 8%, transparent);
+  border-color: #f59e0b;
+  border-left: 5px solid #f59e0b;
+}
+
+.adjustmentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.adjustmentBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+}
+
+.adjustmentBannerIncrement .adjustmentBadge {
+  background: color-mix(in srgb, #10b981 18%, transparent);
+  color: #059669;
+}
+
+.adjustmentBannerDecrement .adjustmentBadge {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: #d97706;
+}
+
+.adjustmentAmount {
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.adjustmentBannerIncrement .adjustmentAmount {
+  color: #059669;
+}
+
+.adjustmentBannerDecrement .adjustmentAmount {
+  color: #d97706;
+}
+
+.adjustmentPct {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.adjustmentBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.adjustmentTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.adjustmentMessage {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.adjustmentDetailsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem 1rem;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.adjustmentDetailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.76rem;
+}
+
+.adjustmentDetailLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.adjustmentDetailValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.inlineAdjustmentPill {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.inlineAdjustmentPillInc {
+  background: color-mix(in srgb, #10b981 18%, transparent);
+  color: #059669;
+  border: 1px solid color-mix(in srgb, #10b981 30%, transparent);
+}
+
+.inlineAdjustmentPillDec {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: #d97706;
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
+}
+
 /* ─── Breakdown Columns (Balanced Layout) ─── */
 .breakdownGrid {
   display: grid;
@@ -692,6 +840,110 @@
     z-index: 1 !important;
   }
 
+  .adjustmentBanner {
+    position: relative !important;
+    z-index: 1 !important;
+    border-radius: 4px !important;
+    padding: 3px 8px !important;
+    margin-bottom: 4px !important;
+    border: 1px solid #cbd5e1 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: #f8fafc !important;
+    box-sizing: border-box !important;
+  }
+
+  .adjustmentBannerIncrement {
+    border-left: 4px solid #10b981 !important;
+  }
+
+  .adjustmentBannerDecrement {
+    border-left: 4px solid #f59e0b !important;
+  }
+
+  .adjustmentHeader {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 2px !important;
+  }
+
+  .adjustmentBadge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    font-size: 0.62rem !important;
+    font-weight: 800 !important;
+    padding: 1px 4px !important;
+    border-radius: 3px !important;
+  }
+
+  .adjustmentBannerIncrement .adjustmentBadge {
+    background: #d1fae5 !important;
+    color: #065f46 !important;
+  }
+
+  .adjustmentBannerDecrement .adjustmentBadge {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+  }
+
+  .adjustmentAmount {
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+  }
+
+  .adjustmentBannerIncrement .adjustmentAmount {
+    color: #065f46 !important;
+  }
+
+  .adjustmentBannerDecrement .adjustmentAmount {
+    color: #92400e !important;
+  }
+
+  .adjustmentTitle {
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+  }
+
+  .adjustmentMessage {
+    font-size: 0.62rem !important;
+    color: #334155 !important;
+    line-height: 1.25 !important;
+    margin: 1px 0 !important;
+  }
+
+  .adjustmentDetailsGrid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 2px 6px !important;
+    margin-top: 2px !important;
+    padding-top: 2px !important;
+    border-top: 1px dashed #cbd5e1 !important;
+  }
+
+  .adjustmentDetailItem {
+    font-size: 0.6rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .adjustmentDetailLabel {
+    font-size: 0.52rem !important;
+    color: #64748b !important;
+  }
+
+  .adjustmentDetailValue {
+    font-weight: 600 !important;
+    color: #0f172a !important;
+  }
+
+  .inlineAdjustmentPill {
+    font-size: 0.58rem !important;
+    padding: 0.5px 3px !important;
+    border-radius: 2px !important;
+  }
+
   .breakdownGrid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
@@ -828,6 +1080,47 @@
     font-size: 0.6rem !important;
     color: #0f172a !important;
     font-weight: 700 !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentBanner {
+    padding: 1.5px 5px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentBadge {
+    font-size: 0.5rem !important;
+    padding: 0.5px 3px !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentAmount {
+    font-size: 0.58rem !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentTitle {
+    font-size: 0.56rem !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentMessage {
+    font-size: 0.52rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentDetailsGrid {
+    gap: 1px 4px !important;
+    margin-top: 1px !important;
+    padding-top: 1px !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentDetailItem {
+    font-size: 0.52rem !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentDetailLabel {
+    font-size: 0.46rem !important;
+  }
+
+  .payslipWrapper[data-print-size="A5"] .adjustmentDetailValue {
+    font-size: 0.52rem !important;
   }
 
   .payslipWrapper[data-print-size="A5"] .breakdownGrid {
