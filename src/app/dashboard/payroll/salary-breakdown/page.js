@@ -688,6 +688,80 @@ export default function SalaryBreakdownPage() {
   const deductions = data?.deductions;
   const summary = data?.summary;
   const period = data?.period;
+  const salaryAdjustment = data?.salary_adjustment || summary?.salary_adjustment;
+
+  const renderSalaryAdjustmentAlert = (adj) => {
+    if (!adj?.has_adjustment) return null;
+    const isInc = adj.action === 'increment';
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.875rem',
+          padding: '1rem 1.25rem',
+          borderRadius: '0.75rem',
+          marginBottom: '1.25rem',
+          background: isInc
+            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.05) 100%)'
+            : 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.05) 100%)',
+          border: `1.5px solid ${isInc ? '#10b981' : '#ef4444'}`,
+          boxShadow: isInc ? '0 2px 10px rgba(16, 185, 129, 0.08)' : '0 2px 10px rgba(239, 68, 68, 0.08)',
+        }}
+      >
+        <div
+          style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            background: isInc ? '#10b981' : '#ef4444',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: isInc ? '0 2px 6px rgba(16, 185, 129, 0.3)' : '0 2px 6px rgba(239, 68, 68, 0.3)',
+          }}
+        >
+          {isInc ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                padding: '0.2rem 0.6rem',
+                borderRadius: '9999px',
+                background: isInc ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                color: isInc ? '#065f46' : '#991b1b',
+              }}
+            >
+              {adj.badge_label || (isInc ? 'SALARY INCREMENT' : 'SALARY DECREMENT')}
+            </span>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isInc ? '#047857' : '#b91c1c' }}>
+              {adj.formatted_diff} {adj.percentage ? `(${isInc ? '+' : '-'}${adj.percentage}%)` : ''}
+            </span>
+            {adj.effective_date_formatted && (
+              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                • Effective: <strong>{adj.effective_date_formatted}</strong>
+              </span>
+            )}
+          </div>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: '#334155', lineHeight: '1.45' }}>
+            {adj.message}
+          </p>
+          {adj.reason && (
+            <div style={{ marginTop: '0.35rem', fontSize: '0.78rem', color: '#64748b', fontStyle: 'italic' }}>
+              Reason: {adj.reason}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const canGenerateAllStaff = mounted && Boolean(
     userRoles.can_generate_all_staff || 
@@ -868,6 +942,9 @@ export default function SalaryBreakdownPage() {
             <span style={{ fontSize: '0.8rem', opacity: 0.85 }}>Period: <strong>{period?.period_str}</strong></span>
           </div>
 
+          {/* Salary Increment / Decrement Alert Banner */}
+          {renderSalaryAdjustmentAlert(salaryAdjustment)}
+
           {/* Staff Info Card */}
           <div className={styles.staffCard}>
             <div className={styles.staffLeft}>
@@ -929,6 +1006,27 @@ export default function SalaryBreakdownPage() {
                 <div className={`${styles.metricValue} ${styles.metricValueGross}`}>
                   ₦{formatCurrency(summary?.gross_pay)}
                 </div>
+                {salaryAdjustment?.has_adjustment && (
+                  <div style={{ marginTop: '0.45rem' }}>
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        color: salaryAdjustment.action === 'increment' ? '#047857' : '#b91c1c',
+                        background: salaryAdjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                        border: `1px solid ${salaryAdjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: '6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {salaryAdjustment.action === 'increment' ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                      {salaryAdjustment.formatted_diff} {salaryAdjustment.action === 'increment' ? 'Increment' : 'Decrement'}
+                    </span>
+                  </div>
+                )}
                 {((earnings?.custom_allowances && earnings.custom_allowances.length > 0) || (earnings?.bonuses && earnings.bonuses.length > 0)) && (
                   <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                     {earnings.custom_allowances && earnings.custom_allowances.map((ca) => (
@@ -1009,7 +1107,27 @@ export default function SalaryBreakdownPage() {
               <div className={styles.listGroup}>
                 <div className={styles.listItem}>
                   <div className={styles.itemLeft}>
-                    <span className={styles.itemName}>Basic Salary</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span className={styles.itemName}>Basic Salary</span>
+                      {salaryAdjustment?.has_adjustment && (
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: salaryAdjustment.action === 'increment' ? '#047857' : '#b91c1c',
+                            background: salaryAdjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                            border: `1px solid ${salaryAdjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                        >
+                          {salaryAdjustment.action === 'increment' ? '▲' : '▼'} {salaryAdjustment.badge_label || (salaryAdjustment.action === 'increment' ? 'SALARY INCREMENT' : 'SALARY DECREMENT')}
+                        </span>
+                      )}
+                    </div>
                     <span className={styles.itemSubtext}>Base Monthly Emolument</span>
                   </div>
                   <div className={styles.itemRight}>
@@ -1633,6 +1751,9 @@ export default function SalaryBreakdownPage() {
                   </div>
                 </div>
 
+                {/* Salary Increment / Decrement Alert Banner */}
+                {renderSalaryAdjustmentAlert(salaryAdjustment)}
+
                 {/* Staff Information Box */}
                 <div className={styles.sheetStaffBox}>
                   <div className={styles.sheetField}>
@@ -1685,7 +1806,27 @@ export default function SalaryBreakdownPage() {
                       <span>AMOUNT (₦)</span>
                     </div>
                     <div className={styles.sheetRow}>
-                      <span>Basic Salary</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span>Basic Salary</span>
+                        {salaryAdjustment?.has_adjustment && (
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              color: salaryAdjustment.action === 'increment' ? '#047857' : '#b91c1c',
+                              background: salaryAdjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                              border: `1px solid ${salaryAdjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}
+                          >
+                            {salaryAdjustment.action === 'increment' ? '▲' : '▼'} {salaryAdjustment.badge_label || (salaryAdjustment.action === 'increment' ? 'SALARY INCREMENT' : 'SALARY DECREMENT')}
+                          </span>
+                        )}
+                      </div>
                       <span>{formatCurrency(earnings?.basic_salary)}</span>
                     </div>
                     <div className={styles.sheetRow}>
@@ -2483,6 +2624,28 @@ export default function SalaryBreakdownPage() {
                                 <Eye size={13} style={{ color: 'var(--primary, #4f46e5)', opacity: 0.8 }} />
                                 <strong>{r.name}</strong>
                               </button>
+                              {r.salary_adjustment?.has_adjustment && (
+                                <div style={{ marginTop: '3px' }}>
+                                  <span
+                                    style={{
+                                      fontSize: '0.67rem',
+                                      fontWeight: 700,
+                                      color: r.salary_adjustment.action === 'increment' ? '#047857' : '#b91c1c',
+                                      background: r.salary_adjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                                      border: `1px solid ${r.salary_adjustment.action === 'increment' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title={r.salary_adjustment.message}
+                                  >
+                                    {r.salary_adjustment.action === 'increment' ? '▲' : '▼'} {r.salary_adjustment.formatted_diff} {r.salary_adjustment.action === 'increment' ? 'INC' : 'DEC'}
+                                  </span>
+                                </div>
+                              )}
                             </td>
                             <td>{r.department}</td>
                             <td>{r.designation}</td>
@@ -2500,7 +2663,12 @@ export default function SalaryBreakdownPage() {
                               {formatCurrency(r.bonuses || 0)}
                             </td>
                             <td className={styles.tdMoney} style={{ fontWeight: 700, color: '#0369a1' }}>
-                              {formatCurrency(r.gross_pay)}
+                              <div>{formatCurrency(r.gross_pay)}</div>
+                              {r.salary_adjustment?.has_adjustment && (
+                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: r.salary_adjustment.action === 'increment' ? '#059669' : '#dc2626', marginTop: '1px' }}>
+                                  {r.salary_adjustment.formatted_diff}
+                                </div>
+                              )}
                             </td>
                             <td className={styles.tdMoney}>{formatCurrency(r.declare_salary)}</td>
                             <td className={styles.tdMoney}>{formatCurrency(r.paye_tax)}</td>
@@ -2716,6 +2884,9 @@ export default function SalaryBreakdownPage() {
                     </div>
                   </div>
 
+                  {/* Salary Increment / Decrement Alert Banner */}
+                  {renderSalaryAdjustmentAlert(modalStaffBreakdown.salary_adjustment || modalStaffBreakdown.summary?.salary_adjustment)}
+
                   {/* Staff Information Box */}
                   <div className={styles.sheetStaffBox}>
                     <div className={styles.sheetField}>
@@ -2771,6 +2942,31 @@ export default function SalaryBreakdownPage() {
                         <div className={`${styles.metricValue} ${styles.metricValueGross}`}>
                           ₦{formatCurrency(modalStaffBreakdown.summary?.gross_pay)}
                         </div>
+                        {(() => {
+                          const modalAdj = modalStaffBreakdown.salary_adjustment || modalStaffBreakdown.summary?.salary_adjustment;
+                          if (!modalAdj?.has_adjustment) return null;
+                          return (
+                            <div style={{ marginTop: '0.45rem' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700,
+                                  color: modalAdj.action === 'increment' ? '#047857' : '#b91c1c',
+                                  background: modalAdj.action === 'increment' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                                  border: `1px solid ${modalAdj.action === 'increment' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                  padding: '0.2rem 0.55rem',
+                                  borderRadius: '6px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                {modalAdj.action === 'increment' ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                                {modalAdj.formatted_diff} {modalAdj.action === 'increment' ? 'Increment' : 'Decrement'}
+                              </span>
+                            </div>
+                          );
+                        })()}
                         {((modalStaffBreakdown.earnings?.custom_allowances && modalStaffBreakdown.earnings.custom_allowances.length > 0) || (modalStaffBreakdown.earnings?.bonuses && modalStaffBreakdown.earnings.bonuses.length > 0)) && (
                           <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                             {modalStaffBreakdown.earnings.custom_allowances && modalStaffBreakdown.earnings.custom_allowances.map((ca) => (
@@ -2843,7 +3039,31 @@ export default function SalaryBreakdownPage() {
                         <span>AMOUNT (₦)</span>
                       </div>
                       <div className={styles.sheetRow}>
-                        <span>Basic Salary</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span>Basic Salary</span>
+                          {(() => {
+                            const modalAdj = modalStaffBreakdown.salary_adjustment || modalStaffBreakdown.summary?.salary_adjustment;
+                            if (!modalAdj?.has_adjustment) return null;
+                            return (
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  color: modalAdj.action === 'increment' ? '#047857' : '#b91c1c',
+                                  background: modalAdj.action === 'increment' ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+                                  border: `1px solid ${modalAdj.action === 'increment' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px'
+                                }}
+                              >
+                                {modalAdj.action === 'increment' ? '▲' : '▼'} {modalAdj.badge_label || (modalAdj.action === 'increment' ? 'SALARY INCREMENT' : 'SALARY DECREMENT')}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <span>{formatCurrency(modalStaffBreakdown.earnings?.basic_salary)}</span>
                       </div>
                       <div className={styles.sheetRow}>

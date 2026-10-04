@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Printer, AlertCircle, FileText, CheckCircle2, Search, X, Mail } from 'lucide-react';
+import { Loader2, Printer, AlertCircle, FileText, CheckCircle2, Search, X, Mail, TrendingUp, TrendingDown } from 'lucide-react';
 import axios from 'axios';
 import styles from './page.module.css';
 
@@ -552,6 +552,70 @@ export default function PrintPayslip() {
               </div>
             </div>
 
+            {/* Salary Increment / Decrement Notice Banner if adjustment took effect this month */}
+            {(payslipData.salary_adjustment?.has_adjustment || payslipData.payslip?.salary_adjustment?.has_adjustment) && (() => {
+              const adj = payslipData.salary_adjustment || payslipData.payslip.salary_adjustment;
+              return (
+                <div
+                  className={`${styles.adjustmentBanner} ${
+                    adj.is_decrement ? styles.adjustmentBannerDecrement : styles.adjustmentBannerIncrement
+                  }`}
+                >
+                  <div className={styles.adjustmentHeader}>
+                    <div className={styles.adjustmentBadge}>
+                      {adj.is_decrement ? (
+                        <TrendingDown size={14} className={styles.adjustmentIcon} />
+                      ) : (
+                        <TrendingUp size={14} className={styles.adjustmentIcon} />
+                      )}
+                      <span>{adj.badge_label}</span>
+                    </div>
+                    <div className={styles.adjustmentAmount}>
+                      {adj.formatted_diff}
+                      {adj.percentage ? (
+                        <span className={styles.adjustmentPct}>
+                          ({adj.sign}{adj.percentage}%)
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className={styles.adjustmentBody}>
+                    <div className={styles.adjustmentTitle}>{adj.title}</div>
+                    <p className={styles.adjustmentMessage}>{adj.message}</p>
+                    <div className={styles.adjustmentDetailsGrid}>
+                      <div className={styles.adjustmentDetailItem}>
+                        <span className={styles.adjustmentDetailLabel}>Previous Gross:</span>
+                        <span className={styles.adjustmentDetailValue}>
+                          {formatCurrency(adj.previous_gross)}
+                        </span>
+                      </div>
+                      <div className={styles.adjustmentDetailItem}>
+                        <span className={styles.adjustmentDetailLabel}>New Gross:</span>
+                        <span className={styles.adjustmentDetailValue} style={{ fontWeight: '700' }}>
+                          {formatCurrency(adj.new_gross)}
+                        </span>
+                      </div>
+                      {adj.effective_date_formatted && (
+                        <div className={styles.adjustmentDetailItem}>
+                          <span className={styles.adjustmentDetailLabel}>Effective Date:</span>
+                          <span className={styles.adjustmentDetailValue}>
+                            {adj.effective_date_formatted}
+                          </span>
+                        </div>
+                      )}
+                      {adj.reason && (
+                        <div className={styles.adjustmentDetailItem} style={{ gridColumn: 'span 2' }}>
+                          <span className={styles.adjustmentDetailLabel}>Reason / Remarks:</span>
+                          <span className={styles.adjustmentDetailValue}>{adj.reason}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Earnings and Deductions columns */}
             <div className={styles.breakdownGrid}>
               {/* Left Column: Earnings & Balances */}
@@ -560,7 +624,22 @@ export default function PrintPayslip() {
                 <table className={styles.table}>
                   <tbody>
                     <tr>
-                      <td>Basic Salary</td>
+                      <td>
+                        Basic Salary
+                        {(payslipData.salary_adjustment?.has_adjustment || payslipData.payslip?.salary_adjustment?.has_adjustment) && (() => {
+                          const adj = payslipData.salary_adjustment || payslipData.payslip.salary_adjustment;
+                          return (
+                            <span
+                              className={`${styles.inlineAdjustmentPill} ${
+                                adj.is_decrement ? styles.inlineAdjustmentPillDec : styles.inlineAdjustmentPillInc
+                              }`}
+                              style={{ fontSize: '0.64rem', padding: '1px 5px', marginLeft: '6px' }}
+                            >
+                              {adj.is_decrement ? 'Reduced' : 'Increased'}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td>{formatCurrency(payslipData.payslip.basic)}</td>
                     </tr>
                     <tr>
@@ -584,7 +663,21 @@ export default function PrintPayslip() {
                       <td>{formatCurrency(payslipData.payslip.meal)}</td>
                     </tr>
                     <tr className={styles.subTotalRow}>
-                      <td>Gross Earnings</td>
+                      <td>
+                        Gross Earnings
+                        {(payslipData.salary_adjustment?.has_adjustment || payslipData.payslip?.salary_adjustment?.has_adjustment) && (() => {
+                          const adj = payslipData.salary_adjustment || payslipData.payslip.salary_adjustment;
+                          return (
+                            <span
+                              className={`${styles.inlineAdjustmentPill} ${
+                                adj.is_decrement ? styles.inlineAdjustmentPillDec : styles.inlineAdjustmentPillInc
+                              }`}
+                            >
+                              {adj.is_decrement ? '▼ Decrement' : '▲ Increment'}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td>{formatCurrency(payslipData.payslip.gross_pay)}</td>
                     </tr>
                   </tbody>
