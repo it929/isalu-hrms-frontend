@@ -159,6 +159,7 @@ export default function StaffStatusPage() {
     { id: 'dismissal', name: 'Dismissal' },
     { id: 'maternity leave', name: 'Maternity Leave' },
     { id: 'study leave', name: 'Study Leave' },
+    { id: 'temporary leave', name: 'Temporary Leave' },
     { id: 'resignation', name: 'Resignation' },
     { id: 'retirement', name: 'Retirement' },
     { id: 'temporary suspension', name: 'Temporary Suspension' },
