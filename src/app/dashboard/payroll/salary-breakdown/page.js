@@ -1481,7 +1481,7 @@ export default function SalaryBreakdownPage() {
                   </div>
                 )}
 
-                {deductions?.other_deductions?.amount > 0 && (
+                {(deductions?.other_deductions?.amount > 0 || (Array.isArray(deductions?.other_deductions?.items) && deductions.other_deductions.items.length > 0) || deductions?.other_deductions?.remarks) && (
                   <div className={styles.listItem} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                       <div className={styles.itemLeft}>
@@ -1513,7 +1513,7 @@ export default function SalaryBreakdownPage() {
                         </span>
                       </div>
                     </div>
-                    {Array.isArray(deductions.other_deductions.items) && deductions.other_deductions.items.length > 1 && (
+                    {Array.isArray(deductions.other_deductions.items) && deductions.other_deductions.items.length >= 1 && (
                       <div style={{ marginTop: '8px', paddingLeft: '12px', borderLeft: '2px solid #fed7aa', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {deductions.other_deductions.items.map((item, idx) => (
                           <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#64748b' }}>
@@ -1956,7 +1956,7 @@ export default function SalaryBreakdownPage() {
                         <span>{formatCurrency(deductions.regular_loan.amount)}</span>
                       </div>
                     )}
-                    {deductions?.other_deductions?.amount > 0 && (
+                    {(deductions?.other_deductions?.amount > 0 || (Array.isArray(deductions?.other_deductions?.items) && deductions.other_deductions.items.length > 0) || deductions?.other_deductions?.remarks) && (
                       <div className={styles.sheetRow}>
                         <span>
                           Other Deductions
@@ -3176,7 +3176,7 @@ export default function SalaryBreakdownPage() {
                           </span>
                           <span>{formatCurrency(modalStaffBreakdown.deductions?.other_deductions?.amount ?? modalStaffBreakdown.deductions?.other_deductions?.monthly_deduction)}</span>
                         </div>
-                        {Array.isArray(modalStaffBreakdown.deductions?.other_deductions?.items) && modalStaffBreakdown.deductions.other_deductions.items.length > 1 && (
+                        {Array.isArray(modalStaffBreakdown.deductions?.other_deductions?.items) && modalStaffBreakdown.deductions.other_deductions.items.length >= 1 && (
                           <div style={{ marginTop: '6px', paddingLeft: '10px', borderLeft: '2px solid #fed7aa', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                             {modalStaffBreakdown.deductions.other_deductions.items.map((it, idx) => (
                               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#64748b' }}>
