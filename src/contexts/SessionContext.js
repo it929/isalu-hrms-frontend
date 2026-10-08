@@ -53,11 +53,7 @@ export function SessionProvider({ children }) {
       localStorage.removeItem('hrms_role');
       localStorage.removeItem('hrms_last_activity');
 
-      if (reason === 'inactivity') {
-        window.location.href = '/?reason=inactivity';
-      } else {
-        window.location.href = '/';
-      }
+      window.location.href = '/';
     }
   }, []);
 

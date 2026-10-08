@@ -24,13 +24,13 @@ import {
   Check,
   UserCheck,
   FileCheck,
-  DollarSign,
   ChevronRight,
   Sparkles,
   AlertTriangle,
   XCircle,
   Trash2
 } from 'lucide-react';
+import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/nextjs';
@@ -50,7 +50,8 @@ function buildHeaders() {
 }
 
 function fmtN(n) {
-  const num = parseFloat(n);
+  const clean = typeof n === 'string' ? n.replace(/,/g, '') : n;
+  const num = parseFloat(clean);
   if (isNaN(num)) return '₦0.00';
   return '₦' + num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -66,9 +67,32 @@ function fmtDate(d) {
   }
 }
 
+function formatNumberWithCommas(val) {
+  if (val === null || val === undefined || val === '') return '';
+  const strVal = String(val).replace(/,/g, '');
+  const parts = strVal.split('.');
+  const integerPart = parts[0].replace(/\D/g, '');
+  if (!integerPart && parts.length === 1) return '';
+
+  const formattedInteger = integerPart ? Number(integerPart).toLocaleString('en-US') : '0';
+  if (parts.length > 1) {
+    const decimalPart = parts[1].replace(/\D/g, '').slice(0, 2);
+    return `${formattedInteger}.${decimalPart}`;
+  }
+  return formattedInteger;
+}
+
+function parseCleanNumber(val) {
+  if (!val && val !== 0) return 0;
+  const clean = String(val).replace(/,/g, '');
+  const parsed = parseFloat(clean);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 // ── Number to Words converter (Western / Nigerian English)
 function inWords(num) {
-  const val = Math.floor(Math.abs(Number(num) || 0));
+  const clean = typeof num === 'string' ? num.replace(/,/g, '') : num;
+  const val = Math.floor(Math.abs(Number(clean) || 0));
   if (val === 0) return 'ZERO NAIRA ONLY';
 
   const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
@@ -160,7 +184,6 @@ export default function CoopSavingsWithdrawalPage() {
   // Action Modals State
   const [viewRequest, setViewRequest] = useState(null);
   const [hrReviewModal, setHrReviewModal] = useState(null);
-  const [auditReviewModal, setAuditReviewModal] = useState(null);
   const [financePayoutModal, setFinancePayoutModal] = useState(null);
   const [voucherModalData, setVoucherModalData] = useState(null);
   const [actionProcessing, setActionProcessing] = useState(false);
@@ -222,7 +245,7 @@ export default function CoopSavingsWithdrawalPage() {
         setAccountNumber(d.default_bank?.account_number || '');
         setAccountName(d.default_bank?.account_name || d.name || '');
         if (withdrawalType === 'full') {
-          setRequestedAmount(d.saving_balance);
+          setRequestedAmount(formatNumberWithCommas(d.saving_balance));
         }
       }
     } catch (err) {
@@ -285,7 +308,7 @@ export default function CoopSavingsWithdrawalPage() {
   // Update requested amount when toggling withdrawal type
   useEffect(() => {
     if (withdrawalType === 'full' && staffDetails) {
-      setRequestedAmount(staffDetails.saving_balance);
+      setRequestedAmount(formatNumberWithCommas(staffDetails.saving_balance));
     }
   }, [withdrawalType, staffDetails]);
 
@@ -296,7 +319,8 @@ export default function CoopSavingsWithdrawalPage() {
       showToast('Please select a staff member.', 'error');
       return;
     }
-    if (!requestedAmount || parseFloat(requestedAmount) <= 0) {
+    const cleanAmount = parseCleanNumber(requestedAmount);
+    if (!cleanAmount || cleanAmount <= 0) {
       showToast('Please enter a valid withdrawal amount.', 'error');
       return;
     }
@@ -314,7 +338,7 @@ export default function CoopSavingsWithdrawalPage() {
       const res = await axios.post(`${API_BASE}/payroll/coop-savings-withdrawal/apply`, {
         staffId: selectedStaff.staffId || selectedStaff.id,
         withdrawal_type: withdrawalType,
-        requested_amount: requestedAmount,
+        requested_amount: cleanAmount,
         reason: reason.trim(),
         bank_name: bankName.trim(),
         account_number: accountNumber.trim(),
@@ -346,11 +370,13 @@ export default function CoopSavingsWithdrawalPage() {
       return;
     }
 
+    const cleanApproved = parseCleanNumber(approvedAmountInput) || parseCleanNumber(hrReviewModal.requested_amount);
+
     setActionProcessing(true);
     try {
       const res = await axios.post(`${API_BASE}/payroll/coop-savings-withdrawal/hr-review/${hrReviewModal.id}`, {
         action: reviewAction,
-        approved_amount: approvedAmountInput || hrReviewModal.requested_amount,
+        approved_amount: cleanApproved,
         notes: reviewNotes.trim(),
       }, { headers: buildHeaders() });
 
@@ -367,33 +393,6 @@ export default function CoopSavingsWithdrawalPage() {
     }
   };
 
-  // ── Handle Audit Review
-  const handleAuditReviewSubmit = async () => {
-    if (!auditReviewModal) return;
-    if (reviewAction === 'reject' && !reviewNotes.trim()) {
-      showToast('Please provide an audit rejection reason.', 'error');
-      return;
-    }
-
-    setActionProcessing(true);
-    try {
-      const res = await axios.post(`${API_BASE}/payroll/coop-savings-withdrawal/audit-review/${auditReviewModal.id}`, {
-        action: reviewAction,
-        notes: reviewNotes.trim(),
-      }, { headers: buildHeaders() });
-
-      if (res.data.status === 'success') {
-        showToast(res.data.message, 'success');
-        setAuditReviewModal(null);
-        setReviewNotes('');
-        loadRequests();
-      }
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to submit audit review.', 'error');
-    } finally {
-      setActionProcessing(false);
-    }
-  };
 
   // ── Handle Finance Payout
   const handleFinancePayoutSubmit = async () => {
@@ -666,8 +665,8 @@ export default function CoopSavingsWithdrawalPage() {
             }
             .signatures-grid {
               display: grid;
-              grid-template-columns: repeat(4, 1fr);
-              gap: 10px;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 16px;
               margin-top: 18px;
               padding-top: 12px;
               border-top: 1px dashed #cbd5e1;
@@ -772,10 +771,6 @@ export default function CoopSavingsWithdrawalPage() {
                 <div class="sig-line">HR Head Approved</div>
               </div>
               <div class="sig-block">
-                <div class="sig-name">${data.audit_reviewer_name || 'Audit Officer'}</div>
-                <div class="sig-line">Audit Verified</div>
-              </div>
-              <div class="sig-block">
                 <div class="sig-name">${data.finance_payer_name || 'Finance Officer'}</div>
                 <div class="sig-line">Finance Disbursed</div>
               </div>
@@ -861,7 +856,7 @@ export default function CoopSavingsWithdrawalPage() {
     );
   });
 
-  const isPrivilegedUser = userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff || userCtx.isAuditStaff;
+  const isPrivilegedUser = userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff;
 
   return (
     <>
@@ -871,7 +866,7 @@ export default function CoopSavingsWithdrawalPage() {
           <div className={styles.headerContent}>
             <h1>Cooperative Savings Withdrawal</h1>
             <p>
-              Staff portal for cooperative savings partial withdrawals and full account liquidations, featuring automated loan collateral verification, HR Head recommendation, Audit review, and Finance disbursement.
+              Staff portal for cooperative savings partial withdrawals and full account liquidations, featuring automated loan collateral verification, HR Head approval, and Finance disbursement.
             </p>
           </div>
           <div className={styles.headerActions}>
@@ -931,12 +926,12 @@ export default function CoopSavingsWithdrawalPage() {
 
           <div className={styles.statCard}>
             <div className={styles.statIconWrapper} style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
-              <FileCheck size={24} />
+              <NairaSign size={24} />
             </div>
             <div className={styles.statInfo}>
-              <span className={styles.statLabel}>In Audit & Finance Review</span>
-              <span className={styles.statValue}>{stats.hr_review_count + stats.audit_review_count}</span>
-              <span className={styles.statSubtext}>{stats.hr_review_count} in Audit • {stats.audit_review_count} in Finance</span>
+              <span className={styles.statLabel}>Awaiting Finance Payout</span>
+              <span className={styles.statValue}>{stats.hr_review_count}</span>
+              <span className={styles.statSubtext}>Approved by HR Head • Ready for Payout</span>
             </div>
           </div>
 
@@ -1052,7 +1047,7 @@ export default function CoopSavingsWithdrawalPage() {
                       <div className={styles.breakdownItem}>
                         <span className={styles.breakdownLabel}>Balance After Payout</span>
                         <span className={`${styles.breakdownValue} ${styles.valProjected}`}>
-                          {fmtN(Math.max(0, staffDetails.saving_balance - (parseFloat(requestedAmount) || 0)))}
+                          {fmtN(Math.max(0, staffDetails.saving_balance - (parseCleanNumber(requestedAmount) || 0)))}
                         </span>
                       </div>
                     </div>
@@ -1113,18 +1108,16 @@ export default function CoopSavingsWithdrawalPage() {
                       Requested Withdrawal Amount (NGN) <span className="text-rose-400">*</span>
                     </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="1"
-                      max={staffDetails ? (withdrawalType === 'full' ? staffDetails.saving_balance : staffDetails.max_withdrawable) : undefined}
+                      type="text"
+                      inputMode="decimal"
                       disabled={withdrawalType === 'full'}
-                      placeholder="e.g. 150000"
+                      placeholder="e.g. 20,000"
                       value={requestedAmount}
-                      onChange={(e) => setRequestedAmount(e.target.value)}
+                      onChange={(e) => setRequestedAmount(formatNumberWithCommas(e.target.value))}
                       className={styles.input}
                       required
                     />
-                    {requestedAmount && (
+                    {parseCleanNumber(requestedAmount) > 0 && (
                       <div className={styles.amountHelper}>
                         {inWords(requestedAmount)}
                       </div>
@@ -1136,28 +1129,28 @@ export default function CoopSavingsWithdrawalPage() {
                         <button
                           type="button"
                           className={styles.presetBtn}
-                          onClick={() => setRequestedAmount((staffDetails.max_withdrawable * 0.25).toFixed(2))}
+                          onClick={() => setRequestedAmount(formatNumberWithCommas((staffDetails.max_withdrawable * 0.25).toFixed(2)))}
                         >
                           25%
                         </button>
                         <button
                           type="button"
                           className={styles.presetBtn}
-                          onClick={() => setRequestedAmount((staffDetails.max_withdrawable * 0.50).toFixed(2))}
+                          onClick={() => setRequestedAmount(formatNumberWithCommas((staffDetails.max_withdrawable * 0.50).toFixed(2)))}
                         >
                           50%
                         </button>
                         <button
                           type="button"
                           className={styles.presetBtn}
-                          onClick={() => setRequestedAmount((staffDetails.max_withdrawable * 0.75).toFixed(2))}
+                          onClick={() => setRequestedAmount(formatNumberWithCommas((staffDetails.max_withdrawable * 0.75).toFixed(2)))}
                         >
                           75%
                         </button>
                         <button
                           type="button"
                           className={styles.presetBtn}
-                          onClick={() => setRequestedAmount(staffDetails.max_withdrawable.toFixed(2))}
+                          onClick={() => setRequestedAmount(formatNumberWithCommas(staffDetails.max_withdrawable.toFixed(2)))}
                         >
                           Max ({fmtN(staffDetails.max_withdrawable)})
                         </button>
@@ -1273,14 +1266,7 @@ export default function CoopSavingsWithdrawalPage() {
               className={`${styles.tabBtn} ${statusFilter === 'hr_approved' ? styles.tabBtnActive : ''}`}
               onClick={() => { setStatusFilter('hr_approved'); setCurrentPage(1); }}
             >
-              In Audit <span className={styles.tabBadge}>{stats.hr_review_count}</span>
-            </button>
-            <button
-              type="button"
-              className={`${styles.tabBtn} ${statusFilter === 'audit_approved' ? styles.tabBtnActive : ''}`}
-              onClick={() => { setStatusFilter('audit_approved'); setCurrentPage(1); }}
-            >
-              Awaiting Payout <span className={styles.tabBadge}>{stats.audit_review_count}</span>
+              Awaiting Payout <span className={styles.tabBadge}>{stats.hr_review_count}</span>
             </button>
             <button
               type="button"
@@ -1394,13 +1380,12 @@ export default function CoopSavingsWithdrawalPage() {
                         <div className={styles.workflowCell}>
                           <div>
                             {isPending && <span className={styles.badgePending}><Clock size={12} /> Pending HR Head</span>}
-                            {isHrApproved && <span className={styles.badgeHrApproved}><UserCheck size={12} /> HR Head Approved</span>}
-                            {isAuditApproved && <span className={styles.badgeAuditApproved}><FileCheck size={12} /> Audit Verified</span>}
+                            {(isHrApproved || isAuditApproved) && <span className={styles.badgeHrApproved}><UserCheck size={12} /> HR Head Approved</span>}
                             {isPaid && <span className={styles.badgePaid}><CheckCircle2 size={12} /> Disbursed (Paid)</span>}
                             {isRejected && <span className={styles.badgeRejected}><XCircle size={12} /> Rejected</span>}
                           </div>
 
-                          {/* 4-segment progress bar */}
+                          {/* 3-segment progress bar */}
                           <div className={styles.workflowProgressBar} title={`Workflow Stage: ${r.status}`}>
                             <div
                               className={`${styles.progressSegment} ${styles.segmentPassed}`}
@@ -1408,15 +1393,11 @@ export default function CoopSavingsWithdrawalPage() {
                             />
                             <div
                               className={`${styles.progressSegment} ${isHrApproved || isAuditApproved || isPaid ? styles.segmentPassed : (isPending ? styles.segmentActive : '')}`}
-                              title="2. HR Head Review"
+                              title="2. HR Head Approval"
                             />
                             <div
-                              className={`${styles.progressSegment} ${isAuditApproved || isPaid ? styles.segmentPassed : (isHrApproved ? styles.segmentActive : '')}`}
-                              title="3. Audit Verification"
-                            />
-                            <div
-                              className={`${styles.progressSegment} ${isPaid ? styles.segmentPassed : (isAuditApproved ? styles.segmentActive : '')}`}
-                              title="4. Finance Payment Disbursed"
+                              className={`${styles.progressSegment} ${isPaid ? styles.segmentPassed : ((isHrApproved || isAuditApproved) ? styles.segmentActive : '')}`}
+                              title="3. Finance Payment Disbursed"
                             />
                           </div>
                         </div>
@@ -1443,7 +1424,7 @@ export default function CoopSavingsWithdrawalPage() {
                               className={`${styles.actionBtn} ${styles.actionBtnReview}`}
                               onClick={() => {
                                 setHrReviewModal(r);
-                                setApprovedAmountInput(r.requested_amount);
+                                setApprovedAmountInput(formatNumberWithCommas(r.requested_amount));
                                 setReviewAction('approve');
                                 setReviewNotes('');
                               }}
@@ -1453,24 +1434,8 @@ export default function CoopSavingsWithdrawalPage() {
                             </button>
                           )}
 
-                          {/* Stage 2: Audit Review Button */}
-                          {isHrApproved && (userCtx.isSuperAdmin || userCtx.isAuditStaff) && (
-                            <button
-                              type="button"
-                              className={`${styles.actionBtn} ${styles.actionBtnAudit}`}
-                              onClick={() => {
-                                setAuditReviewModal(r);
-                                setReviewAction('approve');
-                                setReviewNotes('');
-                              }}
-                              title="Audit verification & approval"
-                            >
-                              <FileCheck size={12} /> Audit Review
-                            </button>
-                          )}
-
-                          {/* Stage 3: Finance Payout Button */}
-                          {isAuditApproved && (userCtx.isSuperAdmin || userCtx.isFinanceStaff) && (
+                          {/* Stage 2: Finance Payout Button */}
+                          {(isHrApproved || isAuditApproved) && (userCtx.isSuperAdmin || userCtx.isFinanceStaff) && (
                             <button
                               type="button"
                               className={`${styles.actionBtn} ${styles.actionBtnPay}`}
@@ -1483,7 +1448,7 @@ export default function CoopSavingsWithdrawalPage() {
                               }}
                               title="Process finance payout & ledger settlement"
                             >
-                              <DollarSign size={12} /> Disburse
+                              <NairaSign size={13} /> Disburse
                             </button>
                           )}
 
@@ -1608,7 +1573,7 @@ export default function CoopSavingsWithdrawalPage() {
                 </div>
 
                 {/* Multi-Stage Workflow Progression Timeline */}
-                <h4 className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-2">Workflow Audit Progression</h4>
+                <h4 className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-2">Workflow Progression</h4>
                 <div className={styles.timeline}>
                   {/* Step 1: Submission */}
                   <div className={styles.timelineItem}>
@@ -1633,35 +1598,15 @@ export default function CoopSavingsWithdrawalPage() {
                       {viewRequest.hr_reviewed_at ? (viewRequest.status === 'hr_rejected' ? <X size={16} /> : <Check size={16} />) : <Clock size={16} />}
                     </div>
                     <div className={styles.timelineContent}>
-                      <div className={styles.timelineTitle}>2. HR Head Recommendation</div>
+                      <div className={styles.timelineTitle}>2. HR Head Approval</div>
                       <div className={styles.timelineMeta}>
-                        {viewRequest.hr_reviewed_at ? `${fmtDate(viewRequest.hr_reviewed_at)} • Reviewed by ${viewRequest.hr_reviewer_name || 'HR Head'}` : 'Pending HR Head review'}
+                        {viewRequest.hr_reviewed_at ? `${fmtDate(viewRequest.hr_reviewed_at)} • Approved by ${viewRequest.hr_reviewer_name || 'HR Head'}` : 'Pending HR Head review'}
                       </div>
                       {viewRequest.hr_notes && <div className={styles.timelineNotes}>Remarks: {viewRequest.hr_notes}</div>}
                     </div>
                   </div>
 
-                  {/* Step 3: Audit Review */}
-                  <div className={styles.timelineItem}>
-                    <div
-                      className={styles.timelineIcon}
-                      style={{
-                        background: viewRequest.audit_reviewed_at ? (viewRequest.status === 'audit_rejected' ? '#ef4444' : '#10b981') : '#334155',
-                        color: '#fff'
-                      }}
-                    >
-                      {viewRequest.audit_reviewed_at ? (viewRequest.status === 'audit_rejected' ? <X size={16} /> : <Check size={16} />) : <Clock size={16} />}
-                    </div>
-                    <div className={styles.timelineContent}>
-                      <div className={styles.timelineTitle}>3. Audit Verification</div>
-                      <div className={styles.timelineMeta}>
-                        {viewRequest.audit_reviewed_at ? `${fmtDate(viewRequest.audit_reviewed_at)} • Audited by ${viewRequest.audit_reviewer_name || 'Audit Officer'}` : 'Awaiting Audit verification'}
-                      </div>
-                      {viewRequest.audit_notes && <div className={styles.timelineNotes}>Remarks: {viewRequest.audit_notes}</div>}
-                    </div>
-                  </div>
-
-                  {/* Step 4: Finance Disbursement */}
+                  {/* Step 3: Finance Disbursement */}
                   <div className={styles.timelineItem}>
                     <div
                       className={styles.timelineIcon}
@@ -1673,7 +1618,7 @@ export default function CoopSavingsWithdrawalPage() {
                       {viewRequest.finance_paid_at ? (viewRequest.status === 'finance_rejected' ? <X size={16} /> : <Check size={16} />) : <Clock size={16} />}
                     </div>
                     <div className={styles.timelineContent}>
-                      <div className={styles.timelineTitle}>4. Finance Payout & Settlement</div>
+                      <div className={styles.timelineTitle}>3. Finance Payout & Settlement</div>
                       <div className={styles.timelineMeta}>
                         {viewRequest.finance_paid_at ? `${fmtDate(viewRequest.payment_date || viewRequest.finance_paid_at)} • Disbursed by ${viewRequest.finance_payer_name || 'Finance Officer'}` : 'Awaiting Finance payment execution'}
                       </div>
@@ -1767,12 +1712,18 @@ export default function CoopSavingsWithdrawalPage() {
                   <div className="mb-4">
                     <label className={styles.label}>Approved Amount (NGN)</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 20,000"
                       value={approvedAmountInput}
-                      onChange={(e) => setApprovedAmountInput(e.target.value)}
+                      onChange={(e) => setApprovedAmountInput(formatNumberWithCommas(e.target.value))}
                       className={styles.input}
                     />
+                    {parseCleanNumber(approvedAmountInput) > 0 && (
+                      <div className={styles.amountHelper}>
+                        {inWords(approvedAmountInput)}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1807,95 +1758,7 @@ export default function CoopSavingsWithdrawalPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Audit Review Modal ── */}
-      <AnimatePresence>
-        {auditReviewModal && (
-          <div className={styles.modalBackdrop}>
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={styles.modalContent}>
-              <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>
-                  <FileCheck size={18} className="text-purple-400" />
-                  Audit Verification: {auditReviewModal.withdrawal_reference}
-                </h3>
-                <button type="button" className={styles.btnCloseModal} onClick={() => setAuditReviewModal(null)}>
-                  <X size={18} />
-                </button>
-              </div>
 
-              <div className={styles.modalBody}>
-                <div className={styles.modalInfoBox}>
-                  <div className={styles.modalInfoRow}>
-                    <span className={styles.modalInfoLabel}>Staff Member</span>
-                    <span className={styles.modalInfoVal}>{auditReviewModal.staff_name} (Staff ID: {auditReviewModal.staffId})</span>
-                  </div>
-                  <div className={styles.modalInfoRow}>
-                    <span className={styles.modalInfoLabel}>Approved Amount</span>
-                    <span className={styles.modalInfoVal} style={{ color: '#34d399', fontWeight: '700' }}>
-                      {fmtN(auditReviewModal.approved_amount || auditReviewModal.requested_amount)}
-                    </span>
-                  </div>
-                  <div className={styles.modalInfoRow}>
-                    <span className={styles.modalInfoLabel}>Active Loan Collateral</span>
-                    <span className={styles.modalInfoVal} style={{ color: '#f87171' }}>{fmtN(auditReviewModal.active_loan_balance)}</span>
-                  </div>
-                  <div className={styles.modalInfoRow}>
-                    <span className={styles.modalInfoLabel}>HR Review Remarks</span>
-                    <span className={styles.modalInfoVal} style={{ fontStyle: 'italic', fontWeight: 'normal', color: '#cbd5e1' }}>
-                      {auditReviewModal.hr_notes || 'Approved without extra notes'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <label className={styles.label}>Audit Verdict</label>
-                  <div className={styles.decisionGroup}>
-                    <button
-                      type="button"
-                      className={`${styles.btnDecision} ${reviewAction === 'approve' ? styles.btnDecisionApproveActive : ''}`}
-                      onClick={() => setReviewAction('approve')}
-                    >
-                      <Check size={16} /> Audit Passed & Approved
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.btnDecision} ${reviewAction === 'reject' ? styles.btnDecisionRejectActive : ''}`}
-                      onClick={() => setReviewAction('reject')}
-                    >
-                      <X size={16} /> Reject by Audit
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mb-2">
-                  <label className={styles.label}>Audit Findings / Comments</label>
-                  <textarea
-                    placeholder="Enter audit observations or compliance findings..."
-                    value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
-                    className={styles.textarea}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.modalFooter}>
-                <button type="button" className={styles.btnSecondary} onClick={() => setAuditReviewModal(null)} disabled={actionProcessing}>
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={reviewAction === 'approve' ? styles.btnPrimary : styles.btnSecondary}
-                  style={reviewAction === 'reject' ? { borderColor: '#ef4444', color: '#f87171' } : {}}
-                  onClick={handleAuditReviewSubmit}
-                  disabled={actionProcessing}
-                >
-                  {actionProcessing ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                  Confirm Audit Verification
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* ── Finance Payout Modal ── */}
       <AnimatePresence>
@@ -1904,7 +1767,7 @@ export default function CoopSavingsWithdrawalPage() {
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className={styles.modalContent}>
               <div className={styles.modalHeader}>
                 <h3 className={styles.modalTitle}>
-                  <DollarSign size={18} className="text-emerald-400" />
+                  <NairaSign size={18} className="text-emerald-400" />
                   Finance Payout & Settlement: {financePayoutModal.withdrawal_reference}
                 </h3>
                 <button type="button" className={styles.btnCloseModal} onClick={() => setFinancePayoutModal(null)}>
@@ -1997,7 +1860,7 @@ export default function CoopSavingsWithdrawalPage() {
                   onClick={handleFinancePayoutSubmit}
                   disabled={actionProcessing}
                 >
-                  {actionProcessing ? <Loader2 size={16} className="animate-spin" /> : <DollarSign size={16} />}
+                  {actionProcessing ? <Loader2 size={16} className="animate-spin" /> : <NairaSign size={16} />}
                   Confirm Payment & Debit Savings
                 </button>
               </div>
@@ -2099,10 +1962,6 @@ export default function CoopSavingsWithdrawalPage() {
                     <div className={styles.voucherSigBlock}>
                       <div className={styles.voucherSigName}>{voucherModalData.hr_reviewer_name || 'HR Head'}</div>
                       <div className={styles.voucherSigLine}>HR Head Approved</div>
-                    </div>
-                    <div className={styles.voucherSigBlock}>
-                      <div className={styles.voucherSigName}>{voucherModalData.audit_reviewer_name || 'Audit Officer'}</div>
-                      <div className={styles.voucherSigLine}>Audit Verified</div>
                     </div>
                     <div className={styles.voucherSigBlock}>
                       <div className={styles.voucherSigName}>{voucherModalData.finance_payer_name || 'Finance Officer'}</div>
