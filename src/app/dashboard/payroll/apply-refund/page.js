@@ -1335,9 +1335,40 @@ export default function ApplyRefundPage() {
 
                   <div className={styles.detailItemFull}>
                     <span className={styles.detailLabel}>Remarks/Auditing Trail Notes</span>
-                    <span className={styles.detailValue} style={{ whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>
-                      {detailRecord.remarks || 'No remarks provided.'}
-                    </span>
+                    {Array.isArray(detailRecord.remarks_trail) && detailRecord.remarks_trail.length > 0 ? (
+                      <div className={styles.trailList}>
+                        {detailRecord.remarks_trail.map((item, idx) => (
+                          <div
+                            key={item.id || idx}
+                            className={`${styles.trailItem} ${styles[`trailItem_${(item.level || '').toLowerCase()}`] || ''}`}
+                          >
+                            <div className={styles.trailHeader}>
+                              <div className={styles.trailBadges}>
+                                <span className={`${styles.trailBadge} ${styles[`trailBadge_${(item.level || '').toLowerCase()}`] || ''}`}>
+                                  {item.stage_label || `${item.level} Review`}
+                                </span>
+                                {item.status_label && (
+                                  <span className={`${styles.trailStatusBadge} ${item.status === 2 ? styles.trailStatusReject : styles.trailStatusSuccess}`}>
+                                    {item.status_label}
+                                  </span>
+                                )}
+                              </div>
+                              <span className={styles.trailMeta}>
+                                {item.approver_name && <span className={styles.trailApprover}>{item.approver_name}</span>}
+                                {item.date && <span className={styles.trailDate}>• {item.date}</span>}
+                              </span>
+                            </div>
+                            <div className={styles.trailText}>
+                              {item.remarks}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className={styles.detailValue} style={{ whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>
+                        {detailRecord.all_remarks || detailRecord.remarks || 'No remarks provided.'}
+                      </span>
+                    )}
                   </div>
 
                   <div className={styles.detailItemFull}>

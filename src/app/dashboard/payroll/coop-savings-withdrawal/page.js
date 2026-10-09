@@ -44,9 +44,25 @@ function getUserId() {
   return null;
 }
 
+function getActiveRole() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('hrms_role');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed?.rolename || parsed?.name || parsed?.role_name || null;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 function buildHeaders() {
   const uid = getUserId();
-  return uid ? { 'X-User-Id': uid } : {};
+  const role = getActiveRole();
+  const headers = {};
+  if (uid) headers['X-User-Id'] = uid;
+  if (role) headers['X-User-Role'] = role;
+  return headers;
 }
 
 function fmtN(n) {
@@ -140,8 +156,10 @@ export default function CoopSavingsWithdrawalPage() {
   // User privileges
   const [userCtx, setUserCtx] = useState({
     isSuperAdmin: false,
+    isHrHead: false,
     isAdminStaff: false,
     isAuditStaff: false,
+    isFinanceHead: false,
     isFinanceStaff: false,
     currentEmployee: null,
   });
@@ -213,10 +231,12 @@ export default function CoopSavingsWithdrawalPage() {
       if (res.data.status === 'success') {
         setStaffList(res.data.data || []);
         setUserCtx({
-          isSuperAdmin: res.data.isSuperAdmin,
-          isAdminStaff: res.data.isAdminStaff,
-          isAuditStaff: res.data.isAuditStaff,
-          isFinanceStaff: res.data.isFinanceStaff,
+          isSuperAdmin: Boolean(res.data.isSuperAdmin),
+          isHrHead: Boolean(res.data.isHrHead),
+          isAdminStaff: Boolean(res.data.isAdminStaff),
+          isAuditStaff: Boolean(res.data.isAuditStaff),
+          isFinanceHead: Boolean(res.data.isFinanceHead),
+          isFinanceStaff: Boolean(res.data.isFinanceStaff),
           currentEmployee: res.data.currentEmployee,
         });
 
@@ -365,6 +385,10 @@ export default function CoopSavingsWithdrawalPage() {
   // ── Handle HR Head Review
   const handleHrReviewSubmit = async () => {
     if (!hrReviewModal) return;
+    if (!canApproveHrHead) {
+      showToast('Access denied. Only Super Admin or staff with HR Head role can perform HR review.', 'error');
+      return;
+    }
     if (reviewAction === 'reject' && !reviewNotes.trim()) {
       showToast('Please provide a reason for HR rejection.', 'error');
       return;
@@ -397,6 +421,10 @@ export default function CoopSavingsWithdrawalPage() {
   // ── Handle Finance Payout
   const handleFinancePayoutSubmit = async () => {
     if (!financePayoutModal) return;
+    if (!canApproveFinanceHead) {
+      showToast('Access denied. Only Super Admin or staff with Finance Head role can approve finance payout.', 'error');
+      return;
+    }
     if (reviewAction === 'reject') {
       if (!reviewNotes.trim()) {
         showToast('Please provide a reason for Finance rejection.', 'error');
@@ -856,7 +884,45 @@ export default function CoopSavingsWithdrawalPage() {
     );
   });
 
-  const isPrivilegedUser = userCtx.isSuperAdmin || userCtx.isAdminStaff || userCtx.isFinanceStaff;
+  const activeRoleName = mounted && typeof window !== 'undefined' ? (() => {
+    try {
+      const role = JSON.parse(localStorage.getItem('hrms_role'));
+      return String(role?.rolename || role?.name || role?.role_name || '').toLowerCase().trim();
+    } catch {
+      return '';
+    }
+  })() : '';
+
+  const isSuperAdminUser = Boolean(
+    userCtx.isSuperAdmin ||
+    activeRoleName === 'super admin' ||
+    activeRoleName === 'super administrator'
+  );
+
+  const canApproveHrHead = Boolean(
+    isSuperAdminUser ||
+    userCtx.isHrHead ||
+    activeRoleName === 'hr head' ||
+    activeRoleName === 'head of hr'
+  );
+
+  const canApproveFinanceHead = Boolean(
+    isSuperAdminUser ||
+    userCtx.isFinanceHead ||
+    activeRoleName === 'finance head' ||
+    activeRoleName === 'head of finance'
+  );
+
+  const isPrivilegedUser = Boolean(
+    isSuperAdminUser ||
+    canApproveHrHead ||
+    canApproveFinanceHead ||
+    userCtx.isAdminStaff ||
+    userCtx.isFinanceStaff ||
+    userCtx.isAuditStaff ||
+    activeRoleName === 'audit head' ||
+    activeRoleName === 'head of audit'
+  );
 
   return (
     <>
@@ -1418,7 +1484,7 @@ export default function CoopSavingsWithdrawalPage() {
                           </button>
 
                           {/* Stage 1: HR Head Review Button */}
-                          {isPending && (userCtx.isSuperAdmin || userCtx.isAdminStaff) && (
+                          {isPending && canApproveHrHead && (
                             <button
                               type="button"
                               className={`${styles.actionBtn} ${styles.actionBtnReview}`}
@@ -1435,7 +1501,7 @@ export default function CoopSavingsWithdrawalPage() {
                           )}
 
                           {/* Stage 2: Finance Payout Button */}
-                          {(isHrApproved || isAuditApproved) && (userCtx.isSuperAdmin || userCtx.isFinanceStaff) && (
+                          {(isHrApproved || isAuditApproved) && canApproveFinanceHead && (
                             <button
                               type="button"
                               className={`${styles.actionBtn} ${styles.actionBtnPay}`}
