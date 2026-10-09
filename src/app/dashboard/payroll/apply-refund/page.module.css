@@ -599,6 +599,133 @@
   color: var(--text-primary);
 }
 
+.trailList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.trailItem {
+  background: var(--bg-hover, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-left: 3.5px solid #2563eb;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.trailItem_hod {
+  border-left-color: #8b5cf6;
+}
+
+.trailItem_hr,
+.trailItem_admin {
+  border-left-color: #0284c7;
+}
+
+.trailItem_audit {
+  border-left-color: #d97706;
+}
+
+.trailItem_finance {
+  border-left-color: #10b981;
+}
+
+.trailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.trailBadges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.trailBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: #e0e7ff;
+  color: #3730a3;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.trailBadge_hod {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.trailBadge_hr,
+.trailBadge_admin {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.trailBadge_audit {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.trailBadge_finance {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.trailStatusBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
+.trailStatusSuccess {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.trailStatusReject {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.trailMeta {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trailApprover {
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+
+.trailDate {
+  color: var(--text-secondary, #64748b);
+}
+
+.trailText {
+  font-size: 0.88rem;
+  color: var(--text-primary, #1e293b);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  background: var(--bg-card, rgba(0, 0, 0, 0.02));
+  padding: 0.45rem 0.65rem;
+  border-radius: 4px;
+  border: 1px dashed var(--border, #cbd5e1);
+}
+
+
 .modalFooter {
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border);
