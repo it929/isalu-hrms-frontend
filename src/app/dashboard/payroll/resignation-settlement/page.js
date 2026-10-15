@@ -27,7 +27,12 @@ import {
   Edit2,
   Save,
   Briefcase,
-  FileText
+  FileText,
+  Scale,
+  Calculator,
+  RotateCcw,
+  ShieldAlert,
+  Wallet
 } from 'lucide-react';
 import NairaSign from '@/components/ui/NairaSign';
 import styles from './page.module.css';
@@ -100,6 +105,8 @@ export default function ResignationSettlementPage() {
 
   const [userPermissions, setUserPermissions] = useState({
     is_super_admin: false,
+    is_hr_head: false,
+    is_finance_head: false,
     is_admin_staff: false,
     is_audit_staff: false,
     is_finance_staff: false,
@@ -179,9 +186,52 @@ export default function ResignationSettlementPage() {
     loading: false,
   });
 
+  // Payment in Lieu of Notice Modal State
+  const [noticeInLieuModal, setNoticeInLieuModal] = useState({
+    open: false,
+    staffId: null,
+    staffName: '',
+    resignationId: null,
+    monthlyGross: 0,
+    dailyRate: 0,
+    daysInMonth: 30,
+    currentAmount: 0,
+    currentDays: 0,
+    calculationMode: 'days', // 'days' | 'amount'
+    days: '',
+    amount: '',
+    deductionSource: 'general', // 'general' | 'retention' | 'salary' | 'coop_savings'
+    reason: '',
+    retentionAvailable: 0,
+    salaryAvailable: 0,
+    coopSavingsAvailable: 0,
+    totalEarningsAvailable: 0,
+    loading: false,
+  });
+
+  const getActiveRoleName = () => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const rawRole = localStorage.getItem('hrms_role');
+      if (rawRole) {
+        const parsed = JSON.parse(rawRole);
+        return (parsed?.rolename || parsed?.name || parsed?.role_name || '').toLowerCase().trim();
+      }
+    } catch { /* ignore */ }
+    return '';
+  };
+
+  const storedRoleName = getActiveRoleName();
+  const isSuperAdminUser = Boolean(userPermissions.is_super_admin || ['super admin', 'super administrator', 'superadmin', 'admin', 'administrator'].includes(storedRoleName));
+  const isHrHeadUser = Boolean(userPermissions.is_hr_head || ['hr head', 'head of hr'].includes(storedRoleName));
+  const isFinanceHeadUser = Boolean(userPermissions.is_finance_head || ['finance head', 'head of finance'].includes(storedRoleName));
+
   const canManageRetention = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
   const canManageMedicalLoan = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
   const canManageCoopLoan = userPermissions.is_super_admin || userPermissions.is_admin_staff || userPermissions.is_finance_staff;
+  
+  // Payment in Lieu of Notice is strictly restricted to Super Admin, HR Head, and Finance Head alone
+  const canManageNoticeInLieu = isSuperAdminUser || isHrHeadUser || isFinanceHeadUser;
 
   // Toast Helper
   const showToast = (message, type = 'success') => {
@@ -695,6 +745,114 @@ export default function ResignationSettlementPage() {
     } catch (err) {
       showToast(err.response?.data?.message || 'Error updating cooperative loan balance.', 'error');
       setCoopLoanModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Open Payment in Lieu of Notice Modal
+  const handleOpenNoticeInLieu = (data, e) => {
+    e?.stopPropagation();
+
+    if (!canManageNoticeInLieu) {
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to adjust Payment in Lieu of Notice.', 'warning');
+      return;
+    }
+
+    const staffId = data.staff?.id || data.staff_id || data.id;
+    const staffName = data.staff?.name || data.name;
+    const resignationId = data.resignation_id || data.id;
+
+    const monthlyGross = parseFloat(data.salary_structure?.monthly_gross || data.salary_structure?.declared_salary || data.monthly_gross || 0) || 0;
+    
+    // Find days in exit month or 30
+    const noticeBreakdown = data.notice_earnings?.breakdown || [];
+    const exitMonthItem = noticeBreakdown.find(b => !b.is_paid_via_payroll) || noticeBreakdown[0];
+    const daysInMonth = exitMonthItem?.days_in_month || 30;
+    const dailyRate = daysInMonth > 0 ? (monthlyGross / daysInMonth) : (monthlyGross / 30);
+
+    const curAmount = parseFloat(data.payment_in_lieu_of_notice?.amount ?? 0) || 0;
+    const curDays = parseInt(data.payment_in_lieu_of_notice?.days ?? 0, 10) || 0;
+    const curMode = data.payment_in_lieu_of_notice?.mode || (curDays > 0 ? 'days' : 'amount');
+    const curSource = data.payment_in_lieu_of_notice?.source || 'general';
+    const curReason = data.payment_in_lieu_of_notice?.reason || '';
+
+    const retentionAvailable = parseFloat(data.retention_refund?.total_refund_amount ?? 0) || 0;
+    const salaryAvailable = parseFloat(data.notice_earnings?.total_notice_salary ?? 0) || 0;
+    const coopSavingsAvailable = parseFloat(data.coop_savings_refund?.total_savings_balance ?? 0) || 0;
+    const totalEarningsAvailable = parseFloat(data.settlement_summary?.total_final_earnings ?? 0) || 0;
+
+    const defaultDays = curDays > 0 ? curDays.toString() : (curAmount > 0 && dailyRate > 0 ? Math.round(curAmount / dailyRate).toString() : '30');
+    const defaultAmount = curAmount > 0 ? curAmount.toString() : (curDays > 0 && dailyRate > 0 ? (dailyRate * curDays).toFixed(2) : monthlyGross.toFixed(2));
+
+    setNoticeInLieuModal({
+      open: true,
+      staffId,
+      staffName,
+      resignationId,
+      monthlyGross,
+      dailyRate,
+      daysInMonth,
+      currentAmount: curAmount,
+      currentDays: curDays,
+      calculationMode: curMode,
+      days: defaultDays,
+      amount: defaultAmount,
+      deductionSource: curSource,
+      reason: curReason || 'Staff failed to complete notice period agreement with company',
+      retentionAvailable,
+      salaryAvailable,
+      coopSavingsAvailable,
+      totalEarningsAvailable,
+      loading: false,
+    });
+  };
+
+  // Save Payment in Lieu of Notice Deduction
+  const handleSaveNoticeInLieu = async (e) => {
+    e?.preventDefault();
+    if (!noticeInLieuModal.resignationId && !noticeInLieuModal.staffId) return;
+
+    if (!canManageNoticeInLieu) {
+      showToast('Permission denied: Only Super Administrators, HR Head, and Finance Head are authorized to adjust Payment in Lieu of Notice.', 'warning');
+      return;
+    }
+
+    const amt = parseFloat(noticeInLieuModal.amount) || 0;
+    const days = parseInt(noticeInLieuModal.days, 10) || 0;
+
+    if (amt < 0) {
+      showToast('Payment in Lieu of Notice amount cannot be negative.', 'error');
+      return;
+    }
+
+    setNoticeInLieuModal(prev => ({ ...prev, loading: true }));
+    try {
+      const headers = buildHeaders();
+      const res = await axios.post(`${API_BASE}/payroll/resignation-settlement/update-notice-in-lieu`, {
+        resignation_id: noticeInLieuModal.resignationId,
+        staff_id: noticeInLieuModal.staffId,
+        amount: amt,
+        days: days,
+        calculation_mode: noticeInLieuModal.calculationMode,
+        deduction_source: noticeInLieuModal.deductionSource,
+        reason: noticeInLieuModal.reason.trim(),
+      }, { headers });
+
+      if (res.data.status === 'success') {
+        showToast(res.data.message || 'Payment in Lieu of Notice updated successfully.');
+        if (res.data.data?.settlement && selectedRecordId === noticeInLieuModal.resignationId) {
+          setSettlementData(res.data.data.settlement);
+        } else if (selectedRecordId) {
+          handleOpenBreakdown(selectedRecordId);
+        }
+        setNoticeInLieuModal(prev => ({ ...prev, open: false, loading: false }));
+        fetchApprovedRecords();
+      } else {
+        showToast(res.data.message || 'Failed to update Payment in Lieu of Notice.', 'error');
+        setNoticeInLieuModal(prev => ({ ...prev, loading: false }));
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Error updating Payment in Lieu of Notice.', 'error');
+      setNoticeInLieuModal(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -1386,9 +1544,16 @@ export default function ResignationSettlementPage() {
                   <div className={styles.sheetGrid}>
                     {/* Left Column: Earnings & Allowances */}
                     <div className={styles.sheetSection}>
-                      <div className={styles.sheetSectionHeader}>
-                        <span>EARNINGS & REFUNDS (ASSETS)</span>
-                        <span>AMOUNT (₦)</span>
+                      <div className={styles.sheetSectionHeader} style={{ minHeight: '38px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 0.9rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563eb', flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap', fontWeight: 800, fontSize: '0.74rem', letterSpacing: '0.04em' }}>
+                            EARNINGS & REFUNDS (ASSETS)
+                          </span>
+                        </div>
+                        <span style={{ whiteSpace: 'nowrap', fontWeight: 800, fontSize: '0.74rem', letterSpacing: '0.04em' }}>
+                          AMOUNT (₦)
+                        </span>
                       </div>
                       <div className={styles.sheetRow}>
                         <span>Basic Salary</span>
@@ -1493,14 +1658,77 @@ export default function ResignationSettlementPage() {
 
                     {/* Right Column: Itemized Deductions & Liabilities */}
                     <div className={styles.sheetSection}>
-                      <div className={styles.sheetSectionHeader} style={{ background: 'rgba(239, 68, 68, 0.06)', color: '#b91c1c' }}>
-                        <span>ITEMIZED DEDUCTIONS & LIABILITIES</span>
-                        <span>AMOUNT (₦)</span>
+                      <div
+                        className={styles.sheetSectionHeader}
+                        style={{
+                          background: 'linear-gradient(to right, rgba(239, 68, 68, 0.08), rgba(254, 242, 242, 0.45))',
+                          borderBottom: '1px solid rgba(239, 68, 68, 0.18)',
+                          color: '#991c1c',
+                          minHeight: '38px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.55rem 0.9rem',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap', fontWeight: 800, fontSize: '0.74rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                            Itemized Deductions
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          {canManageNoticeInLieu && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenNoticeInLieu(settlementData, e)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2.5px 8px',
+                                background: settlementData.payment_in_lieu_of_notice?.amount > 0 ? '#dc2626' : '#ffffff',
+                                color: settlementData.payment_in_lieu_of_notice?.amount > 0 ? '#ffffff' : '#b91c1c',
+                                border: `1px solid ${settlementData.payment_in_lieu_of_notice?.amount > 0 ? '#b91c1c' : '#fca5a5'}`,
+                                borderRadius: '9999px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                                boxShadow: '0 1px 2px rgba(220, 38, 38, 0.08)',
+                                transition: 'all 0.15s ease',
+                                lineHeight: '1.4',
+                              }}
+                              title="Deduct or adjust Payment in Lieu of Notice for unserved notice period"
+                            >
+                              <TrendingDown size={11} style={{ color: settlementData.payment_in_lieu_of_notice?.amount > 0 ? '#ffffff' : '#dc2626' }} />
+                              <span>{settlementData.payment_in_lieu_of_notice?.amount > 0 ? 'Edit Lieu of Notice' : '+ Lieu of Notice'}</span>
+                            </button>
+                          )}
+                          <span style={{ whiteSpace: 'nowrap', fontWeight: 800, fontSize: '0.74rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                            AMOUNT (₦)
+                          </span>
+                        </div>
                       </div>
 
                       {settlementData.deductions?.itemized_deductions ? (
                         settlementData.deductions.itemized_deductions.map((d, i) => (
-                          <div key={i} className={styles.sheetRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div
+                            key={i}
+                            className={styles.sheetRow}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              ...(d.name.includes('Payment in Lieu') && d.amount > 0 ? {
+                                background: 'rgba(239, 68, 68, 0.04)',
+                                borderLeft: '3px solid #dc2626',
+                              } : {})
+                            }}
+                          >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div>
                                 <span>
@@ -1519,6 +1747,12 @@ export default function ResignationSettlementPage() {
                                   )}
                                   {d.name.includes('Leave of Absence') && d.amount > 0 && d.note && d.note !== 'Nil' && (
                                     <span className={styles.sheetRowNote} style={{ color: '#ef4444' }}> ({d.note})</span>
+                                  )}
+                                  {d.name.includes('Payment in Lieu') && d.amount > 0 && d.note && d.note !== 'Nil' && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#dc2626', fontWeight: 600 }}> ({d.note})</span>
+                                  )}
+                                  {d.name.includes('Payment in Lieu') && d.amount === 0 && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#64748b' }}> (Notice served / not applied)</span>
                                   )}
                                 </span>
                               </div>
@@ -1546,8 +1780,25 @@ export default function ResignationSettlementPage() {
                                   Edit Balance
                                 </button>
                               )}
+                              {d.name.includes('Payment in Lieu') && canManageNoticeInLieu && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenNoticeInLieu(settlementData, e)}
+                                  className={styles.btnEditRetentionBadge}
+                                  style={{
+                                    background: d.amount > 0 ? '#fef2f2' : '#f8fafc',
+                                    borderColor: d.amount > 0 ? '#f87171' : '#cbd5e1',
+                                    color: d.amount > 0 ? '#b91c1c' : '#475569',
+                                    fontWeight: 600,
+                                  }}
+                                  title="Edit or apply Payment in Lieu of Notice deduction"
+                                >
+                                  <Edit2 size={11} />
+                                  {d.amount > 0 ? 'Edit Lieu of Notice' : 'Set Lieu of Notice'}
+                                </button>
+                              )}
                             </div>
-                            <span style={d.amount > 0 ? { color: '#ef4444' } : { color: '#94a3b8' }}>
+                            <span style={d.amount > 0 ? { color: '#ef4444', fontWeight: 700 } : { color: '#94a3b8' }}>
                               {fmt(d.amount)}
                             </span>
                           </div>
@@ -2329,6 +2580,829 @@ export default function ResignationSettlementPage() {
         </div>
       )}
 
+      {/* ── Edit Payment in Lieu of Notice Modal Dialog ── */}
+      {noticeInLieuModal.open && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => !noticeInLieuModal.loading && setNoticeInLieuModal(prev => ({ ...prev, open: false }))}
+        >
+          <div
+            className={styles.modalBox}
+            style={{ maxWidth: '580px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form onSubmit={handleSaveNoticeInLieu} style={{ display: 'flex', flexDirection: 'column', maxHeight: '92vh', overflow: 'hidden' }}>
+              {/* Premium Header */}
+              <div style={{
+                padding: '1.15rem 1.4rem',
+                borderBottom: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'linear-gradient(to right, #ffffff, #fffafa)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                    border: '1px solid #fca5a5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#dc2626',
+                    boxShadow: '0 2px 6px rgba(220, 38, 38, 0.12)',
+                  }}>
+                    <TrendingDown size={22} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                      Payment in Lieu of Notice Deduction
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: '#64748b' }}>
+                      Terminal clearance reconciliation &amp; notice default offset
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !noticeInLieuModal.loading && setNoticeInLieuModal(prev => ({ ...prev, open: false }))}
+                  disabled={noticeInLieuModal.loading}
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                  }}
+                  title="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className={styles.modalBody} style={{ padding: '1.15rem 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+                {/* Policy Notice Box */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(254, 242, 242, 0.8) 0%, rgba(255, 241, 242, 0.5) 100%)',
+                  border: '1px solid rgba(248, 113, 113, 0.28)',
+                  borderRadius: '10px',
+                  padding: '0.75rem 0.95rem',
+                  display: 'flex',
+                  gap: '10px',
+                  alignItems: 'flex-start',
+                }}>
+                  <div style={{
+                    background: '#fee2e2',
+                    color: '#b91c1c',
+                    borderRadius: '6px',
+                    padding: '5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}>
+                    <ShieldAlert size={16} />
+                  </div>
+                  <div style={{ fontSize: '0.8rem', lineHeight: 1.45, color: '#475569' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      fontWeight: 800,
+                      color: '#991b1b',
+                      textTransform: 'uppercase',
+                      fontSize: '0.68rem',
+                      letterSpacing: '0.04em',
+                      background: '#fecaca',
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                      marginRight: '6px'
+                    }}>
+                      Policy Rule
+                    </span>
+                    If the staff member did not complete their agreed 1-month notice period or defaulted on exit terms, calculate notice in lieu to deduct directly from their exit payouts (retention refund, notice salary, or cooperative savings) to protect company funds.
+                  </div>
+                </div>
+
+                {/* Staff & Compensation Card */}
+                <div style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '0.8rem 1rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                      border: '1.5px solid #bfdbfe',
+                      color: '#1d4ed8',
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      {(noticeInLieuModal.staffName || 'ST').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.92rem' }}>
+                        {noticeInLieuModal.staffName}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>Staff ID: <strong style={{ color: '#334155' }}>{noticeInLieuModal.staffId}</strong></span>
+                        <span>•</span>
+                        <span>Month Basis: <strong style={{ color: '#334155' }}>{noticeInLieuModal.daysInMonth} Days</strong></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.675rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+                      Monthly Gross / Daily Rate
+                    </div>
+                    <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem', marginTop: '1px' }}>
+                      ₦{fmt(noticeInLieuModal.monthlyGross)}
+                    </div>
+                    <div style={{ fontSize: '0.73rem', fontWeight: 600, color: '#2563eb' }}>
+                      ₦{fmt(noticeInLieuModal.dailyRate)} <span style={{ color: '#64748b', fontWeight: 400 }}>/ calendar day</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Available Terminal Funds Balance Tiles */}
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '0.8rem 0.95rem',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.73rem',
+                      fontWeight: 800,
+                      color: '#334155',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      <Wallet size={14} style={{ color: '#059669' }} />
+                      <span>Available Terminal Payouts (Click Tile to Target)</span>
+                    </div>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                      Offset pool
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    {/* Tile 1: Retention Savings */}
+                    <div
+                      onClick={() => {
+                        if (noticeInLieuModal.retentionAvailable > 0) {
+                          const amt = noticeInLieuModal.retentionAvailable.toFixed(2);
+                          const equiv = noticeInLieuModal.dailyRate > 0 ? Math.round(noticeInLieuModal.retentionAvailable / noticeInLieuModal.dailyRate) : 0;
+                          setNoticeInLieuModal(prev => ({
+                            ...prev,
+                            amount: amt,
+                            days: equiv.toString(),
+                            deductionSource: 'retention'
+                          }));
+                        }
+                      }}
+                      style={{
+                        background: noticeInLieuModal.deductionSource === 'retention' ? '#ecfdf5' : '#ffffff',
+                        border: `1.5px solid ${noticeInLieuModal.deductionSource === 'retention' ? '#10b981' : '#e2e8f0'}`,
+                        borderRadius: '9px',
+                        padding: '8px 10px',
+                        cursor: noticeInLieuModal.retentionAvailable > 0 ? 'pointer' : 'default',
+                        transition: 'all 0.15s ease',
+                        boxShadow: noticeInLieuModal.deductionSource === 'retention' ? '0 2px 6px rgba(16, 185, 129, 0.15)' : 'none',
+                      }}
+                      title="Click to take payment in lieu from retention savings refund"
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.69rem', color: '#64748b', fontWeight: 600 }}>Retention Savings</span>
+                        {noticeInLieuModal.deductionSource === 'retention' && (
+                          <span style={{ background: '#10b981', color: '#ffffff', fontSize: '0.6rem', fontWeight: 700, borderRadius: '4px', padding: '1px 4px' }}>Target</span>
+                        )}
+                      </div>
+                      <div style={{ fontWeight: 800, color: '#059669', fontSize: '0.9rem', marginTop: '2px' }}>
+                        +{fmt(noticeInLieuModal.retentionAvailable)}
+                      </div>
+                      <div style={{ fontSize: '0.67rem', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>
+                        100% Refundable
+                      </div>
+                    </div>
+
+                    {/* Tile 2: Notice Salary */}
+                    <div
+                      onClick={() => {
+                        if (noticeInLieuModal.salaryAvailable > 0) {
+                          const amt = noticeInLieuModal.salaryAvailable.toFixed(2);
+                          const equiv = noticeInLieuModal.dailyRate > 0 ? Math.round(noticeInLieuModal.salaryAvailable / noticeInLieuModal.dailyRate) : 0;
+                          setNoticeInLieuModal(prev => ({
+                            ...prev,
+                            amount: amt,
+                            days: equiv.toString(),
+                            deductionSource: 'salary'
+                          }));
+                        }
+                      }}
+                      style={{
+                        background: noticeInLieuModal.deductionSource === 'salary' ? '#eff6ff' : '#ffffff',
+                        border: `1.5px solid ${noticeInLieuModal.deductionSource === 'salary' ? '#3b82f6' : '#e2e8f0'}`,
+                        borderRadius: '9px',
+                        padding: '8px 10px',
+                        cursor: noticeInLieuModal.salaryAvailable > 0 ? 'pointer' : 'default',
+                        transition: 'all 0.15s ease',
+                        boxShadow: noticeInLieuModal.deductionSource === 'salary' ? '0 2px 6px rgba(59, 130, 246, 0.15)' : 'none',
+                      }}
+                      title="Click to take payment in lieu from earned notice salary"
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.69rem', color: '#64748b', fontWeight: 600 }}>Notice Salary</span>
+                        {noticeInLieuModal.deductionSource === 'salary' && (
+                          <span style={{ background: '#3b82f6', color: '#ffffff', fontSize: '0.6rem', fontWeight: 700, borderRadius: '4px', padding: '1px 4px' }}>Target</span>
+                        )}
+                      </div>
+                      <div style={{ fontWeight: 800, color: '#2563eb', fontSize: '0.9rem', marginTop: '2px' }}>
+                        +{fmt(noticeInLieuModal.salaryAvailable)}
+                      </div>
+                      <div style={{ fontSize: '0.67rem', color: '#2563eb', fontWeight: 600, marginTop: '2px' }}>
+                        Earned Exit Pay
+                      </div>
+                    </div>
+
+                    {/* Tile 3: Cooperative Savings */}
+                    <div
+                      onClick={() => {
+                        if (noticeInLieuModal.coopSavingsAvailable > 0) {
+                          const amt = noticeInLieuModal.coopSavingsAvailable.toFixed(2);
+                          const equiv = noticeInLieuModal.dailyRate > 0 ? Math.round(noticeInLieuModal.coopSavingsAvailable / noticeInLieuModal.dailyRate) : 0;
+                          setNoticeInLieuModal(prev => ({
+                            ...prev,
+                            amount: amt,
+                            days: equiv.toString(),
+                            deductionSource: 'coop_savings'
+                          }));
+                        }
+                      }}
+                      style={{
+                        background: noticeInLieuModal.deductionSource === 'coop_savings' ? '#f0fdf4' : '#ffffff',
+                        border: `1.5px solid ${noticeInLieuModal.deductionSource === 'coop_savings' ? '#059669' : '#e2e8f0'}`,
+                        borderRadius: '9px',
+                        padding: '8px 10px',
+                        cursor: noticeInLieuModal.coopSavingsAvailable > 0 ? 'pointer' : 'default',
+                        transition: 'all 0.15s ease',
+                        boxShadow: noticeInLieuModal.deductionSource === 'coop_savings' ? '0 2px 6px rgba(5, 150, 105, 0.15)' : 'none',
+                      }}
+                      title="Click to take payment in lieu from cooperative savings balance"
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.69rem', color: '#64748b', fontWeight: 600 }}>Coop. Savings</span>
+                        {noticeInLieuModal.deductionSource === 'coop_savings' && (
+                          <span style={{ background: '#059669', color: '#ffffff', fontSize: '0.6rem', fontWeight: 700, borderRadius: '4px', padding: '1px 4px' }}>Target</span>
+                        )}
+                      </div>
+                      <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem', marginTop: '2px' }}>
+                        +{fmt(noticeInLieuModal.coopSavingsAvailable)}
+                      </div>
+                      <div style={{ fontSize: '0.67rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
+                        Saved Balance
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '9px',
+                    paddingTop: '8px',
+                    borderTop: '1px solid #e2e8f0',
+                  }}>
+                    <span style={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
+                      Total Final Terminal Earnings Pool:
+                    </span>
+                    <span style={{
+                      fontSize: '0.88rem',
+                      fontWeight: 800,
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1'
+                    }}>
+                      ₦{fmt(noticeInLieuModal.totalEarningsAvailable)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Calculation Mode Switcher: Segmented Control */}
+                <div>
+                  <div style={{
+                    background: '#f1f5f9',
+                    borderRadius: '10px',
+                    padding: '3px',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '4px',
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const daysNum = parseInt(noticeInLieuModal.days, 10) || 30;
+                        const calcAmt = (noticeInLieuModal.dailyRate * daysNum).toFixed(2);
+                        setNoticeInLieuModal(prev => ({
+                          ...prev,
+                          calculationMode: 'days',
+                          days: daysNum.toString(),
+                          amount: calcAmt
+                        }));
+                      }}
+                      style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: noticeInLieuModal.calculationMode === 'days' ? '#ffffff' : 'transparent',
+                        color: noticeInLieuModal.calculationMode === 'days' ? '#0f172a' : '#64748b',
+                        fontWeight: noticeInLieuModal.calculationMode === 'days' ? 800 : 600,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: noticeInLieuModal.calculationMode === 'days' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Clock size={14} style={{ color: noticeInLieuModal.calculationMode === 'days' ? '#dc2626' : '#94a3b8' }} />
+                      <span>Calculate by Unserved Days</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNoticeInLieuModal(prev => ({ ...prev, calculationMode: 'amount' }))}
+                      style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: noticeInLieuModal.calculationMode === 'amount' ? '#ffffff' : 'transparent',
+                        color: noticeInLieuModal.calculationMode === 'amount' ? '#0f172a' : '#64748b',
+                        fontWeight: noticeInLieuModal.calculationMode === 'amount' ? 800 : 600,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: noticeInLieuModal.calculationMode === 'amount' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <NairaSign size={14} style={{ color: noticeInLieuModal.calculationMode === 'amount' ? '#dc2626' : '#94a3b8' }} />
+                      <span>Enter Direct Actual Amount (₦)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mode: By Days */}
+                {noticeInLieuModal.calculationMode === 'days' ? (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
+                        Number of Unserved Notice Days: *
+                      </label>
+                      <span style={{ fontSize: '0.74rem', color: '#2563eb', fontWeight: 600 }}>
+                        Formula: {noticeInLieuModal.days || 0} days × ₦{fmt(noticeInLieuModal.dailyRate)} = ₦{fmt(parseFloat(noticeInLieuModal.amount) || 0)}
+                      </span>
+                    </div>
+
+                    <input
+                      type="number"
+                      min="0"
+                      max="365"
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.8rem',
+                        borderRadius: '8px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        color: '#0f172a',
+                        background: '#ffffff',
+                        outline: 'none',
+                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                      }}
+                      value={noticeInLieuModal.days}
+                      onChange={(e) => {
+                        const d = e.target.value;
+                        const numD = parseInt(d, 10);
+                        const calcAmt = !isNaN(numD) && numD >= 0 ? (noticeInLieuModal.dailyRate * numD).toFixed(2) : '0.00';
+                        setNoticeInLieuModal(prev => ({
+                          ...prev,
+                          days: d,
+                          amount: calcAmt
+                        }));
+                      }}
+                      placeholder="e.g. 15, 30"
+                      required
+                    />
+
+                    {/* Quick Days Preset Chips */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                      {[
+                        { label: '1 Full Month (30d)', days: 30 },
+                        { label: '15 Days (Half Month)', days: 15 },
+                        { label: '10 Days', days: 10 },
+                        { label: '5 Days', days: 5 },
+                        { label: '0 Days (Reset)', days: 0 },
+                      ].map((preset, idx) => {
+                        const isSelected = String(noticeInLieuModal.days) === String(preset.days);
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              const calcAmt = (noticeInLieuModal.dailyRate * preset.days).toFixed(2);
+                              setNoticeInLieuModal(prev => ({
+                                ...prev,
+                                days: preset.days.toString(),
+                                amount: calcAmt
+                              }));
+                            }}
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              border: `1px solid ${isSelected ? '#dc2626' : '#e2e8f0'}`,
+                              background: isSelected ? '#fef2f2' : '#ffffff',
+                              fontSize: '0.72rem',
+                              color: isSelected ? '#b91c1c' : '#334155',
+                              fontWeight: isSelected ? 700 : 500,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  /* Mode: By Amount */
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
+                        Actual Payment in Lieu Amount (₦) *
+                      </label>
+                      <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>
+                        {noticeInLieuModal.dailyRate > 0 && parseFloat(noticeInLieuModal.amount) > 0
+                          ? `≈ ${Math.round(parseFloat(noticeInLieuModal.amount) / noticeInLieuModal.dailyRate)} days unserved notice`
+                          : ''}
+                      </span>
+                    </div>
+
+                    <div style={{ position: 'relative' }}>
+                      <div style={{
+                        position: 'absolute',
+                        left: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        pointerEvents: 'none'
+                      }}>
+                        <NairaSign size={16} />
+                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.8rem 0.5rem 2rem',
+                          borderRadius: '8px',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '0.95rem',
+                          fontWeight: 800,
+                          color: '#0f172a',
+                          background: '#ffffff',
+                          outline: 'none',
+                        }}
+                        value={noticeInLieuModal.amount}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const numVal = parseFloat(val);
+                          const equivDays = !isNaN(numVal) && noticeInLieuModal.dailyRate > 0 ? Math.round(numVal / noticeInLieuModal.dailyRate) : 0;
+                          setNoticeInLieuModal(prev => ({
+                            ...prev,
+                            amount: val,
+                            days: equivDays.toString()
+                          }));
+                        }}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+
+                    {/* Quick Amount Match Presets */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const amt = noticeInLieuModal.monthlyGross.toFixed(2);
+                          setNoticeInLieuModal(prev => ({
+                            ...prev,
+                            amount: amt,
+                            days: '30'
+                          }));
+                        }}
+                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #bfdbfe', background: '#eff6ff', fontSize: '0.72rem', color: '#1d4ed8', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        1 Month Gross (₦{fmt(noticeInLieuModal.monthlyGross)})
+                      </button>
+
+                      {noticeInLieuModal.retentionAvailable > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const amt = noticeInLieuModal.retentionAvailable.toFixed(2);
+                            const equiv = noticeInLieuModal.dailyRate > 0 ? Math.round(noticeInLieuModal.retentionAvailable / noticeInLieuModal.dailyRate) : 0;
+                            setNoticeInLieuModal(prev => ({
+                              ...prev,
+                              amount: amt,
+                              days: equiv.toString(),
+                              deductionSource: 'retention'
+                            }));
+                          }}
+                          style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: '0.72rem', color: '#166534', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Match Retention (₦{fmt(noticeInLieuModal.retentionAvailable)})
+                        </button>
+                      )}
+
+                      {noticeInLieuModal.salaryAvailable > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const amt = noticeInLieuModal.salaryAvailable.toFixed(2);
+                            const equiv = noticeInLieuModal.dailyRate > 0 ? Math.round(noticeInLieuModal.salaryAvailable / noticeInLieuModal.dailyRate) : 0;
+                            setNoticeInLieuModal(prev => ({
+                              ...prev,
+                              amount: amt,
+                              days: equiv.toString(),
+                              deductionSource: 'salary'
+                            }));
+                          }}
+                          style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #bfdbfe', background: '#eff6ff', fontSize: '0.72rem', color: '#1e40af', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Match Notice Salary (₦{fmt(noticeInLieuModal.salaryAvailable)})
+                        </button>
+                      )}
+
+                      {noticeInLieuModal.coopSavingsAvailable > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const amt = noticeInLieuModal.coopSavingsAvailable.toFixed(2);
+                            const equiv = noticeInLieuModal.dailyRate > 0 ? Math.round(noticeInLieuModal.coopSavingsAvailable / noticeInLieuModal.dailyRate) : 0;
+                            setNoticeInLieuModal(prev => ({
+                              ...prev,
+                              amount: amt,
+                              days: equiv.toString(),
+                              deductionSource: 'coop_savings'
+                            }));
+                          }}
+                          style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', fontSize: '0.72rem', color: '#166534', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Match Coop Savings (₦{fmt(noticeInLieuModal.coopSavingsAvailable)})
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setNoticeInLieuModal(prev => ({ ...prev, amount: '0.00', days: '0' }))}
+                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff5f5', fontSize: '0.72rem', color: '#b91c1c', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Reset / Clear (₦0.00)
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Deduction Source & Offset Target Dropdown */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '0.25rem' }}>
+                    Deduct From / Offset Target Source:
+                  </label>
+                  <select
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem 0.8rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      outline: 'none',
+                    }}
+                    value={noticeInLieuModal.deductionSource}
+                    onChange={(e) => setNoticeInLieuModal(prev => ({ ...prev, deductionSource: e.target.value }))}
+                  >
+                    <option value="general">All Available Exit Settlement Funds (General Offset Pool)</option>
+                    <option value="retention">Retention Savings Refund (Take from staff retention fund)</option>
+                    <option value="salary">Notice Salary Payment (Take from earned notice salary)</option>
+                    <option value="coop_savings">Cooperative Savings Refund (Take from staff cooperative balance)</option>
+                  </select>
+                </div>
+
+                {/* Reason / Agreement Default Note */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: '0.25rem' }}>
+                    Reason / Agreement Breach Note:
+                  </label>
+                  <input
+                    type="text"
+                    style={{
+                      width: '100%',
+                      padding: '0.45rem 0.8rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.82rem',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      outline: 'none',
+                    }}
+                    value={noticeInLieuModal.reason}
+                    onChange={(e) => setNoticeInLieuModal(prev => ({ ...prev, reason: e.target.value }))}
+                    placeholder="e.g. Staff did not meet up with agreed notice period / handover"
+                  />
+                </div>
+
+                {/* Financial Clearance Impact Hero Summary */}
+                {(() => {
+                  const numAmt = parseFloat(noticeInLieuModal.amount) || 0;
+                  const currentDeductionsExceptLieu = (settlementData.deductions?.itemized_deductions || [])
+                    .filter(d => !d.name.includes('Payment in Lieu'))
+                    .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+                  const newTotalDeductions = currentDeductionsExceptLieu + numAmt;
+                  const totalEarnings = parseFloat(settlementData.settlement_summary?.total_final_earnings ?? 0) || 0;
+                  const projectedNet = totalEarnings - newTotalDeductions;
+                  const isRecoverable = projectedNet < 0;
+
+                  return (
+                    <div style={{
+                      background: isRecoverable
+                        ? 'linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%)'
+                        : 'linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%)',
+                      border: `1.5px solid ${isRecoverable ? '#fca5a5' : '#86efac'}`,
+                      borderRadius: '12px',
+                      padding: '0.85rem 1rem',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                    }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '8px',
+                        paddingBottom: '8px',
+                        borderBottom: `1px solid ${isRecoverable ? '#fecaca' : '#bbf7d0'}`
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.675rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Total Final Earnings</div>
+                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem', marginTop: '2px' }}>₦{fmt(totalEarnings)}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.675rem', color: '#dc2626', textTransform: 'uppercase', fontWeight: 700 }}>Notice in Lieu</div>
+                          <div style={{ fontWeight: 800, color: '#dc2626', fontSize: '0.9rem', marginTop: '2px' }}>- ₦{fmt(numAmt)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.675rem', color: '#b91c1c', textTransform: 'uppercase', fontWeight: 700 }}>Total Final Deductions</div>
+                          <div style={{ fontWeight: 800, color: '#b91c1c', fontSize: '0.9rem', marginTop: '2px' }}>- ₦{fmt(newTotalDeductions)}</div>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingTop: '8px',
+                      }}>
+                        <div>
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            color: isRecoverable ? '#b91c1c' : '#15803d',
+                          }}>
+                            {isRecoverable ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
+                            <span>{isRecoverable ? 'FINAL NET RECOVERABLE FROM STAFF:' : 'FINAL NET PAYABLE TO STAFF:'}</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: isRecoverable ? '#991c1c' : '#166534', marginTop: '2px' }}>
+                            {isRecoverable
+                              ? 'Notice deduction exceeds earnings; balance flagged for Debt Recovery.'
+                              : 'Notice deduction will be satisfied directly from terminal earnings.'}
+                          </div>
+                        </div>
+
+                        <div style={{
+                          fontSize: '1.3rem',
+                          fontWeight: 900,
+                          color: isRecoverable ? '#b91c1c' : '#15803d',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          letterSpacing: '-0.02em',
+                        }}>
+                          <NairaSign size={19} />
+                          <span>{fmt(Math.abs(projectedNet))}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Premium Footer */}
+              <div style={{
+                padding: '0.85rem 1.4rem',
+                borderTop: '1px solid #f1f5f9',
+                background: '#f8fafc',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <button
+                  type="button"
+                  style={{
+                    padding: '0.55rem 1.1rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setNoticeInLieuModal(prev => ({ ...prev, open: false }))}
+                  disabled={noticeInLieuModal.loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                    border: 'none',
+                    color: '#ffffff',
+                    padding: '0.55rem 1.25rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
+                  }}
+                  disabled={noticeInLieuModal.loading}
+                >
+                  {noticeInLieuModal.loading ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  <span>Apply &amp; Save Notice Deduction</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ── Forward Back to Audit Head Modal ────────────── */}
       {resubmitDialog.open && (
         <div className={styles.modalOverlay} onClick={() => !resubmitDialog.loading && setResubmitDialog({ open: false, record: null, remarks: '', loading: false })}>
@@ -2520,6 +3594,9 @@ export default function ResignationSettlementPage() {
                     {d.name}
                     {d.name.includes('Leave of Absence') && d.amount > 0 && d.note && d.note !== 'Nil' && (
                       <span style={{ fontSize: '0.75rem', color: '#666' }}> ({d.note})</span>
+                    )}
+                    {d.name.includes('Payment in Lieu') && d.amount > 0 && d.note && d.note !== 'Nil' && (
+                      <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontWeight: 600 }}> ({d.note})</span>
                     )}
                   </td>
                   <td style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'right' }}>₦{fmt(d.amount)}</td>
