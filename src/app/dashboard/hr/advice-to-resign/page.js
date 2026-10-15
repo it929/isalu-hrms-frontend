@@ -2592,6 +2592,12 @@ Isalu Hospitals Limited`;
                                   {d.name.includes('Leave of Absence') && Number(d.amount) > 0 && d.note && d.note !== 'Nil' && (
                                     <span className={styles.sheetRowNote} style={{ color: '#ef4444' }}> ({d.note})</span>
                                   )}
+                                  {d.name.includes('Payment in Lieu') && Number(d.amount) > 0 && d.note && d.note !== 'Nil' && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#dc2626', fontWeight: 600 }}> ({d.note})</span>
+                                  )}
+                                  {d.name.includes('Payment in Lieu') && Number(d.amount) === 0 && (
+                                    <span className={styles.sheetRowNote} style={{ color: '#64748b' }}> (Notice served / not applied)</span>
+                                  )}
                                 </span>
                               </div>
                               {d.name.includes('Medical Loan') && canManageMedicalLoan && (
